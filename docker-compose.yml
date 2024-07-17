@@ -1,0 +1,63 @@
+services:
+  build:
+    platform: linux/amd64
+    build:
+      platforms:
+        - "linux/amd64"
+      context: .
+      dockerfile: ./Dockerfile
+    image: local/maplibre-gl-js
+
+  dev:
+    image: local/maplibre-gl-js
+    platform: linux/amd64
+    working_dir: /maplibre-gl-js
+    volumes:
+      - ./:/maplibre-gl-js/
+    ports:
+      - 9966:9966
+    command:
+      - /bin/bash
+      - -c
+      - |
+        npm ci
+        # npm run start
+        # npm run test
+        npm run test-render
+
+  build-dist:
+    image: local/maplibre-gl-js
+    platform: linux/amd64
+    working_dir: /maplibre-gl-js
+    volumes:
+      - ./:/maplibre-gl-js/
+    ports:
+      - 9966:9966
+    command:
+      - /bin/bashtests
+      - -c
+      - |
+        set -xe
+        npm ci
+        npm run build-css
+        npm run generate-typings
+        npm run build-dev
+        npm run build-csp-dev
+        npm run build-prod
+        npm run build-prod-unminified
+        npm run build-csp
+
+  test:
+    image: local/maplibre-gl-js
+    platform: linux/amd64
+    volumes:
+      - ./:/maplibre-gl-js/
+    ports:
+      - 9223:9222
+    command:
+      - /bin/bash
+      - -c
+      - |
+        set -xe
+        # npm ci
+        env DEBUG="puppeteer:*" node --no-warnings --loader ts-node/esm test/integration/render/run_render_tests.ts text-pitch-scaling --debug

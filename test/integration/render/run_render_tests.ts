@@ -830,6 +830,7 @@ async function executeRenderTests() {
         skipreport: false,
         seed: makeHash(),
         debug: false,
+        // debug: true,
         openBrowser: false
     };
 
@@ -842,8 +843,28 @@ async function executeRenderTests() {
         options.openBrowser = checkParameter(options, '--open-browser');
     }
 
-    const browser = await puppeteer.launch({headless: !options.openBrowser, args: ['--enable-webgl', '--no-sandbox',
-        '--disable-web-security']});
+
+    const browser = await puppeteer.launch({
+        executablePath: '/usr/bin/google-chrome',
+        args: [...] // if we need them.
+      });
+
+    const browser = await puppeteer.launch({
+        executablePath: '/usr/bin/google-chrome',
+        headless: true,
+        args: [
+            '--enable-webgl',
+            '--no-sandbox',
+            '--disable-web-security',
+            '--disable-gpu',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--remote-debugging-port=9222',
+            '--remote-debugging-address=0.0.0.0',
+        ],
+        slowMo: 250, // slow down by 250ms
+        // protocolTimeout: 240000,
+    });
 
     const server = http.createServer(
         st({
