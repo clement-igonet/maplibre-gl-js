@@ -58,6 +58,17 @@ export type CoveringTilesOptionsInternal = CoveringTilesOptions & {
      * Optional function to redefine how tiles are loaded at high pitch angles.
      */
     calculateTileZoom?: CalculateTileZoomFunction;
+    /**
+     * Hysteresis margin, in zoom levels, applied to the variable per-tile zoom
+     * selection. A tile present in `previousCover` keeps its zoom until the
+     * desired zoom moves away by more than this margin, which stabilizes the
+     * tile organization under small camera changes. 0 disables it.
+     */
+    zoomHysteresis?: number;
+    /**
+     * The tile cover selected by the previous call, used by `zoomHysteresis`.
+     */
+    previousCover?: readonly OverscaledTileID[];
 };
 
 /**
@@ -246,6 +257,21 @@ export function coveringTiles(transform: IReadonlyTransform, options: CoveringTi
         };
     };
 
+    const zoomHysteresis = options.zoomHysteresis ?? 0;
+    let prevCoverSet: Set<string> | null = null;
+    let prevAncestorSet: Set<string> | null = null;
+    if (allowVariableZoom && zoomHysteresis > 0 && options.previousCover?.length) {
+        prevCoverSet = new Set();
+        prevAncestorSet = new Set();
+        for (const id of options.previousCover) {
+            const c = id.canonical;
+            prevCoverSet.add(`${c.z}/${c.x}/${c.y}/${id.wrap}`);
+            for (let up = 1; up <= c.z; up++) {
+                prevAncestorSet.add(`${c.z - up}/${c.x >> up}/${c.y >> up}/${id.wrap}`);
+            }
+        }
+    }
+
     // Do a depth-first traversal to find visible tiles and proper levels of detail
     const stack: CoveringTilesStackEntry[] = [];
     const result: CoveringTilesResult[] = [];
@@ -289,12 +315,26 @@ export function coveringTiles(transform: IReadonlyTransform, options: CoveringTi
                 distanceToCenter3d,
                 transform.fov);
         }
-        thisTileDesiredZ = (options.roundZoom ? Math.round : Math.floor)(thisTileDesiredZ);
-        thisTileDesiredZ = Math.max(0, thisTileDesiredZ);
-        const z = Math.min(thisTileDesiredZ, maxZoom);
 
         // We need to compute a valid wrap value for the tile to keep globe compatibility with mercator
         it.wrap = detailsProvider.getWrap(centerCoord, tileID, it.wrap);
+
+        // Hysteresis: a node selected in the previous cover resists being subdivided or
+        // coarsened, and a node whose descendants were selected resists being coarsened,
+        // until the desired zoom moves by more than the margin. This keeps the tile
+        // organization stable under small camera changes.
+        if (prevCoverSet) {
+            const nodeKey = `${it.zoom}/${x}/${y}/${it.wrap}`;
+            if (prevCoverSet.has(nodeKey)) {
+                thisTileDesiredZ -= zoomHysteresis;
+            } else if (prevAncestorSet.has(nodeKey)) {
+                thisTileDesiredZ += zoomHysteresis;
+            }
+        }
+
+        thisTileDesiredZ = (options.roundZoom ? Math.round : Math.floor)(thisTileDesiredZ);
+        thisTileDesiredZ = Math.max(0, thisTileDesiredZ);
+        const z = Math.min(thisTileDesiredZ, maxZoom);
 
         // Have we reached the target depth?
         if (it.zoom >= z) {

@@ -831,3 +831,50 @@ describe('coveringZoomLevel', () => {
         expect(coveringZoomLevel(transform, options)).toBe(13);
     });
 });
+describe('zoomHysteresis (#8054)', () => {
+    const makeTransform = (zoom: number) => {
+        const transform = new MercatorTransform(0, 22, 0, 85, true);
+        transform.setMaxPitch(85);
+        transform.resize(800, 600);
+        transform.setCenter(new LngLat(11.39, 47.27));
+        transform.setZoom(zoom);
+        transform.setPitch(80);
+        return transform;
+    };
+    const countAtZ = (tiles: OverscaledTileID[], z: number) => tiles.filter(t => t.canonical.z === z).length;
+
+    test('small zoom change subdivides the cover without hysteresis', () => {
+        const before = coveringTiles(makeTransform(14.9), {tileSize: 512});
+        const after = coveringTiles(makeTransform(15.05), {tileSize: 512});
+        expect(countAtZ(after, 17)).toBeGreaterThan(countAtZ(before, 17));
+    });
+
+    test('previous cover is kept within the hysteresis margin', () => {
+        const before = coveringTiles(makeTransform(14.9), {tileSize: 512});
+        const after = coveringTiles(makeTransform(15.05), {tileSize: 512, zoomHysteresis: 0.5, previousCover: before});
+        const plain = coveringTiles(makeTransform(15.05), {tileSize: 512});
+        expect(countAtZ(after, 16)).toBe(countAtZ(before, 16));
+        expect(countAtZ(after, 17)).toBeLessThan(countAtZ(plain, 17));
+    });
+
+    test('cover still changes once the margin is exceeded', () => {
+        const before = coveringTiles(makeTransform(14.9), {tileSize: 512});
+        const after = coveringTiles(makeTransform(15.9), {tileSize: 512, zoomHysteresis: 0.5, previousCover: before});
+        const key = (t: OverscaledTileID) => `${t.canonical.z}/${t.canonical.x}/${t.canonical.y}/${t.wrap}`;
+        expect(after.map(key).sort()).not.toEqual(before.map(key).sort());
+    });
+
+    test('descendants of the previous cover resist coarsening', () => {
+        const before = coveringTiles(makeTransform(15.1), {tileSize: 512});
+        const withHysteresis = coveringTiles(makeTransform(14.95), {tileSize: 512, zoomHysteresis: 0.5, previousCover: before});
+        const without = coveringTiles(makeTransform(14.95), {tileSize: 512});
+        expect(countAtZ(withHysteresis, 17)).toBeGreaterThanOrEqual(countAtZ(before, 17));
+        expect(countAtZ(without, 17)).toBeLessThan(countAtZ(before, 17));
+    });
+
+    test('no previous cover behaves like no hysteresis', () => {
+        const plain = coveringTiles(makeTransform(15.05), {tileSize: 512});
+        const withOption = coveringTiles(makeTransform(15.05), {tileSize: 512, zoomHysteresis: 0.5, previousCover: []});
+        expect(withOption).toEqual(plain);
+    });
+});

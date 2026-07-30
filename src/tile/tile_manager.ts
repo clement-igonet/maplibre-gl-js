@@ -88,6 +88,7 @@ export class TileManager extends Evented {
     _state: SourceFeatureState;
     _didEmitContent: boolean;
     _updated: boolean;
+    _previousCover: OverscaledTileID[];
     _rasterFadeDuration: number;
     _maxFadingAncestorLevels: number;
 
@@ -520,7 +521,10 @@ export class TileManager extends Evented {
                 reparseOverscaled: this._source.reparseOverscaled,
                 terrain,
                 calculateTileZoom: this._source.calculateTileZoom,
+                zoomHysteresis: this._source.zoomHysteresis,
+                previousCover: this._previousCover,
             });
+            this._previousCover = idealTileIDs;
 
             if (this._source.hasTile) { // tile should be in bounds
                 idealTileIDs = idealTileIDs.filter((coord) => this._source.hasTile(coord));

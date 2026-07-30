@@ -123,6 +123,13 @@ export interface Source {
      */
     calculateTileZoom?: CalculateTileZoomFunction;
     /**
+     * Optional hysteresis margin, in zoom levels, for the variable per-tile zoom
+     * selection: a covered tile keeps its zoom until the desired zoom moves away
+     * by more than this margin. Stabilizes the tile organization under small
+     * camera changes at high pitch. 0 or undefined disables it.
+     */
+    zoomHysteresis?: number;
+    /**
      * Optional function to determine whether a tile should be reloaded, given a
      * set of options associated with a `MapSourceDataChangedEvent`.
      * @internal
