@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Position-based level of detail</title>
+    <meta property="og:description" content="Keep the tile organization unchanged while a first-person camera looks around, by computing tile detail from the camera position only." />
+    <meta property="og:category" content="Camera & Animation" />
+    <meta property="og:created" content="2026-08-01" />
+    <meta charset='utf-8'>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <link rel='stylesheet' href='../../dist/maplibre-gl.css' />
+    <style>
+        body { margin: 0; padding: 0; }
+        html, body, #map { height: 100%; }
+        #controls {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: grid;
+            grid-template-columns: repeat(3, 52px);
+            grid-auto-rows: 52px;
+            gap: 6px;
+            touch-action: none;
+        }
+        #controls button {
+            font: 600 16px system-ui, sans-serif;
+            color: #fff;
+            background: rgba(0, 0, 0, .5);
+            border: none;
+            border-radius: 8px;
+        }
+        #controls .up { grid-area: 1 / 2; }
+        #controls .left { grid-area: 2 / 1; }
+        #controls .down { grid-area: 2 / 2; }
+        #controls .right { grid-area: 2 / 3; }
+    </style>
+</head>
+<body>
+<div id="map"></div>
+<div id="controls">
+    <button type="button" class="up" data-key="KeyW">W</button>
+    <button type="button" class="left" data-key="KeyA">A</button>
+    <button type="button" class="down" data-key="KeyS">S</button>
+    <button type="button" class="right" data-key="KeyD">D</button>
+</div>
+
+<script type="module">
+import * as maplibregl from '../../dist/maplibre-gl-dev.mjs';
+
+const EYE_HEIGHT = 2.5;
+const WALK_SPEED = 4;
+const TURN_SPEED = 2;
+const LOOK_AHEAD = 20;
+const ORIGIN = [2.3364, 48.8606];
+
+const originMercator = maplibregl.MercatorCoordinate.fromLngLat(ORIGIN);
+const metresToMercatorUnits = originMercator.meterInMercatorCoordinateUnits();
+const player = {x: 0, y: 0, heading: Math.PI / 2};
+
+function toLngLat(x, y) {
+    return new maplibregl.MercatorCoordinate(
+        originMercator.x + x * metresToMercatorUnits,
+        originMercator.y - y * metresToMercatorUnits
+    ).toLngLat();
+}
+
+const map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://tiles.openfreemap.org/styles/liberty',
+    center: ORIGIN,
+    zoom: 18,
+    pitch: 85,
+    maxPitch: 95,
+    centerClampedToGround: false,
+    interactive: false
+});
+
+map.showTileBoundaries = true;
+
+map.on('load', () => {
+    // Derive each tile's zoom from the camera-to-tile distance only, so the
+    // tile organization depends on where the camera stands, never on where it
+    // looks: turning in place reloads nothing, and the same position always
+    // shows the same tiles. C calibrates the zoom at the nadir for this
+    // viewport, and the last term loads tiles seen at grazing angles coarser,
+    // matching the default's tile budget.
+    const C = Math.log2(1.5 * map.getContainer().clientHeight / 512);
+    const positionOnlyTileZoom = (requestedCenterZoom, distanceToTile2D, distanceToTileZ,
+        distanceToCenter3D, cameraVerticalFOV, cameraAltitudeZ) => {
+        const grazing = Math.atan(distanceToTile2D / cameraAltitudeZ);
+        return C - Math.log2(Math.hypot(distanceToTile2D, cameraAltitudeZ)) +
+            Math.log2(Math.cos(grazing)) / 2;
+    };
+    for (const id of Object.keys(map.getStyle().sources)) {
+        const source = map.getSource(id);
+        source.calculateTileZoom = positionOnlyTileZoom;
+        // Keep the function in charge below the pitch threshold that normally
+        // disables variable zoom.
+        source.alwaysCalculateTileZoom = true;
+    }
+});
+
+function updateCamera() {
+    const eye = toLngLat(player.x, player.y);
+    const ahead = toLngLat(
+        player.x + Math.cos(player.heading) * LOOK_AHEAD,
+        player.y + Math.sin(player.heading) * LOOK_AHEAD
+    );
+    map.jumpTo(map.calculateCameraOptionsFromTo(eye, EYE_HEIGHT, ahead, EYE_HEIGHT));
+}
+
+const keysDown = new Set();
+addEventListener('keydown', (event) => keysDown.add(event.code));
+addEventListener('keyup', (event) => keysDown.delete(event.code));
+for (const button of document.querySelectorAll('#controls button')) {
+    const code = button.dataset.key;
+    button.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        button.setPointerCapture(event.pointerId);
+        keysDown.add(code);
+    });
+    button.addEventListener('lostpointercapture', () => keysDown.delete(code));
+}
+
+let lastFrameTime = performance.now();
+function loop(now) {
+    const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+    lastFrameTime = now;
+
+    let changed = false;
+    if (keysDown.has('KeyA')) { player.heading += TURN_SPEED * dt; changed = true; }
+    if (keysDown.has('KeyD')) { player.heading -= TURN_SPEED * dt; changed = true; }
+    let step = 0;
+    if (keysDown.has('KeyW')) step += WALK_SPEED * dt;
+    if (keysDown.has('KeyS')) step -= WALK_SPEED * dt;
+    if (step !== 0) {
+        player.x += Math.cos(player.heading) * step;
+        player.y += Math.sin(player.heading) * step;
+        changed = true;
+    }
+    if (changed) updateCamera();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+updateCamera();
+</script>
+</body>
+</html>

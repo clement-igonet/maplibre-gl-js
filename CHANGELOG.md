@@ -1,5 +1,6 @@
 ## main
 ### ✨ Features and improvements
+- Pass the camera altitude to `calculateTileZoom` and add `Source.alwaysCalculateTileZoom` to run a custom function at any pitch, enabling camera-position-only tile level of detail for first-person views ([#8057](https://github.com/maplibre/maplibre-gl-js/issues/8057)) (by [@clement-igonet](https://github.com/clement-igonet))
 - _...Add new stuff here..._
 
 ### 🐞 Bug fixes
