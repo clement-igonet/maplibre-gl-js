@@ -134,20 +134,23 @@ export function createCalculateTileZoomFunction(maxZoomLevelsOnScreen: number, t
             scaleZoom(Math.cos(degreesToRadians(maxMercatorHorizonAngle - cameraVerticalFOV)) /
                 Math.cos(degreesToRadians(maxMercatorHorizonAngle))) - 1);
 
-        const centerPitch = Math.acos(distanceToTileZ / distanceToCenter3D);
-        const tileCountPitch0 = 2 * integralOfCosXByP(pitchTileLoadingBehavior - 1, 0, degreesToRadians(cameraVerticalFOV / 2));
-        const highestPitch = Math.min(degreesToRadians(maxMercatorHorizonAngle), centerPitch + degreesToRadians(cameraVerticalFOV / 2));
-        const lowestPitch = Math.min(highestPitch, centerPitch - degreesToRadians(cameraVerticalFOV / 2));
-        const tileCount = integralOfCosXByP(pitchTileLoadingBehavior - 1, lowestPitch, highestPitch);
         const thisTilePitch = Math.atan(distanceToTile2D / distanceToTileZ);
         const distanceToTile3D = Math.hypot(distanceToTile2D, distanceToTileZ);
 
+        // maplibre#8057 (position-only LOD prototype): key the desired zoom on the
+        // camera->tile distance instead of the orientation-dependent camera->center
+        // distance. The reference distance becomes distanceToTileZ (the camera's height
+        // above the tile plane, i.e. a function of camera POSITION), not distanceToCenter3D
+        // (which moves as you look around). A tile's desired zoom therefore depends only on
+        // where the camera IS, not where it looks: rotating/pitching at a fixed standpoint
+        // never re-LODs a tile, so its cached copy stays valid. The pitch-loading term below
+        // (a per-tile, position-only quantity) still coarsens tiles toward the horizon, so
+        // we drop the orientation-dependent tileCount reduction entirely. Loading and
+        // frustum culling are unchanged. distanceToCenter3D / tileCountMaxMinRatio are now
+        // unused — kept in the signature for a drop-in prototype build.
         let thisTileDesiredZ = requestedCenterZoom;
-        // if distance to candidate tile is a tiny bit farther than distance to center,
-        // use the same zoom as the center. This is achieved by the scaling distance ratio by cos(fov/2)
-        thisTileDesiredZ = thisTileDesiredZ + scaleZoom(distanceToCenter3D / distanceToTile3D / Math.max(0.5, Math.cos(degreesToRadians(cameraVerticalFOV / 2))));
+        thisTileDesiredZ = thisTileDesiredZ + scaleZoom(distanceToTileZ / distanceToTile3D / Math.max(0.5, Math.cos(degreesToRadians(cameraVerticalFOV / 2))));
         thisTileDesiredZ += pitchTileLoadingBehavior * scaleZoom(Math.cos(thisTilePitch)) / 2;
-        thisTileDesiredZ -= scaleZoom(Math.max(1, tileCount / tileCountPitch0 / tileCountMaxMinRatio)) / 2;
         return thisTileDesiredZ;
     };
 }
