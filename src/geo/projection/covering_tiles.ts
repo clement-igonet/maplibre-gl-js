@@ -137,20 +137,23 @@ export function createCalculateTileZoomFunction(maxZoomLevelsOnScreen: number, t
         const thisTilePitch = Math.atan(distanceToTile2D / distanceToTileZ);
         const distanceToTile3D = Math.hypot(distanceToTile2D, distanceToTileZ);
 
-        // maplibre#8057 (position-only LOD prototype): key the desired zoom on the
+        // maplibre#8057 (position-only LOD prototype, v2): key the desired zoom on the
         // camera->tile distance instead of the orientation-dependent camera->center
-        // distance. The reference distance becomes distanceToTileZ (the camera's height
-        // above the tile plane, i.e. a function of camera POSITION), not distanceToCenter3D
-        // (which moves as you look around). A tile's desired zoom therefore depends only on
-        // where the camera IS, not where it looks: rotating/pitching at a fixed standpoint
-        // never re-LODs a tile, so its cached copy stays valid. The pitch-loading term below
-        // (a per-tile, position-only quantity) still coarsens tiles toward the horizon, so
-        // we drop the orientation-dependent tileCount reduction entirely. Loading and
-        // frustum culling are unchanged. distanceToCenter3D / tileCountMaxMinRatio are now
-        // unused — kept in the signature for a drop-in prototype build.
+        // distance. The caller now passes distanceToTileZ = cameraToCenterDistance/worldSize
+        // (the PITCH-INDEPENDENT camera height) rather than cos(pitch)*... — which collapsed
+        // to 0 at pitch~90, driving the desired zoom to ~z0. Both terms below are functions of
+        // the tile's position relative to the camera, not of look direction, so rotating/
+        // pitching at a fixed standpoint never re-LODs a tile and its cached copy stays valid.
+        // A minimum-zoom floor (MAX_LOD_DROP levels below the center zoom) prevents far/horizon
+        // tiles from being requested so coarse that their fill-extrusion buckets exceed
+        // MapLibre's 65535-vertices-per-segment limit and get dropped. Loading and frustum
+        // culling are unchanged. distanceToCenter3D / tileCountMaxMinRatio are now unused —
+        // kept in the signature for a drop-in prototype build.
+        const MAX_LOD_DROP = 4;
         let thisTileDesiredZ = requestedCenterZoom;
         thisTileDesiredZ = thisTileDesiredZ + scaleZoom(distanceToTileZ / distanceToTile3D / Math.max(0.5, Math.cos(degreesToRadians(cameraVerticalFOV / 2))));
         thisTileDesiredZ += pitchTileLoadingBehavior * scaleZoom(Math.cos(thisTilePitch)) / 2;
+        thisTileDesiredZ = Math.max(thisTileDesiredZ, requestedCenterZoom - MAX_LOD_DROP);
         return thisTileDesiredZ;
     };
 }
@@ -288,7 +291,10 @@ export function coveringTiles(transform: IReadonlyTransform, options: CoveringTi
             const tileZoomFunc = options.calculateTileZoom || defaultCalculateTileZoom;
             thisTileDesiredZ = tileZoomFunc(transform.zoom + scaleZoom(transform.tileSize / options.tileSize),
                 distToTile2d,
-                distanceZ,
+                // maplibre#8057 (position-only LOD): pass the PITCH-INDEPENDENT camera height
+                // (cameraToCenterDistance/worldSize, == distanceZ at pitch 0) as the zoom
+                // reference, instead of distanceZ = cos(pitch)*... which -> 0 at pitch ~90.
+                transform.cameraToCenterDistance / transform.worldSize,
                 distanceToCenter3d,
                 transform.fov);
         }
