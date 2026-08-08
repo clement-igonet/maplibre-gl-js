@@ -1,25 +1,21 @@
-import Point from '@mapbox/point-geometry';
+import {type QueryIntersectsFeatureParams, StyleLayer} from '../style_layer.ts';
+import {LineBucket} from '../../data/bucket/line_bucket.ts';
+import {polygonIntersectsBufferedMultiLine} from '../../util/intersection_tests.ts';
+import {getMaximumPaintValue, translateDistance, translate, offsetLine} from '../query_utils.ts';
+import properties, {type LineLayoutPropsPossiblyEvaluated, type LinePaintPropsPossiblyEvaluated} from './line_style_layer_properties.g.ts';
+import {extend} from '../../util/util.ts';
+import {EvaluationParameters} from '../evaluation_parameters.ts';
+import {type Transitionable, type Transitioning, type Layout, type PossiblyEvaluated, DataDrivenProperty, type PossiblyEvaluatedPropertyValue} from '../properties.ts';
 
-import {StyleLayer} from '../style_layer';
-import {LineBucket} from '../../data/bucket/line_bucket';
-import {polygonIntersectsBufferedMultiLine} from '../../util/intersection_tests';
-import {getMaximumPaintValue, translateDistance, translate, offsetLine} from '../query_utils';
-import properties, {LineLayoutPropsPossiblyEvaluated, LinePaintPropsPossiblyEvaluated} from './line_style_layer_properties.g';
-import {extend} from '../../util/util';
-import {EvaluationParameters} from '../evaluation_parameters';
-import {Transitionable, Transitioning, Layout, PossiblyEvaluated, DataDrivenProperty} from '../properties';
-
-import {isZoomExpression, Step} from '@maplibre/maplibre-gl-style-spec';
-import type {FeatureState, LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
-import type {Bucket, BucketParameters} from '../../data/bucket';
-import type {LineLayoutProps, LinePaintProps} from './line_style_layer_properties.g';
-import type {IReadonlyTransform} from '../../geo/transform_interface';
-import type {VectorTileFeature} from '@mapbox/vector-tile';
+import {isZoomExpression, Step, type Feature, type FeatureState, type StylePropertyExpression} from '@maplibre/maplibre-gl-style-spec';
+import type {LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
+import type {Bucket, BucketParameters} from '../../data/bucket.ts';
+import type {LineLayoutProps, LinePaintProps} from './line_style_layer_properties.g.ts';
 
 export class LineFloorwidthProperty extends DataDrivenProperty<number> {
     useIntegerZoom: true;
 
-    possiblyEvaluate(value, parameters) {
+    possiblyEvaluate(value: any, parameters: EvaluationParameters): PossiblyEvaluatedPropertyValue<number> {
         parameters = new EvaluationParameters(Math.floor(parameters.zoom), {
             now: parameters.now,
             fadeDuration: parameters.fadeDuration,
@@ -29,13 +25,15 @@ export class LineFloorwidthProperty extends DataDrivenProperty<number> {
         return super.possiblyEvaluate(value, parameters);
     }
 
-    evaluate(value, globals, feature, featureState) {
+    evaluate(value: any, globals: EvaluationParameters, feature: Feature, featureState: FeatureState): number {
         globals = extend({}, globals, {zoom: Math.floor(globals.zoom)});
         return super.evaluate(value, globals, feature, featureState);
     }
 }
 
 let lineFloorwidthProperty: LineFloorwidthProperty;
+
+export const isLineStyleLayer = (layer: StyleLayer): layer is LineStyleLayer => layer.type === 'line';
 
 export class LineStyleLayer extends StyleLayer {
     _unevaluatedLayout: Layout<LineLayoutProps>;
@@ -48,17 +46,17 @@ export class LineStyleLayer extends StyleLayer {
     _transitioningPaint: Transitioning<LinePaintProps>;
     paint: PossiblyEvaluated<LinePaintProps, LinePaintPropsPossiblyEvaluated>;
 
-    constructor(layer: LayerSpecification) {
-        super(layer, properties);
+    constructor(layer: LayerSpecification, globalState: Record<string, any>) {
+        super(layer, properties, globalState);
         this.gradientVersion = 0;
         if (!lineFloorwidthProperty) {
             lineFloorwidthProperty =
-                new LineFloorwidthProperty(properties.paint.properties['line-width'].specification);
+                new LineFloorwidthProperty(properties.paint.properties['line-width'].specification, 'line-floorwidth');
             lineFloorwidthProperty.useIntegerZoom = true;
         }
     }
 
-    _handleSpecialPaintPropertyUpdate(name: string) {
+    _handleSpecialPaintPropertyUpdate(name: string): void {
         if (name === 'line-gradient') {
             const expression = this.gradientExpression();
             if (isZoomExpression(expression)) {
@@ -70,17 +68,17 @@ export class LineStyleLayer extends StyleLayer {
         }
     }
 
-    gradientExpression() {
+    gradientExpression(): StylePropertyExpression {
         return this._transitionablePaint._values['line-gradient'].value.expression;
     }
 
-    recalculate(parameters: EvaluationParameters, availableImages: Array<string>) {
+    recalculate(parameters: EvaluationParameters, availableImages: string[]): void {
         super.recalculate(parameters, availableImages);
         (this.paint._values as any)['line-floorwidth'] =
             lineFloorwidthProperty.possiblyEvaluate(this._transitioningPaint._values['line-width'].value, parameters);
     }
 
-    createBucket(parameters: BucketParameters<any>) {
+    createBucket(parameters: BucketParameters<any>): LineBucket {
         return new LineBucket(parameters);
     }
 
@@ -93,14 +91,13 @@ export class LineStyleLayer extends StyleLayer {
         return width / 2 + Math.abs(offset) + translateDistance(this.paint.get('line-translate'));
     }
 
-    queryIntersectsFeature(
-        queryGeometry: Array<Point>,
-        feature: VectorTileFeature,
-        featureState: FeatureState,
-        geometry: Array<Array<Point>>,
-        zoom: number,
-        transform: IReadonlyTransform,
-        pixelsToTileUnits: number
+    queryIntersectsFeature({
+        queryGeometry,
+        feature,
+        featureState,
+        geometry,
+        transform,
+        pixelsToTileUnits}: QueryIntersectsFeatureParams
     ): boolean {
         const translatedPolygon = translate(queryGeometry,
             this.paint.get('line-translate'),
@@ -117,12 +114,12 @@ export class LineStyleLayer extends StyleLayer {
         return polygonIntersectsBufferedMultiLine(translatedPolygon, geometry, halfWidth);
     }
 
-    isTileClipped() {
+    isTileClipped(): boolean {
         return true;
     }
 }
 
-function getLineWidth(lineWidth, lineGapWidth) {
+function getLineWidth(lineWidth: number, lineGapWidth: number): number {
     if (lineGapWidth > 0) {
         return lineGapWidth + 2 * lineWidth;
     } else {

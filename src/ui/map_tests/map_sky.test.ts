@@ -1,14 +1,16 @@
-import {createMap, beforeMapTest} from '../../util/test/util';
+
+import {beforeEach, describe, expect, test, vi} from 'vitest';
+import {createMap, beforeMapTest} from '../../util/test/util.ts';
 
 beforeEach(() => {
     beforeMapTest();
     global.fetch = null;
 });
 
-describe('#setSky', () => {
+describe('setSky', () => {
     test('calls style setSky when set', () => {
         const map = createMap();
-        const spy = jest.fn();
+        const spy = vi.fn();
         map.style.setSky = spy;
         map.setSky({'atmosphere-blend': 0.5});
 
@@ -16,7 +18,7 @@ describe('#setSky', () => {
     });
 });
 
-describe('#getSky', () => {
+describe('getSky', () => {
     test('returns undefined when not set', () => {
         const map = createMap();
         expect(map.getSky()).toBeUndefined();
@@ -24,7 +26,7 @@ describe('#getSky', () => {
 
     test('calls style getSky when invoked', () => {
         const map = createMap();
-        const spy = jest.fn();
+        const spy = vi.fn();
         map.style.getSky = spy;
         map.getSky();
 

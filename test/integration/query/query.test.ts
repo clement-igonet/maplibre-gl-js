@@ -1,156 +1,129 @@
-
-import puppeteer, {Page, Browser} from 'puppeteer';
-
-import {deepEqual} from '../lib/json-diff';
+import {describe, beforeAll, afterAll, test, expect} from 'vitest';
+import {globSync} from 'glob';
 import st from 'st';
 import http from 'node:http';
-import type {Server} from 'node:http';
-
 import path from 'node:path/posix';
 import fs from 'node:fs';
+import type {Page, Browser, WebWorker} from 'puppeteer';
+import type {Server} from 'node:http';
 import type {AddressInfo} from 'node:net';
+import {ensureError} from '../../../src/util/util.ts';
 
-import {localizeURLs} from '../lib/localize-urls';
-import {globSync} from 'glob';
+import {deepEqual} from '../lib/json-diff.ts';
+import {localizeURLs} from '../lib/localize-urls.ts';
+import {launchPuppeteer, startCoverage, stopCoverageAndReport} from '../lib/puppeteer_config.ts';
+import type * as MapLibreGL from '../../../dist/maplibre-gl';
 
-import * as maplibreglModule from '../../../dist/maplibre-gl';
-let maplibregl: typeof maplibreglModule;
+let maplibregl: typeof MapLibreGL;
 
-jest.retryTimes(3);
+async function performQueryOnFixture(fixture)  {
 
-function performQueryOnFixture(fixture)  {
+    async function handleOperation(map: MapLibreGL.Map, operation) {
+        const opName = operation[0];
 
-    return new Promise((resolve, _reject) => {
-
-        function handleOperation(map, operations, opIndex, done) {
-            const operation = operations[opIndex];
-            const opName = operation[0];
-            //Delegate to special handler if one is available
-            if (opName in operationHandlers) {
-                operationHandlers[opName](map, operation.slice(1), () => {
-                    done(opIndex);
-                });
-            } else {
-                map[opName](...operation.slice(1));
-                done(opIndex);
-            }
-        }
-
-        const operationHandlers = {
-            wait(map, params, done) {
-                const wait = () => {
-                    if (map.loaded()) {
-                        done();
-                    } else {
-                        map.once('render', wait);
-                    }
-                };
-                wait();
-            },
-            idle(map, params, done) {
-                const idle = () => {
-                    if (!map.isMoving()) {
-                        done();
-                    } else {
-                        map.once('render', idle);
-                    }
-                };
-                idle();
-            }
-        };
-
-        function applyOperations(map, operations, done) {
-            // No operations specified, end immediately and invoke done.
-            if (!operations || operations.length === 0) {
-                done();
-                return;
-            }
-
-            // Start recursive chain
-            const scheduleNextOperation = (lastOpIndex) => {
-                if (lastOpIndex === operations.length - 1) {
-                    // Stop recursive chain when at the end of the operations
-                    done();
-                    return;
+        switch (opName) {
+            case 'wait':
+                while (!map.loaded()) {
+                    await map.once('render');
                 }
+                break;
+            case 'idle':
+                while(map.isMoving()) {
+                    await map.once('render');
+                }
+                break;
+            default:
+                map[opName](...operation.slice(1));
+                break;
+        }
+    }
 
-                handleOperation(map, operations, ++lastOpIndex, scheduleNextOperation);
-            };
-            scheduleNextOperation(-1);
+    async function applyOperations(map, operations) {
+        // No operations specified, end immediately and invoke done.
+        if (!operations || operations.length === 0) {
+            return;
         }
 
-        const style = fixture.style;
-        const options = style.metadata.test;
-        const skipLayerDelete = style.metadata.skipLayerDelete;
+        for (const operation of operations) {
+            await handleOperation(map, operation);
+        }
+    }
 
-        const map =  new maplibregl.Map({
-            container: 'map',
-            style,
-            interactive: false,
-            attributionControl: false,
-            pixelRatio: options.pixelRatio,
-            preserveDrawingBuffer: true,
-            fadeDuration: options.fadeDuration || 0,
-            localIdeographFontFamily: options.localIdeographFontFamily || false,
-            crossSourceCollisions: typeof options.crossSourceCollisions === 'undefined' ? true : options.crossSourceCollisions
-        });
+    const style = fixture.style;
+    const options = style.metadata.test;
+    const skipLayerDelete = style.metadata.skipLayerDelete;
 
-        map.repaint = true;
-        map.once('load', () => {
-            console.log('load', map);
-            // Run the operations on the map
-            applyOperations(map, options.operations, () => {
-                console.log('operation', map.queryRenderedFeatures);
+    document.getElementById('map').style.width = `${options.width}px`;
+    document.getElementById('map').style.height = `${options.height}px`;
 
-                // Perform query operation and compare results from expected values
-                const results = options.queryGeometry ?
-                    map.queryRenderedFeatures(options.queryGeometry, options.queryOptions || {}) :
-                    [];
-                console.log('results', results);
-
-                const actual = results.map((feature) => {
-                    const featureJson = JSON.parse(JSON.stringify(feature.toJSON()));
-                    if (!skipLayerDelete) delete featureJson.layer;
-                    return featureJson;
-                });
-
-                resolve(actual);
-
-            });
-        });
-
+    const map =  new maplibregl.Map({
+        container: 'map',
+        style,
+        interactive: false,
+        attributionControl: false,
+        pixelRatio: options.pixelRatio,
+        canvasContextAttributes: {preserveDrawingBuffer: true, powerPreference: 'default'},
+        fadeDuration: options.fadeDuration || 0,
+        localIdeographFontFamily: options.localIdeographFontFamily || false,
+        crossSourceCollisions: typeof options.crossSourceCollisions === 'undefined' ? true : options.crossSourceCollisions
     });
+
+    map.repaint = true;
+    await map.once('load');
+    console.log('load', map);
+    // Run the operations on the map
+    await applyOperations(map, options.operations);
+    console.log('operation', map.queryRenderedFeatures);
+
+    // Perform query operation and compare results from expected values
+    const results = options.queryGeometry ?
+        map.queryRenderedFeatures(options.queryGeometry, options.queryOptions || {}) :
+        [];
+    console.log('results', results);
+
+    const actual = results.map((feature) => {
+        const featureJson = JSON.parse(JSON.stringify(feature.toJSON()));
+        if (!skipLayerDelete) delete featureJson.layer;
+        return featureJson;
+    });
+
+    map.remove();
+
+    return actual;
 }
 
 describe('query tests', () => {
     let browser: Browser;
     let server: Server;
+    let page: Page;
+    let workers: WebWorker[] = [];
 
     beforeAll(async () => {
-        server = http.createServer(
-            st({
-                path: 'test/integration/assets',
-                cors: true,
-            })
-        );
-        browser = await puppeteer.launch({headless: true});
+        const assetsMount = st({path: 'test/integration/assets', cors: true, passthrough: true});
+        const distMount = st({path: 'dist', url: '/dist', cors: true, passthrough: true});
+        server = http.createServer((req, res) => {
+            distMount(req, res, () => {
+                assetsMount(req, res, () => {
+                    res.writeHead(404);
+                    res.end('');
+                });
+            });
+        });
+        browser = await launchPuppeteer();
         await new Promise<void>((resolve) => server.listen(resolve));
+        const port = (server.address() as AddressInfo).port;
+        page = await browser.newPage();
+        workers = await startCoverage(page);
+        await page.setViewport({width: 512, height: 512, deviceScaleFactor: 2});
+        await page.goto(`http://localhost:${port}/test-page.html`, {waitUntil: 'load'});
+        await page.waitForFunction(() => (window as any).maplibregl, {timeout: 10000});
     }, 60000);
 
     afterAll(async () => {
+        await stopCoverageAndReport(page, workers, 'query');
         await browser.close();
         await new Promise(resolve => server.close(resolve));
-    });
-
-    let page: Page;
-
-    beforeEach(async () => {
-        page = await browser.newPage();
-        await page.setViewport({width: 512, height: 512, deviceScaleFactor: 2});
-    });
-    afterEach(async() => {
-        await page.close();
-    });
+    }, 60000);
 
     const allTestsRoot = path.join('test', 'integration', 'query', 'tests');
     let globPattern = path.join(allTestsRoot, '**/style.json');
@@ -160,29 +133,9 @@ describe('query tests', () => {
     for (const styleJson of testStyles) {
         const testCaseRoot = path.dirname(styleJson.replace(/\\/g, '/')); // glob is returning paths that dirname can't handle...
         const caseName = path.relative(allTestsRoot, testCaseRoot);
-        test(caseName, async () => {
+        test(caseName, {retry: 3, timeout: 20000}, async () => {
             const port = (server.address() as AddressInfo).port;
             const fixture = await dirToJson(testCaseRoot, port);
-
-            const style = fixture.style;
-            const options = style.metadata.test;
-            await page.setContent(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>Query Test Page</title>
-    <meta charset='utf-8'>
-    <link rel="icon" href="about:blank">
-    <style>#map {
-        box-sizing:content-box;
-        width:${options.width}px;
-        height:${options.height}px;
-    }</style>
-</head>
-<body id='map'></body>
-</html>`);
-            await page.addScriptTag({path: 'dist/maplibre-gl.js'});
-            await page.addStyleTag({path: 'dist/maplibre-gl.css'});
             const actual = await page.evaluate(performQueryOnFixture, fixture);
 
             const isEqual = deepEqual(actual, fixture.expected);
@@ -193,8 +146,7 @@ describe('query tests', () => {
                 fs.writeFileSync(expectedPath, JSON.stringify(actual, null, 2));
             }
             expect(isEqual).toBeTruthy();
-
-        }, 20000);
+        });
 
     }
 });
@@ -232,7 +184,7 @@ async function dirToJson(dir: string, port: number) {
                 console.warn(`Ignoring file with unexpected extension. ${pp.ext}`);
             }
         } catch (e) {
-            console.warn(`Error parsing file: ${file} ${e.message}`);
+            console.warn(`Error parsing file: ${file} ${ensureError(e).message}`);
             throw e;
         }
     }
@@ -243,7 +195,7 @@ function processStyle(testName:string, style: unknown, port:number) {
     const clone = JSON.parse(JSON.stringify(style));
     localizeURLs(clone, port, 'test/integration');
 
-    clone.metadata = clone.metadata || {};
+    clone.metadata ||= {};
 
     clone.metadata.test = {
         testName,

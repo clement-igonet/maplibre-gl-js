@@ -1,18 +1,16 @@
-import {StyleLayer} from '../style_layer';
+import {type QueryIntersectsFeatureParams, StyleLayer} from '../style_layer.ts';
+import {FillBucket} from '../../data/bucket/fill_bucket.ts';
+import {polygonIntersectsMultiPolygon} from '../../util/intersection_tests.ts';
+import {translateDistance, translate} from '../query_utils.ts';
+import properties, {type FillLayoutPropsPossiblyEvaluated, type FillPaintPropsPossiblyEvaluated} from './fill_style_layer_properties.g.ts';
 
-import {FillBucket} from '../../data/bucket/fill_bucket';
-import {polygonIntersectsMultiPolygon} from '../../util/intersection_tests';
-import {translateDistance, translate} from '../query_utils';
-import properties, {FillLayoutPropsPossiblyEvaluated, FillPaintPropsPossiblyEvaluated} from './fill_style_layer_properties.g';
-import {Transitionable, Transitioning, Layout, PossiblyEvaluated} from '../properties';
+import type {Transitionable, Transitioning, Layout, PossiblyEvaluated} from '../properties.ts';
+import type {LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
+import type {BucketParameters} from '../../data/bucket.ts';
+import type {FillLayoutProps, FillPaintProps} from './fill_style_layer_properties.g.ts';
+import type {EvaluationParameters} from '../evaluation_parameters.ts';
 
-import type {FeatureState, LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
-import type {BucketParameters} from '../../data/bucket';
-import type Point from '@mapbox/point-geometry';
-import type {FillLayoutProps, FillPaintProps} from './fill_style_layer_properties.g';
-import type {EvaluationParameters} from '../evaluation_parameters';
-import type {IReadonlyTransform} from '../../geo/transform_interface';
-import type {VectorTileFeature} from '@mapbox/vector-tile';
+export const isFillStyleLayer = (layer: StyleLayer): layer is FillStyleLayer => layer.type === 'fill';
 
 export class FillStyleLayer extends StyleLayer {
     _unevaluatedLayout: Layout<FillLayoutProps>;
@@ -22,11 +20,11 @@ export class FillStyleLayer extends StyleLayer {
     _transitioningPaint: Transitioning<FillPaintProps>;
     paint: PossiblyEvaluated<FillPaintProps, FillPaintPropsPossiblyEvaluated>;
 
-    constructor(layer: LayerSpecification) {
-        super(layer, properties);
+    constructor(layer: LayerSpecification, globalState: Record<string, any>) {
+        super(layer, properties, globalState);
     }
 
-    recalculate(parameters: EvaluationParameters, availableImages: Array<string>) {
+    recalculate(parameters: EvaluationParameters, availableImages: string[]): void {
         super.recalculate(parameters, availableImages);
 
         const outlineColor = this.paint._values['fill-outline-color'];
@@ -35,7 +33,7 @@ export class FillStyleLayer extends StyleLayer {
         }
     }
 
-    createBucket(parameters: BucketParameters<any>) {
+    createBucket(parameters: BucketParameters<any>): FillBucket {
         return new FillBucket(parameters);
     }
 
@@ -43,14 +41,11 @@ export class FillStyleLayer extends StyleLayer {
         return translateDistance(this.paint.get('fill-translate'));
     }
 
-    queryIntersectsFeature(
-        queryGeometry: Array<Point>,
-        feature: VectorTileFeature,
-        featureState: FeatureState,
-        geometry: Array<Array<Point>>,
-        zoom: number,
-        transform: IReadonlyTransform,
-        pixelsToTileUnits: number
+    queryIntersectsFeature({
+        queryGeometry,
+        geometry,
+        transform,
+        pixelsToTileUnits}: QueryIntersectsFeatureParams
     ): boolean {
         const translatedPolygon = translate(queryGeometry,
             this.paint.get('fill-translate'),
@@ -59,7 +54,7 @@ export class FillStyleLayer extends StyleLayer {
         return polygonIntersectsMultiPolygon(translatedPolygon, geometry);
     }
 
-    isTileClipped() {
+    isTileClipped(): boolean {
         return true;
     }
 }

@@ -1,10 +1,10 @@
-import type {CanonicalTileID} from '../../source/tile_id';
-import type {PreparedShader} from '../../shaders/shaders';
-import type {Context} from '../../gl/context';
-import type {Mesh} from '../../render/mesh';
-import type {Program} from '../../render/program';
-import type {SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings';
-import {ProjectionSpecification} from '@maplibre/maplibre-gl-style-spec';
+import type {CanonicalTileID} from '../../tile/tile_id.ts';
+import type {PreparedShader} from '../../shaders/shaders.ts';
+import type {Context} from '../../webgl/context.ts';
+import type {Mesh} from '../../render/mesh.ts';
+import type {SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings.ts';
+import type {ProjectionSpecification} from '@maplibre/maplibre-gl-style-spec';
+import type {EvaluationParameters} from '../../style/evaluation_parameters.ts';
 
 /**
  * Custom projections are handled both by a class which implements this `Projection` interface,
@@ -21,14 +21,6 @@ import {ProjectionSpecification} from '@maplibre/maplibre-gl-style-spec';
  * - may create heavy resources that should not exist in multiple copies (projection is never cloned) - for example, see the GPU inaccuracy mitigation for globe projection
  * - must be explicitly disposed of after usage using the `destroy` function - this allows the implementing class to free any allocated resources
  */
-
-/**
- * @internal
- */
-export type ProjectionGPUContext = {
-    context: Context;
-    useProgram: (name: string) => Program<any>;
-};
 
 /**
  * @internal
@@ -91,22 +83,18 @@ export interface Projection {
 
     /**
      * @internal
+     * A number representing the current transition state of the projection.
+     * The return value should be a number between 0 and 1, 
+     * where 0 means the projection is fully in the initial state, 
+     * and 1 means the projection is fully in the final state.
+     */
+    get transitionState(): number;
+
+    /**
+     * @internal
      * Cleans up any resources the projection created, especially GPU buffers.
      */
     destroy(): void;
-
-    /**
-     * @internal
-     * True when an animation handled by the projection is in progress,
-     * requiring MapLibre to keep rendering new frames.
-     */
-    isRenderingDirty(): boolean;
-
-    /**
-     * @internal
-     * Runs any GPU-side tasks this projection required. Called at the beginning of every frame.
-     */
-    updateGPUdependent(renderContext: ProjectionGPUContext): void;
 
     /**
      * @internal
@@ -118,4 +106,17 @@ export interface Projection {
      * @param usage - Specify the usage of the tile mesh, as different usages might use different levels of subdivision.
      */
     getMeshFromTileID(context: Context, tileID: CanonicalTileID, hasBorder: boolean, allowPoles: boolean, usage: TileMeshUsage): Mesh;
+
+    /**
+     * @internal
+     * Recalculates the projection state based on the current evaluation parameters.
+     * @param params - Evaluation parameters.
+     */
+    recalculate(params: EvaluationParameters): void;
+
+    /**
+     * @internal
+     * Returns true if the projection is currently transitioning between two states.
+     */
+    hasTransition(): boolean;
 }

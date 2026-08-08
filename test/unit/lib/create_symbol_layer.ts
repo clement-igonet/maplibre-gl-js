@@ -1,16 +1,17 @@
-import {SymbolBucket} from '../../../src/data/bucket/symbol_bucket';
-import {SymbolStyleLayer} from '../../../src/style/style_layer/symbol_style_layer';
-import {featureFilter, LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
-import {EvaluationParameters} from '../../../src/style/evaluation_parameters';
-import {BucketParameters} from '../../../src/data/bucket';
+import {SymbolBucket} from '../../../src/data/bucket/symbol_bucket.ts';
+import {SymbolStyleLayer} from '../../../src/style/style_layer/symbol_style_layer.ts';
+import {featureFilter, type LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
+import {type EvaluationParameters} from '../../../src/style/evaluation_parameters.ts';
+import {type BucketParameters} from '../../../src/data/bucket.ts';
+import {type CollisionBoxArray} from '../../../src/data/array_types.g.ts';
 
-export function createSymbolBucket(layerId, font, text, collisionBoxArray) {
+export function createSymbolBucket(layerId: string, font: string, text: string,  collisionBoxArray: CollisionBoxArray): SymbolBucket {
     const layer = new SymbolStyleLayer({
         id: layerId,
         type: 'symbol',
         layout: {'text-font': [font], 'text-field': text},
-        filter: featureFilter(undefined)
-    } as any as LayerSpecification);
+        filter: featureFilter(undefined, 'filter')
+    } as any as LayerSpecification, {});
     layer.recalculate({zoom: 0, zoomHistory: {}} as EvaluationParameters, undefined);
 
     return new SymbolBucket({
@@ -21,13 +22,13 @@ export function createSymbolBucket(layerId, font, text, collisionBoxArray) {
     } as BucketParameters<SymbolStyleLayer>);
 }
 
-export function createSymbolIconBucket(layerId, iconProperty, collisionBoxArray) {
+export function createSymbolIconBucket(layerId: string, iconProperty: string, collisionBoxArray: CollisionBoxArray): SymbolBucket {
     const layer = new SymbolStyleLayer({
         id: layerId,
         type: 'symbol',
         layout: {'icon-image': ['get', iconProperty]},
-        filter: featureFilter(undefined)
-    } as any as LayerSpecification);
+        filter: featureFilter(undefined, 'filter')
+    } as any as LayerSpecification, {});
     layer.recalculate({zoom: 0, zoomHistory: {}} as EvaluationParameters, undefined);
 
     return new SymbolBucket({

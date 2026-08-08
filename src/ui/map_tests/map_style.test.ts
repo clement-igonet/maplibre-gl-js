@@ -1,12 +1,14 @@
-import {Map, MapOptions} from '../map';
-import {createMap, beforeMapTest, createStyle, createStyleSource} from '../../util/test/util';
-import {Event as EventedEvent} from '../../util/evented';
-import {fixedLngLat, fixedNum} from '../../../test/unit/lib/fixed';
-import {extend} from '../../util/util';
-import {fakeServer, FakeServer} from 'nise';
-import {Style} from '../../style/style';
-import {GeoJSONSourceSpecification, LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
-import {LngLatBounds} from '../../geo/lng_lat_bounds';
+import {describe, beforeEach, afterEach, test, expect, vi} from 'vitest';
+import {Map, type MapOptions} from '../map.ts';
+import {createMap, beforeMapTest, createStyle, createStyleSource, sleep} from '../../util/test/util.ts';
+import {ErrorEvent} from '../../util/evented.ts';
+import {MapSourceDataEvent, MapStyleDataEvent} from '../events.ts';
+import {fixedLngLat, fixedNum} from '../../../test/unit/lib/fixed.ts';
+import {extend} from '../../util/util.ts';
+import {fakeServer, type FakeServer} from 'nise';
+import {Style} from '../../style/style.ts';
+import {type GeoJSONSourceSpecification, type LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
+import {LngLatBounds} from '../../geo/lng_lat_bounds.ts';
 
 let server: FakeServer;
 
@@ -20,9 +22,9 @@ afterEach(() => {
     server.restore();
 });
 
-describe('#setStyle', () => {
+describe('setStyle', () => {
     test('returns self', () => {
-        const map = new Map({container: window.document.createElement('div')} as any as MapOptions);
+        const map = new Map({container: window.document.createElement('div')});
         expect(map.setStyle({
             version: 8,
             sources: {},
@@ -30,69 +32,61 @@ describe('#setStyle', () => {
         })).toBe(map);
     });
 
-    test('sets up event forwarding', () => {
-        createMap({}, (error, map) => {
-            expect(error).toBeFalsy();
+    test('sets up event forwarding', async () => {
+        const map = createMap();
+        await map.once('load');
 
-            const events = [];
-            function recordEvent(event) { events.push(event.type); }
+        const events = [];
+        function recordEvent(event) { events.push(event.type); }
 
-            map.on('error', recordEvent);
-            map.on('data', recordEvent);
-            map.on('dataloading', recordEvent);
+        map.on('error', recordEvent);
+        map.on('data', recordEvent);
+        map.on('dataloading', recordEvent);
 
-            map.style.fire(new Event('error'));
-            map.style.fire(new Event('data'));
-            map.style.fire(new Event('dataloading'));
+        map.style.fire(new ErrorEvent(new Error('test')));
+        map.style.fire(new MapSourceDataEvent('data'));
+        map.style.fire(new MapSourceDataEvent('dataloading'));
 
-            expect(events).toEqual([
-                'error',
-                'data',
-                'dataloading',
-            ]);
-
-        });
+        expect(events).toEqual([
+            'error',
+            'data',
+            'dataloading',
+        ]);
     });
 
-    test('fires *data and *dataloading events', () => {
-        createMap({}, (error, map: Map) => {
-            expect(error).toBeFalsy();
+    test('fires *data and *dataloading events', async () => {
+        const map = createMap();
+        await map.once('load');
 
-            const events = [];
-            function recordEvent(event) { events.push(event.type); }
+        const events = [];
+        function recordEvent(event) { events.push(event.type); }
 
-            map.on('styledata', recordEvent);
-            map.on('styledataloading', recordEvent);
-            map.on('sourcedata', recordEvent);
-            map.on('sourcedataloading', recordEvent);
-            map.on('tiledata', recordEvent);
-            map.on('tiledataloading', recordEvent);
+        map.on('styledata', recordEvent);
+        map.on('styledataloading', recordEvent);
+        map.on('sourcedata', recordEvent);
+        map.on('sourcedataloading', recordEvent);
 
-            map.style.fire(new EventedEvent('data', {dataType: 'style'}));
-            map.style.fire(new EventedEvent('dataloading', {dataType: 'style'}));
-            map.style.fire(new EventedEvent('data', {dataType: 'source'}));
-            map.style.fire(new EventedEvent('dataloading', {dataType: 'source'}));
-            map.style.fire(new EventedEvent('data', {dataType: 'tile'}));
-            map.style.fire(new EventedEvent('dataloading', {dataType: 'tile'}));
+        map.style.fire(new MapStyleDataEvent('data'));
+        map.style.fire(new MapStyleDataEvent('dataloading'));
+        map.style.fire(new MapSourceDataEvent('data'));
+        map.style.fire(new MapSourceDataEvent('dataloading'));
 
-            expect(events).toEqual([
-                'styledata',
-                'styledataloading',
-                'sourcedata',
-                'sourcedataloading',
-                'tiledata',
-                'tiledataloading'
-            ]);
-
-        });
+        expect(events).toEqual([
+            'styledata',
+            'styledataloading',
+            'sourcedata',
+            'sourcedataloading'
+        ]);
     });
 
-    test('can be called more than once', () => {
+    test('can be called more than once', async () => {
         const map = createMap();
 
         map.setStyle({version: 8, sources: {}, layers: []}, {diff: false});
         map.setStyle({version: 8, sources: {}, layers: []}, {diff: false});
+        await map.once('style.load');
 
+        expect(map.getStyle()).toEqual({version: 8, sources: {}, layers: []});
     });
 
     test('setStyle back to the first style should work', async () => {
@@ -103,7 +97,7 @@ describe('#setStyle', () => {
             {id: 'background', type: 'background' as const, paint: {'background-color': 'blue'}},
         ]};
         const map = createMap({style: redStyle});
-        const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         map.setStyle(blueStyle);
         await map.once('style.load');
         map.setStyle(redStyle);
@@ -112,64 +106,58 @@ describe('#setStyle', () => {
         spy.mockRestore();
     });
 
-    test('style transform overrides unmodified map transform', () => new Promise<void>(done => {
-        const map = new Map({container: window.document.createElement('div')} as any as MapOptions);
-        map.transform.setMaxBounds(new LngLatBounds([-120, -60], [140, 80]));
-        map.transform.resize(600, 400);
-        expect(map.transform.zoom).toBe(0.6983039737971013);
-        expect(map.transform.unmodified).toBeTruthy();
+    test('style transform overrides unmodified map transform', async () => {
+        const map = new Map({container: window.document.createElement('div')});
+        map._camera.transform.setMaxBounds(new LngLatBounds([-120, -60], [140, 80]));
+        map._camera.transform.resize(600, 400, true);
+        expect(map._camera.transform.zoom).toBe(0.6983039737971013);
+        expect(map._camera.transform.unmodified).toBeTruthy();
         map.setStyle(createStyle());
-        map.on('style.load', () => {
-            expect(fixedLngLat(map.transform.center)).toEqual(fixedLngLat({lng: -73.9749, lat: 40.7736}));
-            expect(fixedNum(map.transform.zoom)).toBe(12.5);
-            expect(fixedNum(map.transform.bearing)).toBe(29);
-            expect(fixedNum(map.transform.pitch)).toBe(50);
-            done();
-        });
-    }));
+        await map.once('style.load');
+        expect(fixedLngLat(map._camera.transform.center)).toEqual(fixedLngLat({lng: -73.9749, lat: 40.7736}));
+        expect(fixedNum(map._camera.transform.zoom)).toBe(12.5);
+        expect(fixedNum(map._camera.transform.bearing)).toBe(29);
+        expect(fixedNum(map._camera.transform.pitch)).toBe(50);
+    });
 
-    test('style transform does not override map transform modified via options', () => new Promise<void>(done => {
+    test('style transform does not override map transform modified via options', async () => {
         const map = new Map({container: window.document.createElement('div'), zoom: 10, center: [-77.0186, 38.8888]} as any as MapOptions);
-        expect(map.transform.unmodified).toBeFalsy();
+        expect(map._camera.transform.unmodified).toBeFalsy();
         map.setStyle(createStyle());
-        map.on('style.load', () => {
-            expect(fixedLngLat(map.transform.center)).toEqual(fixedLngLat({lng: -77.0186, lat: 38.8888}));
-            expect(fixedNum(map.transform.zoom)).toBe(10);
-            expect(fixedNum(map.transform.bearing)).toBe(0);
-            expect(fixedNum(map.transform.pitch)).toBe(0);
-            done();
-        });
-    }));
+        await map.once('style.load');
+        expect(fixedLngLat(map._camera.transform.center)).toEqual(fixedLngLat({lng: -77.0186, lat: 38.8888}));
+        expect(fixedNum(map._camera.transform.zoom)).toBe(10);
+        expect(fixedNum(map._camera.transform.bearing)).toBe(0);
+        expect(fixedNum(map._camera.transform.pitch)).toBe(0);
+    });
 
-    test('style transform does not override map transform modified via setters', () => new Promise<void>(done => {
-        const map = new Map({container: window.document.createElement('div')} as any as MapOptions);
-        expect(map.transform.unmodified).toBeTruthy();
+    test('style transform does not override map transform modified via setters', async () => {
+        const map = new Map({container: window.document.createElement('div')});
+        expect(map._camera.transform.unmodified).toBeTruthy();
         map.setZoom(10);
         map.setCenter([-77.0186, 38.8888]);
-        expect(map.transform.unmodified).toBeFalsy();
+        expect(map._camera.transform.unmodified).toBeFalsy();
         map.setStyle(createStyle());
-        map.on('style.load', () => {
-            expect(fixedLngLat(map.transform.center)).toEqual(fixedLngLat({lng: -77.0186, lat: 38.8888}));
-            expect(fixedNum(map.transform.zoom)).toBe(10);
-            expect(fixedNum(map.transform.bearing)).toBe(0);
-            expect(fixedNum(map.transform.pitch)).toBe(0);
-            done();
-        });
-    }));
+        map.once('style.load');
+        expect(fixedLngLat(map._camera.transform.center)).toEqual(fixedLngLat({lng: -77.0186, lat: 38.8888}));
+        expect(fixedNum(map._camera.transform.zoom)).toBe(10);
+        expect(fixedNum(map._camera.transform.bearing)).toBe(0);
+        expect(fixedNum(map._camera.transform.pitch)).toBe(0);
+    });
 
     test('passing null removes style', () => {
         const map = createMap();
         const style = map.style;
         expect(style).toBeTruthy();
-        jest.spyOn(style, '_remove');
+        vi.spyOn(style, '_remove');
         map.setStyle(null);
         expect(style._remove).toHaveBeenCalledTimes(1);
     });
 
     test('passing null releases the worker', () => {
         const map = createMap();
-        const spyWorkerPoolAcquire = jest.spyOn(map.style.dispatcher.workerPool, 'acquire');
-        const spyWorkerPoolRelease = jest.spyOn(map.style.dispatcher.workerPool, 'release');
+        const spyWorkerPoolAcquire = vi.spyOn(map.style.dispatcher.workerPool, 'acquire');
+        const spyWorkerPoolRelease = vi.spyOn(map.style.dispatcher.workerPool, 'release');
 
         map.setStyle({version: 8, sources: {}, layers: []}, {diff: false});
         expect(spyWorkerPoolAcquire).toHaveBeenCalledTimes(1);
@@ -185,7 +173,7 @@ describe('#setStyle', () => {
         spyWorkerPoolRelease.mockClear();
     });
 
-    test('transformStyle should copy the source and the layer into next style', () => new Promise<void>(done => {
+    test('transformStyle should copy the source and the layer into next style', async () => {
         const style = extend(createStyle(), {
             sources: {
                 maplibre: {
@@ -224,16 +212,14 @@ describe('#setStyle', () => {
             })
         });
 
-        map.on('style.load', () => {
-            const loadedStyle = map.style.serialize();
-            expect('maplibre' in loadedStyle.sources).toBeTruthy();
-            expect(loadedStyle.layers[0].id).toBe(style.layers[0].id);
-            expect(loadedStyle.layers).toHaveLength(1);
-            done();
-        });
-    }));
+        await map.once('style.load');
+        const loadedStyle = map.style.serialize();
+        expect('maplibre' in loadedStyle.sources).toBeTruthy();
+        expect(loadedStyle.layers[0].id).toBe(style.layers[0].id);
+        expect(loadedStyle.layers).toHaveLength(1);
+    });
 
-    test('delayed setStyle with transformStyle should copy the source and the layer into next style with diffing', () => new Promise<void>(done => {
+    test('delayed setStyle with transformStyle should copy the source and the layer into next style with diffing', async () => {
         const style = extend(createStyle(), {
             sources: {
                 maplibre: {
@@ -257,31 +243,74 @@ describe('#setStyle', () => {
         });
 
         const map = createMap({style});
-        window.setTimeout(() => {
-            map.setStyle(createStyle(), {
-                diff: true,
-                transformStyle: (prevStyle, nextStyle) => ({
-                    ...nextStyle,
-                    sources: {
-                        ...nextStyle.sources,
-                        maplibre: prevStyle.sources.maplibre
-                    },
-                    layers: [
-                        ...nextStyle.layers,
-                        prevStyle.layers[0]
-                    ]
-                })
-            });
+        await sleep(100);
 
-            const loadedStyle = map.style.serialize();
-            expect('maplibre' in loadedStyle.sources).toBeTruthy();
-            expect(loadedStyle.layers[0].id).toBe(style.layers[0].id);
-            expect(loadedStyle.layers).toHaveLength(1);
-            done();
-        }, 100);
-    }));
+        map.setStyle(createStyle(), {
+            diff: true,
+            transformStyle: (prevStyle, nextStyle) => ({
+                ...nextStyle,
+                sources: {
+                    ...nextStyle.sources,
+                    maplibre: prevStyle.sources.maplibre
+                },
+                layers: [
+                    ...nextStyle.layers,
+                    prevStyle.layers[0]
+                ]
+            })
+        });
 
-    test('transformStyle should get called when passed to setStyle after the map is initialised without a style', () => new Promise<void>(done => {
+        const loadedStyle = map.style.serialize();
+        expect('maplibre' in loadedStyle.sources).toBeTruthy();
+        expect(loadedStyle.layers[0].id).toBe(style.layers[0].id);
+        expect(loadedStyle.layers).toHaveLength(1);
+    });
+
+    // in this special case, retrieval of the style JSON is not done by style but by map
+    test('can asynchronously transform style JSON request specified to setStyle with diffing', async () => {
+        server.respondWith('style.json', JSON.stringify(createStyle()));
+
+        const style = extend(createStyle(), {
+            sources: {
+                maplibre: {
+                    type: 'vector',
+                    minzoom: 1,
+                    maxzoom: 10,
+                    tiles: ['http://example.com/{z}/{x}/{y}.png']
+                }
+            },
+            layers: [{
+                id: 'layerId0',
+                type: 'circle',
+                source: 'maplibre',
+                'source-layer': 'sourceLayer'
+            }, {
+                id: 'layerId1',
+                type: 'circle',
+                source: 'maplibre',
+                'source-layer': 'sourceLayer'
+            }]
+        });
+
+        const map = createMap({style});
+        const transformRequestSpy = vi.fn(async (url) => ({
+            url,
+            headers: {Authorization: 'Bearer token'}
+        }));
+        map.setTransformRequest(transformRequestSpy);
+        await map.once('style.load');
+
+        map.setStyle('style.json', {diff: true});
+        await sleep(0);
+        server.respond();
+        await map.once('style.load');
+
+        expect(transformRequestSpy).toHaveBeenCalledWith('style.json', 'Style');
+        expect(server.requests[0].url).toBe('style.json');
+        expect(server.requests[0].requestHeaders.Authorization).toBe('Bearer token');
+    });
+
+    test('transformStyle should get called when passed to setStyle after the map is initialised without a style', async () => {
         const map = createMap({deleteStyle: true});
         map.setStyle(createStyle(), {
             diff: true,
@@ -308,15 +337,42 @@ describe('#setStyle', () => {
             }
         });
 
-        map.on('style.load', () => {
-            const loadedStyle = map.style.serialize();
-            expect('maplibre' in loadedStyle.sources).toBeTruthy();
-            expect(loadedStyle.layers[0].id).toBe('layerId0');
-            done();
-        });
-    }));
+        await map.once('style.load');
+        const loadedStyle = map.style.serialize();
+        expect('maplibre' in loadedStyle.sources).toBeTruthy();
+        expect(loadedStyle.layers[0].id).toBe('layerId0');
+    });
 
-    test('map load should be fired when transformStyle is used on setStyle after the map is initialised without a style', () => new Promise<void>(done => {
+    test('stale style URL load does not complete after style is cleared during async transformRequest', async () => {
+        server.respondWith('style.json', JSON.stringify(createStyle()));
+
+        let resolveTransformRequest: (value: {url: string}) => void;
+        const transformRequest = new Promise<{url: string}>((resolve) => {
+            resolveTransformRequest = resolve;
+        });
+
+        const map = createMap({deleteStyle: true});
+        const initialTransform = map._camera.transform;
+        const initialPainterTransform = map.painter.transform;
+        const projectionTransitionSpy = vi.fn();
+        map.on('projectiontransition', projectionTransitionSpy);
+        map.setTransformRequest(() => transformRequest);
+
+        map.setStyle('style.json', {diff: false});
+        map.setStyle(null, {diff: false});
+
+        resolveTransformRequest({url: 'style.json'});
+        await sleep(0);
+        server.respond();
+        await sleep(0);
+
+        expect(map.style).toBeUndefined();
+        expect(projectionTransitionSpy).not.toHaveBeenCalled();
+        expect(map._camera.transform).toBe(initialTransform);
+        expect(map.painter.transform).toBe(initialPainterTransform);
+    });
+
+    test('map load should be fired when transformStyle is used on setStyle after the map is initialised without a style', async () => {
         const map = createMap({deleteStyle: true});
         map.setStyle({version: 8, sources: {}, layers: []}, {
             diff: true,
@@ -326,12 +382,12 @@ describe('#setStyle', () => {
                 return createStyle();
             }
         });
-        map.on('load', () => done());
-    }));
+        await map.once('load');
+    });
 
     test('Override default style validation', () => {
         let validationOption = true;
-        jest.spyOn(Style.prototype, 'loadJSON').mockImplementationOnce((styleJson, options) => {
+        vi.spyOn(Style.prototype, 'loadJSON').mockImplementationOnce((styleJson, options) => {
             validationOption = options.validate;
         });
         const map = createMap({style: null});
@@ -341,22 +397,20 @@ describe('#setStyle', () => {
     });
 });
 
-describe('#getStyle', () => {
+describe('getStyle', () => {
     test('returns undefined if the style has not loaded yet', () => {
         const style = createStyle();
         const map = createMap({style});
         expect(map.getStyle()).toBeUndefined();
     });
 
-    test('returns the style', () => new Promise<void>(done => {
+    test('returns the style', async () => {
         const style = createStyle();
         const map = createMap({style});
 
-        map.on('load', () => {
-            expect(map.getStyle()).toEqual(style);
-            done();
-        });
-    }));
+        await map.once('load');
+        expect(map.getStyle()).toEqual(style);
+    });
 
     test('returns the previous style even if modified', async () => {
         const style = {
@@ -382,33 +436,29 @@ describe('#getStyle', () => {
         expect(map.getStyle()).toEqual(style);
     });
 
-    test('returns the style with added sources', () => new Promise<void>(done => {
+    test('returns the style with added sources', async () => {
         const style = createStyle();
         const map = createMap({style});
 
-        map.on('load', () => {
-            map.addSource('geojson', createStyleSource());
-            expect(map.getStyle()).toEqual(extend(createStyle(), {
-                sources: {geojson: createStyleSource()}
-            }));
-            done();
-        });
-    }));
+        await map.once('load');
+        map.addSource('geojson', createStyleSource());
+        expect(map.getStyle()).toEqual(extend(createStyle(), {
+            sources: {geojson: createStyleSource()}
+        }));
+    });
 
-    test('fires an error on checking if non-existant source is loaded', () => new Promise<void>(done => {
+    test('fires an error on checking if non-existent source is loaded', async () => {
         const style = createStyle();
         const map = createMap({style});
 
-        map.on('load', () => {
-            map.on('error', ({error}) => {
-                expect(error.message).toMatch(/There is no source with ID/);
-                done();
-            });
-            map.isSourceLoaded('geojson');
-        });
-    }));
+        await map.once('load');
+        const errorPromise = map.once('error');
+        map.isSourceLoaded('geojson');
+        const error = await errorPromise;
+        expect(error.error.message).toMatch(/There is no tile manager with ID/);
+    });
 
-    test('returns the style with added layers', () => new Promise<void>(done => {
+    test('returns the style with added layers', async () => {
         const style = createStyle();
         const map = createMap({style});
         const layer = {
@@ -416,14 +466,12 @@ describe('#getStyle', () => {
             type: 'background'
         } as LayerSpecification;
 
-        map.on('load', () => {
-            map.addLayer(layer);
-            expect(map.getStyle()).toEqual(extend(createStyle(), {
-                layers: [layer]
-            }));
-            done();
-        });
-    }));
+        await map.once('load');
+        map.addLayer(layer);
+        expect(map.getStyle()).toEqual(extend(createStyle(), {
+            layers: [layer]
+        }));
+    });
 
     test('a layer can be added even if a map is created without a style', () => {
         const map = createMap({deleteStyle: true});
@@ -432,12 +480,16 @@ describe('#getStyle', () => {
             type: 'background'
         } as LayerSpecification;
         map.addLayer(layer);
+
+        expect(map.getLayer('background')).toBeDefined();
     });
 
     test('a source can be added even if a map is created without a style', () => {
         const map = createMap({deleteStyle: true});
         const source = createStyleSource();
         map.addSource('fill', source);
+
+        expect(map.getSource('fill')).toBeDefined();
     });
 
     test('a layer can be added with an embedded source specification', () => {
@@ -451,9 +503,11 @@ describe('#getStyle', () => {
             type: 'symbol',
             source
         });
+
+        expect(map.getLayer('foo')).toBeDefined();
     });
 
-    test('returns the style with added source and layer', () => new Promise<void>(done => {
+    test('returns the style with added source and layer', async () => {
         const style = createStyle();
         const map = createMap({style});
         const source = createStyleSource();
@@ -463,24 +517,22 @@ describe('#getStyle', () => {
             source: 'fill'
         } as LayerSpecification;
 
-        map.on('load', () => {
-            map.addSource('fill', source);
-            map.addLayer(layer);
-            expect(map.getStyle()).toEqual(extend(createStyle(), {
-                sources: {fill: source},
-                layers: [layer]
-            }));
-            done();
-        });
-    }));
+        await map.once('load');
+        map.addSource('fill', source);
+        map.addLayer(layer);
+        expect(map.getStyle()).toEqual(extend(createStyle(), {
+            sources: {fill: source},
+            layers: [layer]
+        }));
+    });
 
     test('creates a new Style if diff fails', () => {
         const style = createStyle();
         const map = createMap({style});
-        jest.spyOn(map.style, 'setState').mockImplementation(() => {
+        vi.spyOn(map.style, 'setState').mockImplementation(() => {
             throw new Error('Dummy error');
         });
-        jest.spyOn(console, 'warn').mockImplementation(() => {});
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
 
         const previousStyle = map.style;
         map.setStyle(style);
@@ -490,7 +542,7 @@ describe('#getStyle', () => {
     test('creates a new Style if diff option is false', () => {
         const style = createStyle();
         const map = createMap({style});
-        const spy = jest.spyOn(map.style, 'setState');
+        const spy = vi.spyOn(map.style, 'setState');
 
         const previousStyle = map.style;
         map.setStyle(style, {diff: false});
@@ -498,10 +550,10 @@ describe('#getStyle', () => {
         expect(spy).not.toHaveBeenCalled();
     });
 
-    describe('#setSky', () => {
+    describe('setSky', () => {
         test('calls style setSky when set', () => {
             const map = createMap();
-            const spy = jest.fn();
+            const spy = vi.fn();
             map.style.setSky = spy;
             map.setSky({'horizon-fog-blend': 0.5});
 
@@ -509,17 +561,17 @@ describe('#getStyle', () => {
         });
     });
 
-    describe('#getSky', () => {
+    describe('getSky', () => {
         test('returns undefined when not set', () => {
             const map = createMap();
             expect(map.getSky()).toBeUndefined();
         });
     });
 
-    describe('#setLight', () => {
+    describe('setLight', () => {
         test('calls style setLight when set', () => {
             const map = createMap();
-            const spy = jest.fn();
+            const spy = vi.fn();
             map.style.setLight = spy;
             map.setLight({anchor: 'viewport'});
 
@@ -527,10 +579,10 @@ describe('#getStyle', () => {
         });
     });
 
-    describe('#getLight', () => {
+    describe('getLight', () => {
         test('calls style getLight when invoked', () => {
             const map = createMap();
-            const spy = jest.fn();
+            const spy = vi.fn();
             map.style.getLight = spy;
             map.getLight();
 

@@ -1,4 +1,4 @@
-# MapBox migration guide
+# Mapbox migration guide
 
 This part of the docs is dedicated to the migration from `mapbox-gl` to `maplibre-gl`.
 
@@ -32,7 +32,9 @@ MapLibre GL JS v1 is completely backward compatible with Mapbox GL JS v1. This c
 -    />
 
 
-+    <script src="https://unpkg.com/maplibre-gl@#.#.#/dist/maplibre-gl.js"></script>
++    <script type="module">
++      import * as maplibregl from 'https://unpkg.com/maplibre-gl@#.#.#/dist/maplibre-gl.mjs';
++    </script>
 +    <link
 +      href="https://unpkg.com/maplibre-gl@#.#.#/dist/maplibre-gl.css"
 +      rel="stylesheet"

@@ -1,9 +1,10 @@
-import {browser} from '../util/browser';
-import type {Map} from './map';
-import {bezier, clamp, extend} from '../util/util';
+import {now} from '../util/time_control.ts';
+import {bezier, clamp, extend, evaluateZoomSnap} from '../util/util.ts';
 import Point from '@mapbox/point-geometry';
-import type {DragPanOptions} from './handler/shim/drag_pan';
-import {EaseToOptions} from './camera';
+
+import type {DragPanOptions} from './handler/shim/drag_pan.ts';
+import type {EaseToOptions} from './camera.ts';
+import type {Map} from './map.ts';
 
 const defaultInertiaOptions = {
     linearity: 0.3,
@@ -54,21 +55,21 @@ export class HandlerInertia {
         this.clear();
     }
 
-    clear() {
+    clear(): void {
         this._inertiaBuffer = [];
     }
 
-    record(settings: any) {
+    record(settings: any): void {
         this._drainInertiaBuffer();
-        this._inertiaBuffer.push({time: browser.now(), settings});
+        this._inertiaBuffer.push({time: now(), settings});
     }
 
-    _drainInertiaBuffer() {
+    _drainInertiaBuffer(): void {
         const inertia = this._inertiaBuffer,
-            now = browser.now(),
+            currentTime = now(),
             cutoff = 160;   //msec
 
-        while (inertia.length > 0 && now - inertia[0].time > cutoff)
+        while (inertia.length > 0 && currentTime - inertia[0].time > cutoff)
             inertia.shift();
     }
 
@@ -106,7 +107,7 @@ export class HandlerInertia {
         if (deltas.pan.mag()) {
             const result = calculateEasing(deltas.pan.mag(), duration, extend({}, defaultPanInertiaOptions, panInertiaOptions || {}));
             const finalPan = deltas.pan.mult(result.amount / deltas.pan.mag());
-            const computedEaseOptions = this._map.cameraHelper.handlePanInertia(finalPan, this._map.transform);
+            const computedEaseOptions = this._map._camera.cameraHelper.handlePanInertia(finalPan, this._map._camera.transform);
             easeOptions.center = computedEaseOptions.easingCenter;
             easeOptions.offset = computedEaseOptions.easingOffset;
             extendDuration(easeOptions, result);
@@ -114,25 +115,25 @@ export class HandlerInertia {
 
         if (deltas.zoom) {
             const result = calculateEasing(deltas.zoom, duration, defaultZoomInertiaOptions);
-            easeOptions.zoom = this._map.transform.zoom + result.amount;
+            easeOptions.zoom = evaluateZoomSnap(this._map.getZoom() + result.amount, this._map.getZoomSnap(), result.amount);
             extendDuration(easeOptions, result);
         }
 
         if (deltas.bearing) {
             const result = calculateEasing(deltas.bearing, duration, defaultBearingInertiaOptions);
-            easeOptions.bearing = this._map.transform.bearing + clamp(result.amount, -179, 179);
+            easeOptions.bearing = this._map.getBearing() + clamp(result.amount, -179, 179);
             extendDuration(easeOptions, result);
         }
 
         if (deltas.pitch) {
             const result = calculateEasing(deltas.pitch, duration, defaultPitchInertiaOptions);
-            easeOptions.pitch = this._map.transform.pitch + result.amount;
+            easeOptions.pitch = this._map.getPitch() + result.amount;
             extendDuration(easeOptions, result);
         }
 
         if (deltas.roll) {
             const result = calculateEasing(deltas.roll, duration, defaultRollInertiaOptions);
-            easeOptions.roll = this._map.transform.roll + clamp(result.amount, -179, 179);
+            easeOptions.roll = this._map.getRoll() + clamp(result.amount, -179, 179);
             extendDuration(easeOptions, result);
         }
 

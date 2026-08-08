@@ -1,36 +1,65 @@
-import {ProjectionSpecification} from '@maplibre/maplibre-gl-style-spec';
-import {warnOnce} from '../../util/util';
-import {Projection} from './projection';
-import {ITransform} from '../transform_interface';
-import {ICameraHelper} from './camera_helper';
-import {MercatorProjection} from './mercator';
-import {MercatorTransform} from './mercator_transform';
-import {MercatorCameraHelper} from './mercator_camera_helper';
-import {GlobeProjection} from './globe';
-import {GlobeTransform} from './globe_transform';
-import {GlobeCameraHelper} from './globe_camera_helper';
+import {warnOnce} from '../../util/util.ts';
+import {MercatorProjection} from './mercator_projection.ts';
+import {MercatorTransform} from './mercator_transform.ts';
+import {MercatorCameraHelper} from './mercator_camera_helper.ts';
+import {GlobeProjection} from './globe_projection.ts';
+import {GlobeTransform} from './globe_transform.ts';
+import {GlobeCameraHelper} from './globe_camera_helper.ts';
+import {VerticalPerspectiveCameraHelper} from './vertical_perspective_camera_helper.ts';
+import {VerticalPerspectiveTransform} from './vertical_perspective_transform.ts';
+import {VerticalPerspectiveProjection} from './vertical_perspective_projection.ts';
 
-export function createProjectionFromName(name: ProjectionSpecification['type']): {
+import type {ProjectionSpecification} from '@maplibre/maplibre-gl-style-spec';
+import type {Projection} from './projection.ts';
+import type {ITransform, TransformConstrainFunction} from '../transform_interface.ts';
+import type {ICameraHelper} from './camera_helper.ts';
+
+export function createProjectionFromName(name: ProjectionSpecification['type'], transformConstrain: TransformConstrainFunction | undefined, globalState: Record<string, any>): {
     projection: Projection;
     transform: ITransform;
     cameraHelper: ICameraHelper;
 } {
+    const transformOptions = {constrainOverride: transformConstrain};
+    if (Array.isArray(name)) {
+        const globeProjection = new GlobeProjection({type: name}, globalState);
+        return {
+            projection: globeProjection,
+            transform: new GlobeTransform(transformOptions),
+            cameraHelper: new GlobeCameraHelper(globeProjection),
+        };
+    }
     switch (name) {
         case 'mercator':
         {
             return {
                 projection: new MercatorProjection(),
-                transform: new MercatorTransform(),
+                transform: new MercatorTransform(transformOptions),
                 cameraHelper: new MercatorCameraHelper(),
             };
         }
         case 'globe':
         {
-            const proj = new GlobeProjection();
+            const globeProjection = new GlobeProjection({type: [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                11,
+                'vertical-perspective',
+                12,
+                'mercator'
+            ]}, {});
             return {
-                projection: proj,
-                transform: new GlobeTransform(proj),
-                cameraHelper: new GlobeCameraHelper(proj),
+                projection: globeProjection,
+                transform: new GlobeTransform(transformOptions),
+                cameraHelper: new GlobeCameraHelper(globeProjection),
+            };
+        }
+        case 'vertical-perspective':
+        {
+            return {
+                projection: new VerticalPerspectiveProjection(),
+                transform: new VerticalPerspectiveTransform(transformOptions),
+                cameraHelper: new VerticalPerspectiveCameraHelper(),
             };
         }
         default:
@@ -38,7 +67,7 @@ export function createProjectionFromName(name: ProjectionSpecification['type']):
             warnOnce(`Unknown projection name: ${name}. Falling back to mercator projection.`);
             return {
                 projection: new MercatorProjection(),
-                transform: new MercatorTransform(),
+                transform: new MercatorTransform(transformOptions),
                 cameraHelper: new MercatorCameraHelper(),
             };
         }

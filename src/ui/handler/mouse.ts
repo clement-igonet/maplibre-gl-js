@@ -1,8 +1,8 @@
-import type Point from '@mapbox/point-geometry';
+import Point from '@mapbox/point-geometry';
 
-import {DOM} from '../../util/dom';
-import {DragMoveHandler, DragPanResult, DragRotateResult, DragPitchResult, DragHandler, DragRollResult} from './drag_handler';
-import {MouseMoveStateManager} from './drag_move_state_manager';
+import {type DragMoveHandler, type DragPanResult, type DragRotateResult, type DragPitchResult, DragHandler, type DragRollResult} from './drag_handler.ts';
+import {MouseMoveStateManager} from './drag_move_state_manager.ts';
+import {getAngleDelta} from '../../util/util.ts';
 
 /**
  * `MousePanHandler` allows the user to pan the map by clicking and dragging
@@ -24,7 +24,7 @@ export interface MouseRollHandler extends DragMoveHandler<DragRollResult, MouseE
 const LEFT_BUTTON = 0;
 const RIGHT_BUTTON = 2;
 
-const assignEvents = (handler: DragHandler<DragPanResult, MouseEvent>) => {
+const assignEvents = <T extends DragPanResult | DragRotateResult | DragPitchResult | DragRollResult>(handler: DragHandler<T, MouseEvent>): void => {
     handler.mousedown = handler.dragStart;
     handler.mousemoveWindow = handler.dragMove;
     handler.mouseup = handler.dragEnd;
@@ -33,12 +33,12 @@ const assignEvents = (handler: DragHandler<DragPanResult, MouseEvent>) => {
     };
 };
 
-export const generateMousePanHandler = ({enable, clickTolerance,}: {
+export function generateMousePanHandler({enable, clickTolerance}: {
     clickTolerance: number;
     enable?: boolean;
-}): MousePanHandler => {
+}): MousePanHandler {
     const mouseMoveStateManager = new MouseMoveStateManager({
-        checkCorrectEvent: (e: MouseEvent) => DOM.mouseButton(e) === LEFT_BUTTON && !e.ctrlKey,
+        checkCorrectEvent: (e: MouseEvent) => e.button === LEFT_BUTTON && !e.ctrlKey,
     });
     return new DragHandler<DragPanResult, MouseEvent>({
         clickTolerance,
@@ -51,20 +51,36 @@ export const generateMousePanHandler = ({enable, clickTolerance,}: {
     });
 };
 
-export const generateMouseRotationHandler = ({enable, clickTolerance, bearingDegreesPerPixelMoved = 0.8}: {
+export function generateMouseRotationHandler({enable, clickTolerance, aroundCenter = true, minPixelCenterThreshold = 100, rotateSpeed = 0.8}: {
     clickTolerance: number;
-    bearingDegreesPerPixelMoved?: number;
     enable?: boolean;
-}): MouseRotateHandler => {
+    aroundCenter?: boolean;
+    minPixelCenterThreshold?: number;
+    /**
+     * Degrees the bearing changes per pixel of horizontal drag.
+     * @defaultValue 0.8
+     */
+    rotateSpeed?: number;
+}, getCenter: () => Point): MouseRotateHandler {
     const mouseMoveStateManager = new MouseMoveStateManager({
         checkCorrectEvent: (e: MouseEvent): boolean =>
-            (DOM.mouseButton(e) === LEFT_BUTTON && e.ctrlKey) ||
-            (DOM.mouseButton(e) === RIGHT_BUTTON && !e.ctrlKey),
+            (e.button === LEFT_BUTTON && e.ctrlKey) ||
+            (e.button === RIGHT_BUTTON && !e.ctrlKey),
     });
     return new DragHandler<DragRotateResult, MouseEvent>({
         clickTolerance,
-        move: (lastPoint: Point, point: Point) =>
-            ({bearingDelta: (point.x - lastPoint.x) * bearingDegreesPerPixelMoved}),
+        move: (lastPoint: Point, currentPoint: Point) => {
+            const center = getCenter();
+            if (aroundCenter && Math.abs(center.y - lastPoint.y) > minPixelCenterThreshold) {
+                // Avoid rotation related to y axis since it is "saved" for pitch
+                return {bearingDelta: getAngleDelta(new Point(lastPoint.x, currentPoint.y), currentPoint, center)};
+            }
+            let bearingDelta = (currentPoint.x - lastPoint.x) * rotateSpeed;
+            if (aroundCenter && currentPoint.y < center.y) {
+                bearingDelta = -bearingDelta;
+            }
+            return {bearingDelta};
+        },
         // prevent browser context menu when necessary; we don't allow it with rotation
         // because we can't discern rotation gesture start from contextmenu on Mac
         moveStateManager: mouseMoveStateManager,
@@ -73,20 +89,24 @@ export const generateMouseRotationHandler = ({enable, clickTolerance, bearingDeg
     });
 };
 
-export const generateMousePitchHandler = ({enable, clickTolerance, pitchDegreesPerPixelMoved = -0.5}: {
+export function generateMousePitchHandler({enable, clickTolerance, pitchSpeed = -0.5}: {
     clickTolerance: number;
-    pitchDegreesPerPixelMoved?: number;
+    /**
+     * Degrees the pitch changes per pixel of vertical drag.
+     * @defaultValue -0.5
+     */
+    pitchSpeed?: number;
     enable?: boolean;
-}): MousePitchHandler => {
+}): MousePitchHandler {
     const mouseMoveStateManager = new MouseMoveStateManager({
         checkCorrectEvent: (e: MouseEvent): boolean =>
-            (DOM.mouseButton(e) === LEFT_BUTTON && e.ctrlKey) ||
-            (DOM.mouseButton(e) === RIGHT_BUTTON),
+            (e.button === LEFT_BUTTON && e.ctrlKey) ||
+            (e.button === RIGHT_BUTTON),
     });
     return new DragHandler<DragPitchResult, MouseEvent>({
         clickTolerance,
         move: (lastPoint: Point, point: Point) =>
-            ({pitchDelta: (point.y - lastPoint.y) * pitchDegreesPerPixelMoved}),
+            ({pitchDelta: (point.y - lastPoint.y) * pitchSpeed}),
         // prevent browser context menu when necessary; we don't allow it with rotation
         // because we can't discern rotation gesture start from contextmenu on Mac
         moveStateManager: mouseMoveStateManager,
@@ -95,19 +115,25 @@ export const generateMousePitchHandler = ({enable, clickTolerance, pitchDegreesP
     });
 };
 
-export const generateMouseRollHandler = ({enable, clickTolerance, rollDegreesPerPixelMoved = 0.8}: {
+export function generateMouseRollHandler({enable, clickTolerance, rollDegreesPerPixelMoved = 0.3}: {
     clickTolerance: number;
     rollDegreesPerPixelMoved?: number;
     enable?: boolean;
-}): MouseRollHandler => {
+}, getCenter: () => Point): MouseRollHandler {
     const mouseMoveStateManager = new MouseMoveStateManager({
         checkCorrectEvent: (e: MouseEvent): boolean =>
-            (DOM.mouseButton(e) === RIGHT_BUTTON && e.ctrlKey),
+            (e.button === RIGHT_BUTTON && e.ctrlKey),
     });
     return new DragHandler<DragRollResult, MouseEvent>({
         clickTolerance,
-        move: (lastPoint: Point, point: Point) =>
-            ({rollDelta: (point.x - lastPoint.x) * rollDegreesPerPixelMoved}),
+        move: (lastPoint: Point, currentPoint: Point) => {
+            const center = getCenter();
+            let rollDelta = (currentPoint.x - lastPoint.x) * rollDegreesPerPixelMoved;
+            if (currentPoint.y < center.y) {
+                rollDelta = -rollDelta;
+            }
+            return {rollDelta};
+        },
         // prevent browser context menu when necessary; we don't allow it with roll
         // because we can't discern roll gesture start from contextmenu on Mac
         moveStateManager: mouseMoveStateManager,

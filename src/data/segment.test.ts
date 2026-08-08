@@ -1,5 +1,6 @@
-import {FillLayoutArray, TriangleIndexArray} from './array_types.g';
-import {SegmentVector} from './segment';
+import {describe, expect, test} from 'vitest';
+import {FillLayoutArray, TriangleIndexArray} from './array_types.g.ts';
+import {SegmentVector} from './segment.ts';
 
 describe('SegmentVector', () => {
     test('constructor', () => {
@@ -33,7 +34,7 @@ describe('SegmentVector', () => {
         const second = mockUseSegment(segmentVector, vertexBuffer, indexBuffer, 10);
         expect(first).toBeTruthy();
         expect(second).toBeTruthy();
-        expect(first === second).toBe(false);
+        expect(first).not.toBe(second);
         expect(first.vertexLength).toBe(10);
         expect(second.vertexLength).toBe(10);
         expect(segmentVector.segments).toHaveLength(2);
@@ -48,7 +49,7 @@ describe('SegmentVector', () => {
         const second = mockUseSegment(segmentVector, vertexBuffer, indexBuffer, 5);
         expect(first).toBeTruthy();
         expect(second).toBeTruthy();
-        expect(first === second).toBe(true);
+        expect(first).toBe(second);
         expect(first.vertexLength).toBe(10);
     });
 
@@ -65,8 +66,8 @@ describe('SegmentVector', () => {
         expect(first).toBeTruthy();
         expect(second).toBeTruthy();
         expect(third).toBeTruthy();
-        expect(first === second).toBe(false);
-        expect(second === third).toBe(true);
+        expect(first).not.toBe(second);
+        expect(second).toBe(third);
         expect(first.vertexLength).toBe(5);
         expect(third.vertexLength).toBe(10);
     });
@@ -85,8 +86,8 @@ describe('SegmentVector', () => {
         expect(first).toBeTruthy();
         expect(second).toBeTruthy();
         expect(third).toBeTruthy();
-        expect(first === second).toBe(false);
-        expect(second === third).toBe(true);
+        expect(first).not.toBe(second);
+        expect(second).toBe(third);
         expect(first.vertexLength).toBe(5);
         expect(third.vertexLength).toBe(10);
     });
@@ -114,8 +115,8 @@ describe('SegmentVector', () => {
         expect(first).toBeTruthy();
         expect(second).toBeTruthy();
         expect(third).toBeTruthy();
-        expect(first === second).toBe(true);
-        expect(second === third).toBe(true);
+        expect(first).toBe(second);
+        expect(second).toBe(third);
         expect(first.vertexLength).toBe(15);
     });
 
@@ -133,8 +134,8 @@ describe('SegmentVector', () => {
         expect(first).toBeTruthy();
         expect(second).toBeTruthy();
         expect(third).toBeTruthy();
-        expect(first === second).toBe(false);
-        expect(second === third).toBe(true);
+        expect(first).not.toBe(second);
+        expect(second).toBe(third);
         expect(first.vertexLength).toBe(5);
         expect(third.vertexLength).toBe(10);
     });
@@ -151,8 +152,8 @@ describe('SegmentVector', () => {
         expect(first).toBeTruthy();
         expect(second).toBeTruthy();
         expect(third).toBeTruthy();
-        expect(first === second).toBe(false);
-        expect(second === third).toBe(true);
+        expect(first).not.toBe(second);
+        expect(second).toBe(third);
         expect(first.vertexLength).toBe(5);
         expect(second.vertexLength).toBe(10);
         expect(segmentVector.segments).toHaveLength(2);
@@ -169,7 +170,7 @@ describe('SegmentVector', () => {
         const second = mockUseSegment(segmentVector, vertexBuffer, indexBuffer, 5);
         expect(first).toBeTruthy();
         expect(second).toBeTruthy();
-        expect(first === second).toBe(false);
+        expect(first).not.toBe(second);
         expect(first.vertexLength).toBe(5);
         expect(second.vertexLength).toBe(5);
         expect(segmentVector.segments).toHaveLength(2);
@@ -196,7 +197,7 @@ describe('SegmentVector', () => {
         const second = mockUseSegment(segmentVector, vertexBuffer, indexBuffer, 5, 2);
         expect(first).toBeTruthy();
         expect(second).toBeTruthy();
-        expect(first === second).toBe(false);
+        expect(first).not.toBe(second);
         expect(first.vertexLength).toBe(5);
         expect(second.vertexLength).toBe(5);
         expect(segmentVector.segments).toHaveLength(2);

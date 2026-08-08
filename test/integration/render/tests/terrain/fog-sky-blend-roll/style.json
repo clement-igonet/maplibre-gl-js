@@ -2,9 +2,9 @@
     "version": 8,
     "sprite": "local://sprites/sprite",
     "glyphs": "local://glyphs/{fontstack}/{range}.pbf",
-    "timeout": 60000,
     "metadata": {
         "test": {
+            "timeout": 60000,
             "height": 512,
             "width": 512,
             "maxPitch": 85,
@@ -21,14 +21,6 @@
     "pitch": 85,
     "roll": -135,
     "sources": {
-        "hillshadeSource": {
-            "type": "raster-dem",
-            "tiles": [
-                "local://tiles/zero-elevation-terrain-tile.png"
-            ],
-            "minzoom": 0,
-            "maxzoom": 12
-        },
         "terrain": {
             "type": "raster-dem",
             "tiles": [

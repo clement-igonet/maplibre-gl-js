@@ -1,12 +1,13 @@
-import type {LoadGeoJSONParameters} from '../source/geojson_worker_source';
-import type {TileParameters, WorkerDEMTileParameters, WorkerTileParameters, WorkerTileResult} from '../source/worker_source';
-import type {DEMData} from '../data/dem_data';
-import type {StyleImage} from '../style/style_image';
-import type {StyleGlyph} from '../style/style_glyph';
-import type {PluginState} from '../source/rtl_text_plugin_status';
+import type {LoadGeoJSONParameters} from '../source/geojson_worker_source.ts';
+import type {TileParameters, WorkerDEMTileParameters, WorkerTileParameters, WorkerTileResult} from '../source/worker_source.ts';
+import type {DEMData} from '../data/dem_data.ts';
+import type {StyleImage} from '../style/style_image.ts';
+import type {StyleGlyph} from '../style/style_glyph.ts';
+import type {PluginState} from '../source/rtl_text_plugin_status.ts';
 import type {LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
-import type {OverscaledTileID} from '../source/tile_id';
-import type {GetResourceResponse, RequestParameters} from './ajax';
+import type {OverscaledTileID} from '../tile/tile_id.ts';
+import type {GetResourceResponse, RequestParameters} from './ajax.ts';
+import type {DashEntry} from '../render/line_atlas.ts';
 
 /**
  * The parameters needed in order to get information about the cluster
@@ -26,8 +27,9 @@ export type GetClusterLeavesParams = ClusterIDAndSource & { limit: number; offse
  * The result of the call to load a geojson source
  */
 export type GeoJSONWorkerSourceLoadDataResult = {
-    resourceTiming?: {[_: string]: Array<PerformanceResourceTiming>};
+    resourceTiming?: {[_: string]: PerformanceResourceTiming[]};
     abandoned?: boolean;
+    data?: GeoJSON.GeoJSON;
 };
 
 /**
@@ -36,35 +38,35 @@ export type GeoJSONWorkerSourceLoadDataResult = {
 export type RemoveSourceParams = {
     source: string;
     type: string;
-}
+};
 
 /**
  * Parameters needed to update the layers
  */
-export type UpdateLayersParamaeters = {
-    layers: Array<LayerSpecification>;
-    removedIds: Array<string>;
-}
+export type UpdateLayersParameters = {
+    layers: LayerSpecification[];
+    removedIds: string[];
+};
 
 /**
  * Parameters needed to get the images
  */
 export type GetImagesParameters = {
-    icons: Array<string>;
+    icons: string[];
     source: string;
     tileID: OverscaledTileID;
     type: string;
-}
+};
 
 /**
  * Parameters needed to get the glyphs
  */
 export type GetGlyphsParameters = {
     type: string;
-    stacks: {[_: string]: Array<number>};
+    stacks: {[_: string]: number[]};
     source: string;
     tileID: OverscaledTileID;
-}
+};
 
 /**
  * A response object returned when requesting glyphs
@@ -73,12 +75,27 @@ export type GetGlyphsResponse = {
     [stack: string]: {
         [id: number]: StyleGlyph;
     };
-}
+};
 
 /**
  * A response object returned when requesting images
  */
-export type GetImagesResponse = {[_: string]: StyleImage}
+export type GetImagesResponse = {[_: string]: StyleImage};
+
+/**
+ * Parameters needed to get the line dashes
+ */
+export type GetDashesParameters = {
+    dashes: {[key: string]: {
+        dasharray: number[];
+        round: boolean;
+    };};
+};
+
+/**
+ * A response object returned when requesting line dashes
+ */
+export type GetDashesResponse = {[dashId: string]: DashEntry};
 
 /**
  * All the possible message types that can be sent to and from the worker
@@ -89,12 +106,13 @@ export const enum MessageType {
     getClusterChildren = 'GCC',
     getClusterLeaves = 'GCL',
     loadData = 'LD',
-    getData = 'GD',
     loadTile = 'LT',
     reloadTile = 'RT',
     getGlyphs = 'GG',
+    getDashes = 'GDA',
     getImages = 'GI',
     setImages = 'SI',
+    updateGlobalState = 'UGS',
     setLayers = 'SL',
     updateLayers = 'UL',
     syncRTLPluginState = 'SRPS',
@@ -115,17 +133,17 @@ export const enum MessageType {
 export type RequestResponseMessageMap = {
     [MessageType.loadDEMTile]: [WorkerDEMTileParameters, DEMData];
     [MessageType.getClusterExpansionZoom]: [ClusterIDAndSource, number];
-    [MessageType.getClusterChildren]: [ClusterIDAndSource, Array<GeoJSON.Feature>];
-    [MessageType.getClusterLeaves]: [GetClusterLeavesParams, Array<GeoJSON.Feature>];
+    [MessageType.getClusterChildren]: [ClusterIDAndSource, GeoJSON.Feature[]];
+    [MessageType.getClusterLeaves]: [GetClusterLeavesParams, GeoJSON.Feature[]];
     [MessageType.loadData]: [LoadGeoJSONParameters, GeoJSONWorkerSourceLoadDataResult];
-    [MessageType.getData]: [LoadGeoJSONParameters, GeoJSON.GeoJSON];
     [MessageType.loadTile]: [WorkerTileParameters, WorkerTileResult];
     [MessageType.reloadTile]: [WorkerTileParameters, WorkerTileResult];
     [MessageType.getGlyphs]: [GetGlyphsParameters, GetGlyphsResponse];
     [MessageType.getImages]: [GetImagesParameters, GetImagesResponse];
     [MessageType.setImages]: [string[], void];
-    [MessageType.setLayers]: [Array<LayerSpecification>, void];
-    [MessageType.updateLayers]: [UpdateLayersParamaeters, void];
+    [MessageType.updateGlobalState]: [Record<string, any>, void];
+    [MessageType.setLayers]: [LayerSpecification[], void];
+    [MessageType.updateLayers]: [UpdateLayersParameters, void];
     [MessageType.syncRTLPluginState]: [PluginState, PluginState];
     [MessageType.setReferrer]: [string, void];
     [MessageType.removeSource]: [RemoveSourceParams, void];
@@ -135,7 +153,8 @@ export type RequestResponseMessageMap = {
     [MessageType.abortTile]: [TileParameters, void];
     [MessageType.removeDEMTile]: [TileParameters, void];
     [MessageType.getResource]: [RequestParameters, GetResourceResponse<any>];
-}
+    [MessageType.getDashes]: [GetDashesParameters, GetDashesResponse];
+};
 
 /**
  * The message to be sent by the actor

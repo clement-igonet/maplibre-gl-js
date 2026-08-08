@@ -1,6 +1,8 @@
-import {SerializedObject} from '../../dist/maplibre-gl';
-import {AJAXError} from './ajax';
-import {register, serialize, deserialize} from './web_worker_transfer';
+import {describe, test, expect} from 'vitest';
+import {AJAXError} from './ajax.ts';
+import {register, serialize, deserialize} from './web_worker_transfer.ts';
+import {featureFilter} from '@maplibre/maplibre-gl-style-spec';
+import {EvaluationParameters} from '../style/evaluation_parameters.ts';
 
 describe('web worker transfer', () => {
     test('round trip', () => {
@@ -62,6 +64,10 @@ describe('web worker transfer', () => {
         expect(deserialized instanceof Klass).toBeTruthy();
     });
 
+    test('null', () => {
+        expect(() => serialize(null)).not.toThrow();
+    });
+
     test('custom serialization', () => {
         class CustomSerialization {
             id;
@@ -99,8 +105,7 @@ describe('web worker transfer', () => {
         const url = 'https://example.com';
 
         const ajaxError = new AJAXError(status, statusText, url, new Blob());
-        const serialized = serialize(ajaxError) as SerializedObject;
-        expect(serialized.$name).toBe(ajaxError.constructor.name);
+        const serialized = serialize(ajaxError);
         const deserialized = deserialize(serialized) as AJAXError;
         expect(deserialized.status).toBe(404);
         expect(deserialized.statusText).toBe(statusText);
@@ -114,7 +119,7 @@ describe('web worker transfer', () => {
         const trySerialize = () => {
             serialize(new BadClass());
         };
-        expect(trySerialize).toThrow();
+        expect(trySerialize).toThrow('can\'t serialize object of unregistered class BadClass');
     });
     test('serialize can not used reserved property #name', () => {
         class BadClass {
@@ -128,7 +133,7 @@ describe('web worker transfer', () => {
         const badObject = new BadClass();
         expect(() => {
             serialize(badObject);
-        }).toThrow();
+        }).toThrow('$name property is reserved for worker serialization logic.');
     });
     test('deserialize Object has $name', () => {
         const badObject = {
@@ -137,17 +142,32 @@ describe('web worker transfer', () => {
         const tryDeserialize = () => {
             deserialize(badObject);
         };
-        expect(tryDeserialize).toThrow();
+        expect(tryDeserialize).toThrow('can\'t deserialize unregistered class foo');
     });
 
     test('some objects can not be serialized', () => {
         expect(() => {
             serialize(BigInt(123));
-        }).toThrow();
+        }).toThrow('can\'t serialize object of type bigint');
     });
     test('some objects can not be deserialized', () => {
         expect(() => {
-            deserialize(<SerializedObject><unknown>BigInt(123));
-        }).toThrow();
+            deserialize(BigInt(123) as unknown);
+        }).toThrow('can\'t deserialize object of type bigint');
+    });
+
+    test('"has" filter returns false for undefined or missing properties after serialization', () => {
+        const filter = featureFilter(['has', 'testProperty'], 'layers[0].filter');
+        const params = new EvaluationParameters(0);
+
+        const makeFeature = (properties: Record<string, unknown>) => ({
+            type: 1 as const,
+            properties: deserialize(serialize(properties)) as Record<string, unknown>,
+            geometry: []
+        });
+
+        expect(filter.filter(params, makeFeature({testProperty: 'value'}))).toBe(true);
+        expect(filter.filter(params, makeFeature({testProperty: undefined}))).toBe(false);
+        expect(filter.filter(params, makeFeature({}))).toBe(false);
     });
 });

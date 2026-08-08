@@ -1,10 +1,11 @@
+import {describe, test, expect} from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import {WritingMode, shapeText, Shaping} from '../../../src/symbol/shaping';
-import {ResolvedImage, Formatted, FormattedSection} from '@maplibre/maplibre-gl-style-spec';
-import {ImagePosition} from '../../../src/render/image_atlas';
-import type {StyleImage} from '../../../src/style/style_image';
-import type {StyleGlyph} from '../../../src/style/style_glyph';
+import {WritingMode, shapeText, type Shaping} from '../../../src/symbol/shaping.ts';
+import {ResolvedImage, Formatted, FormattedSection, type VerticalAlign} from '@maplibre/maplibre-gl-style-spec';
+import {ImagePosition} from '../../../src/render/image_atlas.ts';
+import type {StyleImage} from '../../../src/style/style_image.ts';
+import type {StyleGlyph} from '../../../src/style/style_glyph.ts';
 
 import glyphsJson from '../assets/glyphs/fontstack-glyphs.json' with {type: 'json'};
 import expectedJson from './tests/text-shaping-linebreak.json' with {type: 'json'};
@@ -21,12 +22,12 @@ if (typeof process !== 'undefined' && process.env !== undefined) {
     UPDATE = !!process.env.UPDATE;
 }
 
-function sectionForImage(name: string) {
-    return new FormattedSection('', ResolvedImage.fromString(name), null, null, null);
+function sectionForImage(name: string, verticalAlign?: VerticalAlign) {
+    return new FormattedSection('', ResolvedImage.fromString(name), null, null, null, verticalAlign);
 }
 
-function sectionForText(name: string, scale?: number) {
-    return new FormattedSection(name, null, scale, null, null);
+function sectionForText(name: string, scale?: number, verticalAlign?: VerticalAlign) {
+    return new FormattedSection(name, null, scale, null, null, verticalAlign);
 }
 
 describe('shaping', () => {
@@ -158,5 +159,51 @@ describe('shaping', () => {
         const shaped = shapeText(horizontalFormatted, glyphs, glyphPositions, images, fontStack, 5 * oneEm, oneEm, 'center', 'center', 0, [0, 0], WritingMode.vertical, true, layoutTextSize, layoutTextSizeThisZoom);
         if (UPDATE) fs.writeFileSync(path.resolve(__dirname, './tests/text-shaping-images-vertical.json'), JSON.stringify(shaped, null, 2));
         expect(shaped).toEqual(expectedImagesVertical);
+    });
+
+    test('Rotated punctuation in vertical layout', () => {
+        const shaped = shapeText(Formatted.fromString('()'), glyphs, glyphPositions, images, fontStack, 5 * oneEm, oneEm, 'center', 'center', 0, [0, 0], WritingMode.vertical, true, layoutTextSize, layoutTextSizeThisZoom);
+        const positionedGlyphs = (shaped as Shaping).positionedLines[0].positionedGlyphs;
+        expect(positionedGlyphs[0].glyph).toBe(0xfe35);
+        expect(positionedGlyphs[1].glyph).toBe(0xfe36);
+    });
+
+    test('Characters beyond the Basic Multilingual Plane', () => {
+        const shaped = shapeText(Formatted.fromString('🗺️🌐'), glyphs, glyphPositions, images, fontStack, 5 * oneEm, oneEm, 'center', 'center', 0, [0, 0], WritingMode.horizontal, false, layoutTextSize, layoutTextSizeThisZoom);
+        const positionedGlyphs = (shaped as Shaping).positionedLines[0].positionedGlyphs;
+        expect(positionedGlyphs[0].glyph).toBe(0x1f5fa);
+        expect(positionedGlyphs[0].x).toBe(-31.5);
+        expect(positionedGlyphs[1].glyph).toBe(0xfe0f);
+        expect(positionedGlyphs[1].x).toBe(-10.5);
+        expect(positionedGlyphs[2].glyph).toBe(0x1f310);
+        expect(positionedGlyphs[2].x).toBe(10.5);
+    });
+
+    test('text vertical align', () => {
+        const shaped = shapeText(new Formatted([
+            sectionForText('A', 3),
+            sectionForText('A', 1, 'top'),
+            sectionForText('A', 1, 'center'),
+            sectionForText('A', 1, 'bottom'),
+        ]), glyphs, glyphPositions, images, fontStack, 5 * oneEm, oneEm, 'center', 'center', 0, [0, 0], WritingMode.horizontal, false, layoutTextSize, layoutTextSizeThisZoom);
+        const positionedGlyphs = (shaped as Shaping).positionedLines[0].positionedGlyphs;
+        expect(positionedGlyphs[0].y).toBe(-36);
+        expect(positionedGlyphs[1].y).toBe(-36);
+        expect(positionedGlyphs[2].y).toBe(-12);
+        expect(positionedGlyphs[3].y).toBe(12);
+    });
+
+    test('image vertical align', () => {
+        const shaped = shapeText(new Formatted([
+            sectionForText('A', 3),
+            sectionForImage('square', 'top'),
+            sectionForImage('square', 'center'),
+            sectionForImage('square', 'bottom'),
+        ]), glyphs, glyphPositions, images, fontStack, 5 * oneEm, oneEm, 'center', 'center', 0, [0, 0], WritingMode.horizontal, false, layoutTextSize, layoutTextSizeThisZoom);
+        const positionedGlyphs = (shaped as Shaping).positionedLines[0].positionedGlyphs;
+        expect(positionedGlyphs[0].y).toBe(-36);
+        expect(positionedGlyphs[1].y).toBe(-36);
+        expect(positionedGlyphs[2].y).toBe(-10.5);
+        expect(positionedGlyphs[3].y).toBe(15);
     });
 });

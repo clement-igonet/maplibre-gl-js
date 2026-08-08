@@ -1,8 +1,9 @@
-import {checkGeolocationSupport} from './geolocation_support';
+import {describe, beforeEach, test, expect, vi} from 'vitest';
+import {checkGeolocationSupport} from './geolocation_support.ts';
 
 describe('checkGeolocationSupport', () => {
     beforeEach(() => {
-        jest.resetModules();
+        vi.resetModules();
     });
 
     test('it should return false if geolocation is not defined', async () => {

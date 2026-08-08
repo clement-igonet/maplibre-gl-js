@@ -1,12 +1,13 @@
+import {describe, beforeEach, test, expect, vi} from 'vitest';
 import {fakeServer} from 'nise';
-import Worker from './worker';
-import {LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
-import {WorkerGlobalScopeInterface} from '../util/web_worker';
-import {CanonicalTileID, OverscaledTileID} from './tile_id';
-import {WorkerSource, WorkerTileParameters, WorkerTileResult} from './worker_source';
-import {rtlWorkerPlugin} from './rtl_text_plugin_worker';
-import {ActorTarget, IActor} from '../util/actor';
-import {MessageType} from '../util/actor_messages';
+import Worker from './worker.ts';
+import {type LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
+import {type WorkerGlobalScopeInterface} from '../util/web_worker.ts';
+import {type CanonicalTileID, type OverscaledTileID} from '../tile/tile_id.ts';
+import {type WorkerSource, type WorkerTileParameters, type WorkerTileResult} from './worker_source.ts';
+import {rtlWorkerPlugin} from './rtl_text_plugin_worker.ts';
+import {type ActorTarget, type IActor} from '../util/actor.ts';
+import {MessageType} from '../util/actor_messages.ts';
 
 class WorkerSourceMock implements WorkerSource {
     availableImages: string[];
@@ -31,15 +32,14 @@ describe('Worker RTLTextPlugin', () => {
 
     beforeEach(() => {
         _self = {
-            addEventListener() {},
-            importScripts() {}
+            addEventListener() {}
         } as any;
         worker = new Worker(_self);
         global.fetch = null;
     });
 
     test('should call setMethods in plugin', () => {
-        const spy = jest.spyOn(rtlWorkerPlugin, 'setMethods').mockImplementation(() => {});
+        const spy = vi.spyOn(rtlWorkerPlugin, 'setMethods').mockImplementation(() => {});
 
         _self.registerRTLTextPlugin({} as any);
 
@@ -47,7 +47,7 @@ describe('Worker RTLTextPlugin', () => {
     });
 
     test('should call syncState when rtl message is received', async () => {
-        const syncStateSpy = jest.spyOn(rtlWorkerPlugin, 'syncState').mockImplementation((_, __) => Promise.resolve({} as any));
+        const syncStateSpy = vi.spyOn(rtlWorkerPlugin, 'syncState').mockImplementation((_, __) => Promise.resolve({} as any));
 
         await worker.actor.messageHandlers[MessageType.syncRTLPluginState]('', {} as any) as any;
 
@@ -67,21 +67,19 @@ describe('Worker generic testing', () => {
         global.fetch = null;
     });
 
-    test('should validate handlers execution in worker for load tile', () => new Promise<void>(done => {
+    test('should validate handlers execution in worker for load tile', async () => {
         const server = fakeServer.create();
-        worker.actor.messageHandlers[MessageType.loadTile]('0', {
+        const messagePromise = worker.actor.messageHandlers[MessageType.loadTile]('0', {
             type: 'vector',
             source: 'source',
             uid: '0',
             tileID: {overscaledZ: 0, wrap: 0, canonical: {x: 0, y: 0, z: 0} as CanonicalTileID} as any as OverscaledTileID,
             request: {url: '/error'}// Sinon fake server gives 404 responses by default
-        } as WorkerTileParameters).catch((err) => {
-            expect(err).toBeTruthy();
-            server.restore();
-            done();
-        });
+        } as WorkerTileParameters);
         server.respond();
-    }));
+        await expect(messagePromise).rejects.toBeDefined();
+        server.restore();
+    });
 
     test('isolates different instances\' data', () => {
         worker.actor.messageHandlers[MessageType.setLayers]('0', [
@@ -90,22 +88,17 @@ describe('Worker generic testing', () => {
 
         worker.actor.messageHandlers[MessageType.setLayers]('1', [
             {id: 'one', type: 'circle'} as LayerSpecification,
-            {id: 'two', type: 'circle'} as LayerSpecification,
+            {id: 'two', type: 'circle'} as LayerSpecification
         ]);
 
         expect(worker.layerIndexes[0]).not.toBe(worker.layerIndexes[1]);
     });
 
-    test('worker source messages dispatched to the correct map instance', () => new Promise<void>(done => {
+    test('worker source messages dispatched to the correct map instance', () => {
         const externalSourceName = 'test';
 
-        worker.actor.sendAsync = (message, abortController) => {
-            expect(message.type).toBe(MessageType.loadTile);
-            expect(message.targetMapId).toBe('999');
-            expect(abortController).toBeDefined();
-            done();
-            return Promise.resolve({} as any);
-        };
+        const sendAsyncSpy = vi.fn().mockResolvedValue({} as any);
+        worker.actor.sendAsync = sendAsyncSpy;
 
         _self.registerWorkerSource(externalSourceName, WorkerSourceMock);
 
@@ -114,22 +107,25 @@ describe('Worker generic testing', () => {
         }).toThrow(`Worker source with name "${externalSourceName}" already registered.`);
 
         worker.actor.messageHandlers[MessageType.loadTile]('999', {type: externalSourceName} as WorkerTileParameters);
-    }));
+
+        expect(sendAsyncSpy).toHaveBeenCalled();
+        expect(sendAsyncSpy.mock.calls[0][0].type).toBe(MessageType.loadTile);
+        expect(sendAsyncSpy.mock.calls[0][0].targetMapId).toBe('999');
+        expect(sendAsyncSpy.mock.calls[0][1]).toBeDefined();
+    });
 
     test('Referrer is set', () => {
         worker.actor.messageHandlers[MessageType.setReferrer]('fakeId', 'myMap');
         expect(worker.referrer).toBe('myMap');
     });
 
-    test('calls callback on error', () => new Promise<void>(done => {
+    test('calls callback on error', async () => {
         const server = fakeServer.create();
-        worker.actor.messageHandlers[MessageType.importScript]('0', '/error').catch((err) => {
-            expect(err).toBeTruthy();
-            server.restore();
-            done();
-        });
+        const messagePromise = worker.actor.messageHandlers[MessageType.importScript]('0', '/error');
         server.respond();
-    }));
+        await expect(messagePromise).rejects.toBeDefined();
+        server.restore();
+    });
 
     test('set images', () => {
         expect(worker.availableImages['0']).toBeUndefined();
@@ -142,5 +138,12 @@ describe('Worker generic testing', () => {
         expect(worker.layerIndexes['0']).toBeDefined();
         worker.actor.messageHandlers[MessageType.removeMap]('0', undefined);
         expect(worker.layerIndexes['0']).toBeUndefined();
+    });
+
+    test('propagates global state', () => {
+        const globalState = {key: 'value'};
+        worker.actor.messageHandlers[MessageType.updateGlobalState]('0', globalState);
+        expect(worker.globalStates.get('0')).not.toBe(globalState);
+        expect(worker.globalStates.get('0')).toEqual(globalState);
     });
 });

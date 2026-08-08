@@ -1,12 +1,13 @@
-import {MercatorProjection} from '../../geo/projection/mercator';
-import {createMap, beforeMapTest, sleep} from '../../util/test/util';
+import {describe, beforeEach, test, expect, vi} from 'vitest';
+import {MercatorProjection} from '../../geo/projection/mercator_projection.ts';
+import {createMap, beforeMapTest, sleep} from '../../util/test/util.ts';
 
 beforeEach(() => {
     beforeMapTest();
     global.fetch = null;
 });
 
-describe('#resize', () => {
+describe('resize', () => {
     test('sets width and height from container clients', () => {
         const map = createMap(),
             container = map.getContainer();
@@ -15,31 +16,26 @@ describe('#resize', () => {
         Object.defineProperty(container, 'clientHeight', {value: 250});
         map.resize();
 
-        expect(map.transform.width).toBe(250);
-        expect(map.transform.height).toBe(250);
+        expect(map._camera.transform.width).toBe(250);
+        expect(map._camera.transform.height).toBe(250);
 
     });
 
-    test('fires movestart, move, resize, and moveend events', () => {
-        const map = createMap(),
-            events = [];
-
-        (['movestart', 'move', 'resize', 'moveend'] as any).forEach((event) => {
-            map.on(event, (e) => {
-                events.push(e.type);
-            });
-        });
+    const expectedMovementEvents  = ['movestart', 'move', 'resize', 'moveend'] as const;
+    test.each(expectedMovementEvents)('fires %s event on resize', (event) => {
+        const map = createMap();
+        const onEvent = vi.fn();
+        map.on(event, onEvent);
 
         map.resize();
-        expect(events).toEqual(['movestart', 'move', 'resize', 'moveend']);
-
+        expect(onEvent).toHaveBeenCalled();
     });
 
     test('listen to window resize event', () => {
-        const spy = jest.fn();
-        global.ResizeObserver = jest.fn().mockImplementation(() => ({
-            observe: spy
-        }));
+        const spy = vi.fn();
+        global.ResizeObserver = vi.fn(class {
+            observe = spy;
+        }) as any;
 
         createMap();
 
@@ -48,15 +44,16 @@ describe('#resize', () => {
 
     test('do not resize if trackResize is false', () => {
         let observerCallback: Function = null;
-        global.ResizeObserver = jest.fn().mockImplementation((c) => ({
-            observe: () => { observerCallback = c; }
-        }));
+        global.ResizeObserver = vi.fn(class {
+            constructor(c) { observerCallback = c; }
+            observe = () => { };
+        }) as any;
 
         const map = createMap({trackResize: false});
 
-        const spyA = jest.spyOn(map, 'stop');
-        const spyB = jest.spyOn(map, '_update');
-        const spyC = jest.spyOn(map, 'resize');
+        const spyA = vi.spyOn(map, 'stop');
+        const spyB = vi.spyOn(map, '_update');
+        const spyC = vi.spyOn(map, 'resize');
 
         observerCallback();
 
@@ -67,15 +64,17 @@ describe('#resize', () => {
 
     test('do resize if trackResize is true (default)', async () => {
         let observerCallback: Function = null;
-        global.ResizeObserver = jest.fn().mockImplementation((c) => ({
-            observe: () => { observerCallback = c; }
-        }));
+        global.ResizeObserver = vi.fn(class {
+            constructor(c) { observerCallback = c; }
+            observe = () => { };
+        }) as any;
 
         const map = createMap();
+
         map.style.projection = new MercatorProjection();
-        const resizeSpy = jest.spyOn(map, 'resize');
-        const redrawSpy = jest.spyOn(map, 'redraw');
-        const renderSpy = jest.spyOn(map, '_render');
+        const resizeSpy = vi.spyOn(map, 'resize');
+        const redrawSpy = vi.spyOn(map, 'redraw');
+        const renderSpy = vi.spyOn(map, '_render');
 
         // The initial "observe" event fired by ResizeObserver should be captured/muted
         // in the map constructor

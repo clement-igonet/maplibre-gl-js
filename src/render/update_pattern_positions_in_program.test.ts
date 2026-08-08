@@ -1,12 +1,13 @@
-import {Tile} from '../source/tile';
-import {OverscaledTileID} from '../source/tile_id';
-import {updatePatternPositionsInProgram} from './update_pattern_positions_in_program';
-import {FillStyleLayer} from '../style/style_layer/fill_style_layer';
-import type {CrossFaded} from '../style/properties';
+import {describe, test, expect, vi} from 'vitest';
+import {Tile} from '../tile/tile.ts';
+import {OverscaledTileID} from '../tile/tile_id.ts';
+import {updatePatternPositionsInProgram} from './update_pattern_positions_in_program.ts';
+import {FillStyleLayer} from '../style/style_layer/fill_style_layer.ts';
+import type {CrossFaded} from '../style/properties.ts';
 import type {FillLayerSpecification, ResolvedImage} from '@maplibre/maplibre-gl-style-spec';
-import type {ProgramConfiguration} from '../data/program_configuration';
-import type {ImagePosition} from './image_atlas';
-import type {Rect} from './glyph_atlas';
+import type {ProgramConfiguration} from '../data/program_configuration.ts';
+import type {ImagePosition} from './image_atlas.ts';
+import type {Rect} from './glyph_atlas.ts';
 
 interface MockProgramConfiguration extends ProgramConfiguration {
     patternPositions: {
@@ -17,7 +18,7 @@ interface MockProgramConfiguration extends ProgramConfiguration {
 
 function constructMockProgramConfiguration(): MockProgramConfiguration {
     const mockProgramConfiguration: MockProgramConfiguration = {patternPositions: {}} as any;
-    mockProgramConfiguration.updatePaintBuffers = jest.fn();
+    mockProgramConfiguration.updatePaintBuffers = vi.fn();
     mockProgramConfiguration.setConstantPatternPositions = (posFrom: ImagePosition, posTo: ImagePosition) => {
         // this does not exist on ProgramConfiguration but we want to test the resulting output
         mockProgramConfiguration.patternPositions = {posFrom: posFrom.paddedRect, posTo: posTo.paddedRect};
@@ -42,8 +43,7 @@ function constructMockFillStyleLayer(): FillStyleLayer {
             ]
         }
     } as FillLayerSpecification;
-    const layer = new FillStyleLayer(layerSpec);
-    return layer;
+    return new FillStyleLayer(layerSpec, {});
 }
 
 describe('updatePatternPositionsInProgram', () => {
