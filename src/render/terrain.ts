@@ -538,6 +538,10 @@ export class Terrain {
     }
 
     _getOverscaledTileIDFromLngLatZoom(lnglat: LngLat, zoom: number): { tileID: OverscaledTileID; mercatorX: number; mercatorY: number} {
+        // A fractional zoom (e.g. the transform's live zoom) would produce tile IDs
+        // whose keys can never match a cached tile, so every lookup, including the
+        // ancestor-DEM fallback in getSourceTile, silently misses and reads 0.
+        zoom = Math.floor(zoom);
         const mercatorCoordinate = MercatorCoordinate.fromLngLat(lnglat.wrap());
         const worldSize = (1 << zoom) * EXTENT;
         const mercatorX = mercatorCoordinate.x * worldSize;
