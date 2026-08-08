@@ -876,9 +876,9 @@ export class Camera extends Evented<MapEventType> {
     _finalizeElevation(): void {
         this.elevationFreeze = false;
         if (this.getCenterClampedToGround()) {
-            const tr = this._getTransformForUpdate();
+            const tr = this.getTransformForUpdate();
             tr.recalculateZoomAndCenter(this.terrain);
-            this._applyUpdatedTransform(tr);
+            this.applyUpdatedTransform(tr);
         }
     }
 
