@@ -913,7 +913,7 @@ export class Camera extends Evented<MapEventType> {
         if (!this.terrain && tr.elevation >= 0 && tr.pitch <= 90) {
             return {};
         }
-        const surfacePadding = Math.min(500, 20 * (25 - tr.zoom));
+        const surfacePadding = Math.min(50, 2 * (25 - tr.zoom));
         const cameraLngLat = tr.getCameraLngLat();
         const cameraAltitude = tr.getCameraAltitude();
         const minAltitude = this.terrain ? this.terrain.getElevationForLngLatZoom(cameraLngLat, tr.zoom) + surfacePadding : 0;
