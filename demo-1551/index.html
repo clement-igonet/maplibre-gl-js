@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>#1551 demo: empty (HTTP 204) raster-DEM tiles, main vs fix</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="dist-1551/maplibre-gl.css">
+<style>
+    body, html { margin: 0; height: 100%; }
+    #wrap { display: flex; height: 100%; }
+    .half { position: relative; flex: 1; }
+    .half .map { position: absolute; inset: 0; }
+    .tag { position: absolute; top: 8px; left: 8px; z-index: 2; background: rgba(0,0,0,.8); color: #fff;
+           padding: 6px 10px; border-radius: 4px; font: 600 13px system-ui, sans-serif; }
+    .hud { position: absolute; bottom: 8px; left: 8px; z-index: 2; background: rgba(0,0,0,.8); color: #fff;
+           padding: 8px 12px; border-radius: 4px; font: 600 13px monospace; white-space: pre; }
+    .hud.bad { background: rgba(160,30,20,.9); }
+    .half:last-child .tag, .half:last-child .hud { left: auto; right: 8px; }
+    #note { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 3;
+            background: rgba(255,255,255,.95); padding: 6px 12px; border-radius: 4px;
+            font: 500 13px system-ui, sans-serif; max-width: 46em; text-align: center; }
+</style>
+</head>
+<body>
+<div id="wrap">
+    <div class="half"><div id="map-main" class="map"></div>
+        <div class="tag">main</div>
+        <div class="hud" id="hud-main">errors: 0</div></div>
+    <div class="half"><div id="map-fix" class="map"></div>
+        <div class="tag">fix: empty DEM tile treated as missing</div>
+        <div class="hud" id="hud-fix">errors: 0</div></div>
+</div>
+<div id="note">Every 3rd terrain (DEM) tile request returns HTTP 204 (empty), like a tile server with missing coverage.
+Left: current main. Right: <a href="https://github.com/maplibre/maplibre-gl-js/issues/1551">#1551</a> fix branch. Pan and zoom freely.</div>
+<script type="module">
+import * as mainlib from './dist-main/maplibre-gl-dev.mjs';
+import * as fixlib from './dist-1551/maplibre-gl-dev.mjs';
+
+const realFetch = window.fetch.bind(window);
+window.fetch = (input, init) => {
+    const url = typeof input === 'string' ? input : input.url;
+    if (url.includes('elevation-tiles-prod/terrarium')) {
+        const m = url.match(/terrarium\/(\d+)\/(\d+)\/(\d+)\.png/);
+        if (m && (+m[2] + +m[3]) % 3 === 0) {
+            return Promise.resolve(new Response(new ArrayBuffer(0), {status: 204, headers: {'Content-Type': 'image/png'}}));
+        }
+    }
+    return realFetch(input, init);
+};
+
+function mk(lib, container, hudEl) {
+    const map = new lib.Map({
+        container,
+        center: [11.39, 47.27],
+        zoom: 11.5,
+        pitch: 60,
+        style: {
+            version: 8,
+            sources: {
+                osm: {type: 'raster', tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap contributors'},
+                terrainSource: {type: 'raster-dem', encoding: 'terrarium', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 15, attribution: 'Mapzen/AWS'}
+            },
+            layers: [{id: 'osm', type: 'raster', source: 'osm'}],
+            terrain: {source: 'terrainSource', exaggeration: 1.3}
+        }
+    });
+    let errors = 0;
+    map.on('error', (e) => {
+        errors++;
+        const msg = (e.error && e.error.message || '').slice(0, 60);
+        hudEl.textContent = `errors: ${errors}\nlast: ${msg}`;
+        hudEl.classList.add('bad');
+    });
+    return map;
+}
+window.maps = {
+    left: mk(mainlib, 'map-main', document.getElementById('hud-main')),
+    right: mk(fixlib, 'map-fix', document.getElementById('hud-fix'))
+};
+</script>
+</body>
+</html>
