@@ -69,6 +69,13 @@ export class RasterDEMTileSource extends RasterTileSource implements Source {
                 if (this.map._refreshExpiredTiles && (response.cacheControl || response.expires)) {
                     tile.setExpiryData({cacheControl: response.cacheControl, expires: response.expires});
                 }
+                // An empty tile response (e.g. HTTP 204) decodes to a 1×1 image. Treat it
+                // as a missing tile instead of building a degenerate DEM whose dimension
+                // would not match its neighbors and throw in backfillBorder (#1551).
+                if (img.width <= 1 || img.height <= 1) {
+                    tile.state = 'loaded';
+                    return;
+                }
                 const transfer = isImageBitmap(img) && offscreenCanvasSupported();
                 const rawImageData = transfer ? img : await this.readImageNow(img);
                 const params = {
