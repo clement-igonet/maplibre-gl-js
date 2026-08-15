@@ -42,7 +42,7 @@ window.fetch = (input, init) => {
     if (url.includes('elevation-tiles-prod/terrarium')) {
         const m = url.match(/terrarium\/(\d+)\/(\d+)\/(\d+)\.png/);
         if (m && (+m[2] + +m[3]) % 3 === 0) {
-            return Promise.resolve(new Response(new ArrayBuffer(0), {status: 204, headers: {'Content-Type': 'image/png'}}));
+            return Promise.resolve(new Response(null, {status: 204}));
         }
     }
     return realFetch(input, init);
