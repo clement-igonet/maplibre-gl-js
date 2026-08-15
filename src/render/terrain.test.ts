@@ -348,6 +348,30 @@ describe('Terrain', () => {
         expect(terrain.getElevationForLngLatZoom(new LngLat(-183, 40), 0)).toBe(1);
     });
 
+    describe('_getOverscaledTileIDFromLngLatZoom floors fractional zoom', () => {
+        test('a fractional zoom produces the same tile ID as its floor', () => {
+            const terrain = new Terrain(null, {_source: {tileSize: 512}} as any, {} as any);
+            const lnglat = new LngLat(11.39, 47.27);
+
+            const fractional = terrain._getOverscaledTileIDFromLngLatZoom(lnglat, 15.8);
+            const floored = terrain._getOverscaledTileIDFromLngLatZoom(lnglat, 15);
+
+            expect(fractional.tileID.key).toBe(floored.tileID.key);
+            expect(fractional.tileID.canonical.z).toBe(15);
+        });
+
+        test('elevation lookup at fractional zoom reaches the tile cached at integer zoom', () => {
+            const terrain = new Terrain(null, {_source: {tileSize: 512}} as any, {} as any);
+            const lnglat = new LngLat(11.39, 47.27);
+            const cachedID = terrain._getOverscaledTileIDFromLngLatZoom(lnglat, 15).tileID;
+
+            terrain.getElevation = vi.fn((tileID: OverscaledTileID) =>
+                tileID.key === cachedID.key ? 1234 : 0);
+
+            expect(terrain.getElevationForLngLatZoom(lnglat, 15.8)).toBe(1234);
+        });
+    });
+
     test('getMinTileElevationForLngLatZoom with lng less than -180 wraps correctly', () => {
         const terrain = new Terrain(null, {_source: {tileSize: 512}} as any, {} as any);
 
