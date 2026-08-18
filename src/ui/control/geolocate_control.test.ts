@@ -1,15 +1,15 @@
 import {describe, beforeEach, afterEach, test, expect, vi, type MockInstance} from 'vitest';
 import geolocation from 'mock-geolocation';
-import {LngLatBounds} from '../../geo/lng_lat_bounds';
-import {createMap, beforeMapTest, sleep} from '../../util/test/util';
-import {GeolocateControl} from './geolocate_control';
-vi.mock('../../util/geolocation_support', () => (
+import {LngLatBounds} from '../../geo/lng_lat_bounds.ts';
+import {createMap, beforeMapTest, sleep} from '../../util/test/util.ts';
+import {GeolocateControl} from './geolocate_control.ts';
+vi.mock(import('../../util/geolocation_support'), () => (
     {
         checkGeolocationSupport: vi.fn()
     }
 ));
-import {checkGeolocationSupport} from '../../util/geolocation_support';
-import type {LngLat} from '../../geo/lng_lat';
+import {checkGeolocationSupport} from '../../util/geolocation_support.ts';
+import type {LngLat} from '../../geo/lng_lat.ts';
 
 /**
  * Convert the coordinates of a LngLat object to a fixed number of digits
@@ -24,14 +24,45 @@ function lngLatAsFixed(lngLat: LngLat, digits: number): {lat: string; lng: strin
     };
 }
 
+/**
+ * Since we are running in a Node.js environment, we need to mock the ResizeObserverEntry
+ */
+function createResizeObserverEntryMock() {
+    global.ResizeObserverEntry = class ResizeObserverEntry {
+        target: Element;
+        contentRect: DOMRectReadOnly;
+        borderBoxSize: readonly ResizeObserverSize[];
+        contentBoxSize: readonly ResizeObserverSize[];
+        devicePixelContentBoxSize: readonly ResizeObserverSize[];
+
+        constructor() {
+            this.target = document.createElement('div'); // Default target
+            this.contentRect = {
+                x: 0,
+                y: 0,
+                width: 0,
+                height: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+            } as DOMRectReadOnly;
+            this.borderBoxSize = [];
+            this.contentBoxSize = [];
+            this.devicePixelContentBoxSize = [];
+        }
+    };
+}
+
 describe('GeolocateControl with no options', () => {
     geolocation.use();
     let map;
 
     beforeEach(() => {
         beforeMapTest();
-        map = createMap(undefined, undefined);
-        (checkGeolocationSupport as unknown as MockInstance).mockImplementationOnce(() => Promise.resolve(true));
+        map = createMap();
+        (checkGeolocationSupport as unknown as MockInstance).mockResolvedValueOnce(true);
+        createResizeObserverEntryMock();
     });
 
     afterEach(() => {
@@ -39,7 +70,7 @@ describe('GeolocateControl with no options', () => {
     });
 
     test('is disabled when there is no support', async () => {
-        (checkGeolocationSupport as unknown as MockInstance).mockReset().mockImplementationOnce(() => Promise.resolve(false));
+        (checkGeolocationSupport as unknown as MockInstance).mockReset().mockResolvedValueOnce(false);
         const geolocate = new GeolocateControl(undefined);
         const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         map.addControl(geolocate);
@@ -55,6 +86,18 @@ describe('GeolocateControl with no options', () => {
         expect(geolocate._geolocateButton.disabled).toBeFalsy();
     });
 
+    test('is disabled when permission is denied and tracking is off', async () => {
+        const geolocate = new GeolocateControl({trackUserLocation: false});
+        map.addControl(geolocate);
+        await sleep(0);
+
+        const click = new window.Event('click');
+        geolocate._geolocateButton.dispatchEvent(click);
+        geolocation.sendError({code: 1, message: 'permission was denied'});
+
+        expect(geolocate._geolocateButton.disabled).toBeTruthy();
+    });
+
     test('has permissions', async () => {
 
         (window.navigator as any).permissions = {
@@ -68,8 +111,116 @@ describe('GeolocateControl with no options', () => {
         expect(geolocate._geolocateButton.disabled).toBeFalsy();
     });
 
-    test('error event', async () => {
+    test('error event in waiting active state', async () => {
         const geolocate = new GeolocateControl(undefined);
+        map.addControl(geolocate);
+        await sleep(0);
+        geolocate._watchState = 'WAITING_ACTIVE';
+
+        const click = new window.Event('click');
+        const errorPromise = geolocate.once('error');
+        geolocate._geolocateButton.dispatchEvent(click);
+
+        geolocation.sendError({code: 2, message: 'error message'});
+        const error = await errorPromise;
+
+        expect(error.code).toBe(2);
+        expect(error.message).toBe('error message');
+        expect(geolocate._watchState).toBe('ACTIVE_ERROR');
+    });
+
+    test('error event in active lock state', async () => {
+        const geolocate = new GeolocateControl(undefined);
+        map.addControl(geolocate);
+        await sleep(0);
+        geolocate._watchState = 'ACTIVE_LOCK';
+
+        const click = new window.Event('click');
+        const errorPromise = geolocate.once('error');
+        geolocate._geolocateButton.dispatchEvent(click);
+
+        geolocation.sendError({code: 2, message: 'error message'});
+        const error = await errorPromise;
+
+        expect(error.code).toBe(2);
+        expect(error.message).toBe('error message');
+        expect(geolocate._watchState).toBe('ACTIVE_ERROR');
+    });
+
+    test('error event in background state', async () => {
+        const geolocate = new GeolocateControl(undefined);
+        map.addControl(geolocate);
+        await sleep(0);
+        geolocate._watchState = 'BACKGROUND';
+
+        const click = new window.Event('click');
+        const errorPromise = geolocate.once('error');
+        geolocate._geolocateButton.dispatchEvent(click);
+
+        geolocation.sendError({code: 2, message: 'error message'});
+        const error = await errorPromise;
+
+        expect(error.code).toBe(2);
+        expect(error.message).toBe('error message');
+        expect(geolocate._watchState).toBe('BACKGROUND_ERROR');
+    });
+
+    test('error event in active error state', async () => {
+        const geolocate = new GeolocateControl(undefined);
+        map.addControl(geolocate);
+        await sleep(0);
+        geolocate._watchState = 'ACTIVE_ERROR';
+
+        const click = new window.Event('click');
+        const errorPromise = geolocate.once('error');
+        geolocate._geolocateButton.dispatchEvent(click);
+
+        geolocation.sendError({code: 2, message: 'error message'});
+        const error = await errorPromise;
+
+        expect(error.code).toBe(2);
+        expect(error.message).toBe('error message');
+        expect(geolocate._watchState).toBe('ACTIVE_ERROR');
+    });
+
+    test('error event in background error state', async () => {
+        const geolocate = new GeolocateControl(undefined);
+        map.addControl(geolocate);
+        await sleep(0);
+        geolocate._watchState = 'BACKGROUND_ERROR';
+
+        const click = new window.Event('click');
+        const errorPromise = geolocate.once('error');
+        geolocate._geolocateButton.dispatchEvent(click);
+
+        geolocation.sendError({code: 2, message: 'error message'});
+        const error = await errorPromise;
+
+        expect(error.code).toBe(2);
+        expect(error.message).toBe('error message');
+        expect(geolocate._watchState).toBe('BACKGROUND_ERROR');
+    });
+
+    test('error event in off state', async () => {
+        const geolocate = new GeolocateControl(undefined);
+        map.addControl(geolocate);
+        await sleep(0);
+        geolocate._watchState = 'OFF';
+
+        const click = new window.Event('click');
+        const errorPromise = geolocate.once('error');
+        geolocate._geolocateButton.dispatchEvent(click);
+
+        geolocation.sendError({code: 2, message: 'error message'});
+        const error = await errorPromise;
+
+        expect(error.code).toBe(2);
+        expect(error.message).toBe('error message');
+        expect(geolocate._watchState).toBe('OFF');
+    });
+
+    test('error event when trackUserLocation is false', async () => {
+        const geolocate = new GeolocateControl({trackUserLocation: false});
         map.addControl(geolocate);
         await sleep(0);
         const click = new window.Event('click');
@@ -81,17 +232,38 @@ describe('GeolocateControl with no options', () => {
 
         expect(error.code).toBe(2);
         expect(error.message).toBe('error message');
+        expect(geolocate._watchState).toBeUndefined();
     });
 
     test('does not throw if removed quickly', () => {
         (checkGeolocationSupport as unknown as MockInstance).mockReset()
-            .mockImplementationOnce(() => {
-                return sleep(10);
-            });
+            .mockReturnValueOnce(sleep(10));
 
         const geolocate = new GeolocateControl(undefined);
         map.addControl(geolocate);
         map.removeControl(geolocate);
+
+        expect(map.hasControl(geolocate)).toBe(false);
+    });
+
+    test('outofmaxbounds event in waiting active state', async () => {
+        const geolocate = new GeolocateControl(undefined);
+        map.addControl(geolocate);
+        await sleep(0);
+        map.setMaxBounds([[0, 0], [10, 10]]);
+        geolocate._watchState = 'WAITING_ACTIVE';
+
+        const click = new window.Event('click');
+
+        const promise = geolocate.once('outofmaxbounds');
+        geolocate._geolocateButton.dispatchEvent(click);
+        geolocation.send({latitude: 10, longitude: 20, accuracy: 3, timestamp: 4});
+        const position = await promise;
+        expect(geolocate._watchState).toBe('ACTIVE_ERROR');
+        expect(position.coords.latitude).toBe(10);
+        expect(position.coords.longitude).toBe(20);
+        expect(position.coords.accuracy).toBe(3);
+        expect(position.timestamp).toBe(4);
     });
 
     test('outofmaxbounds event in active lock state', async () => {
@@ -135,6 +307,85 @@ describe('GeolocateControl with no options', () => {
         expect(position.timestamp).toBe(4);
     });
 
+    test('outofmaxbounds event in active error state', async () => {
+        const geolocate = new GeolocateControl(undefined);
+        map.addControl(geolocate);
+        await sleep(0);
+        map.setMaxBounds([[0, 0], [10, 10]]);
+        geolocate._watchState = 'ACTIVE_ERROR';
+
+        const click = new window.Event('click');
+
+        const promise = geolocate.once('outofmaxbounds');
+        geolocate._geolocateButton.dispatchEvent(click);
+        geolocation.send({latitude: 10, longitude: 20, accuracy: 3, timestamp: 4});
+        const position = await promise;
+        expect(geolocate._watchState).toBe('ACTIVE_ERROR');
+        expect(position.coords.latitude).toBe(10);
+        expect(position.coords.longitude).toBe(20);
+        expect(position.coords.accuracy).toBe(3);
+        expect(position.timestamp).toBe(4);
+    });
+
+    test('outofmaxbounds event in background error state', async () => {
+        const geolocate = new GeolocateControl(undefined);
+        map.addControl(geolocate);
+        await sleep(0);
+        map.setMaxBounds([[0, 0], [10, 10]]);
+        geolocate._watchState = 'BACKGROUND_ERROR';
+
+        const click = new window.Event('click');
+
+        const promise = geolocate.once('outofmaxbounds');
+        geolocate._geolocateButton.dispatchEvent(click);
+        geolocation.send({latitude: 10, longitude: 20, accuracy: 3, timestamp: 4});
+        const position = await promise;
+        expect(geolocate._watchState).toBe('BACKGROUND_ERROR');
+        expect(position.coords.latitude).toBe(10);
+        expect(position.coords.longitude).toBe(20);
+        expect(position.coords.accuracy).toBe(3);
+        expect(position.timestamp).toBe(4);
+    });
+
+    test('outofmaxbounds event in off state', async () => {
+        const geolocate = new GeolocateControl(undefined);
+        map.addControl(geolocate);
+        await sleep(0);
+        map.setMaxBounds([[0, 0], [10, 10]]);
+        geolocate._watchState = 'OFF';
+
+        const click = new window.Event('click');
+
+        const promise = geolocate.once('outofmaxbounds');
+        geolocate._geolocateButton.dispatchEvent(click);
+        geolocation.send({latitude: 10, longitude: 20, accuracy: 3, timestamp: 4});
+        const position = await promise;
+        expect(geolocate._watchState).toBe('OFF');
+        expect(position.coords.latitude).toBe(10);
+        expect(position.coords.longitude).toBe(20);
+        expect(position.coords.accuracy).toBe(3);
+        expect(position.timestamp).toBe(4);
+    });
+
+    test('outofmaxbounds event when trackUserLocation = false', async () => {
+        const geolocate = new GeolocateControl({trackUserLocation: false});
+        map.addControl(geolocate);
+        await sleep(0);
+        map.setMaxBounds([[0, 0], [10, 10]]);
+
+        const click = new window.Event('click');
+
+        const promise = geolocate.once('outofmaxbounds');
+        geolocate._geolocateButton.dispatchEvent(click);
+        geolocation.send({latitude: 10, longitude: 20, accuracy: 3, timestamp: 4});
+        const position = await promise;
+        expect(geolocate._watchState).toBeUndefined();
+        expect(position.coords.latitude).toBe(10);
+        expect(position.coords.longitude).toBe(20);
+        expect(position.coords.accuracy).toBe(3);
+        expect(position.timestamp).toBe(4);
+    });
+
     test('geolocate event', async () => {
         const geolocate = new GeolocateControl(undefined);
         map.addControl(geolocate);
@@ -167,11 +418,11 @@ describe('GeolocateControl with no options', () => {
         geolocate.trigger();
         geolocation.sendError({code: 2, message: 'error message'});
         expect(geolocate._watchState).toBe('ACTIVE_ERROR');
-        expect(geolocate._geolocateButton.classList.contains('maplibregl-ctrl-geolocate-active-error')).toBeTruthy();
+        expect(geolocate._geolocateButton.classList).toContain('maplibregl-ctrl-geolocate-active-error');
     });
 
     test('trigger before added to map', () => {
-        vi.spyOn(console, 'warn').mockImplementation(() => { });
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
 
         const geolocate = new GeolocateControl(undefined);
 
@@ -287,9 +538,7 @@ describe('GeolocateControl with no options', () => {
 
         expect(lngLatAsFixed(map.getCenter(), 4)).toEqual({lat: '10.0000', lng: '20.0000'});
         expect(geolocate._userLocationDotMarker._map).toBeTruthy();
-        expect(
-            geolocate._userLocationDotMarker._element.classList.contains('maplibregl-user-location-dot-stale')
-        ).toBeFalsy();
+        expect(geolocate._userLocationDotMarker._element.classList).not.toContain('maplibregl-user-location-dot-stale');
         const secontMoveEnd = map.once('moveend');
         geolocation.change({latitude: 40, longitude: 50, accuracy: 60});
         await secontMoveEnd;
@@ -298,7 +547,7 @@ describe('GeolocateControl with no options', () => {
         geolocation.changeError({code: 2, message: 'position unavailable'});
         await errorPromise;
         expect(geolocate._userLocationDotMarker._map).toBeTruthy();
-        expect(geolocate._userLocationDotMarker._element.classList.contains('maplibregl-user-location-dot-stale')).toBeTruthy();
+        expect(geolocate._userLocationDotMarker._element.classList).toContain('maplibregl-user-location-dot-stale');
     });
 
     /**
@@ -471,7 +720,32 @@ describe('GeolocateControl with no options', () => {
         geolocation.send({latitude: 10, longitude: 20, accuracy: 30, timestamp: 40});
         await geolocatePromise;
         expect(geolocate._watchState).toBe('ACTIVE_LOCK');
-        window.dispatchEvent(new window.Event('resize'));
+
+        const moveStartPromise = map.once('movestart');
+        map._camera._moving = false;
+        map.resize([new ResizeObserverEntry()]);
+        await moveStartPromise;
+        expect(geolocate._watchState).toBe('ACTIVE_LOCK');
+    });
+
+    test('does not switch to BACKGROUND and stays in ACTIVE_LOCK state on zoom', async () => {
+        const geolocate = new GeolocateControl({
+            trackUserLocation: true,
+        });
+        map.addControl(geolocate);
+        await sleep(0);
+        const click = new window.Event('click');
+
+        const geolocatePromise = geolocate.once('geolocate');
+        geolocate._geolocateButton.dispatchEvent(click);
+        geolocation.send({latitude: 10, longitude: 20, accuracy: 30, timestamp: 40});
+        await geolocatePromise;
+        expect(geolocate._watchState).toBe('ACTIVE_LOCK');
+
+        const zoomendPromise = map.once('zoomend');
+        map.zoomTo(10, {duration: 0});
+        await zoomendPromise;
+
         expect(geolocate._watchState).toBe('ACTIVE_LOCK');
     });
 
@@ -540,22 +814,22 @@ describe('GeolocateControl with no options', () => {
         let zoomendPromise = map.once('zoomend');
         map.zoomTo(12, {duration: 0});
         await zoomendPromise;
-        expect(geolocate._circleElement.style.width).toBe('79px');
+        expect(geolocate._circleElement.style.width).toBe('74.48px');
         zoomendPromise = map.once('zoomend');
         map.zoomTo(10, {duration: 0});
         await zoomendPromise;
-        expect(geolocate._circleElement.style.width).toBe('20px');
+        expect(geolocate._circleElement.style.width).toBe('18.62px');
         zoomendPromise = map.once('zoomend');
 
         // test with smaller radius
         geolocation.send({latitude: 10, longitude: 20, accuracy: 20});
         map.zoomTo(20, {duration: 0});
         await zoomendPromise;
-        expect(geolocate._circleElement.style.width).toBe('19982px');
+        expect(geolocate._circleElement.style.width).toBe('19063.56px');
         zoomendPromise = map.once('zoomend');
         map.zoomTo(18, {duration: 0});
         await zoomendPromise;
-        expect(geolocate._circleElement.style.width).toBe('4996px');
+        expect(geolocate._circleElement.style.width).toBe('4766.49px');
     });
 
     test('shown even if trackUserLocation = false', async () => {
@@ -581,27 +855,22 @@ describe('GeolocateControl with no options', () => {
         expect(geolocate._circleElement.style.width).toBeTruthy();
     });
 
-    test('shown even if trackUserLocation = false', async () => {
-        const geolocate = new GeolocateControl({
-            trackUserLocation: false,
-            showUserLocation: true,
-            showAccuracyCircle: true,
-        });
+    test('GeolocateControl does not crash on movestart after removal in ACTIVE_LOCK state', async () => {
+        const geolocate = new GeolocateControl({trackUserLocation: true});
         map.addControl(geolocate);
         await sleep(0);
-        const click = new window.Event('click');
 
+        // Reach ACTIVE_LOCK state via the public API
         const geolocatePromise = geolocate.once('geolocate');
-        geolocate._geolocateButton.dispatchEvent(click);
-        geolocation.send({latitude: 10, longitude: 20, accuracy: 700});
+        geolocate.trigger();
+        geolocation.send({latitude: 10, longitude: 20, accuracy: 30, timestamp: 40});
         await geolocatePromise;
-        map.jumpTo({
-            center: [10, 20]
-        });
-        const zoomendPromise = map.once('zoomend');
-        map.zoomTo(10, {duration: 0});
-        await zoomendPromise;
-        expect(geolocate._circleElement.style.width).toBeTruthy();
+
+        map.removeControl(geolocate);
+
+        expect(() => {
+            map.fire('movestart');
+        }).not.toThrow();
     });
 
     test('Geolocate control should appear only once', async () => {

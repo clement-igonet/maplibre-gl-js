@@ -1,8 +1,8 @@
 import {describe, test, expect} from 'vitest';
-import {coerceSpriteToArray} from './style';
+import {coerceSpriteToArray} from './style.ts';
 
 describe('style utils', () => {
-    describe('#coerceSpriteToArray', () => {
+    describe('coerceSpriteToArray', () => {
         test('input === output when array', () => {
             const inputSpriteArray = [{id: 'id', url: 'url'}];
             const outputSpriteArray = coerceSpriteToArray(inputSpriteArray);

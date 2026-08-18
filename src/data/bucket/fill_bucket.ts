@@ -1,46 +1,46 @@
-import {FillLayoutArray} from '../array_types.g';
+import {FillLayoutArray} from '../array_types.g.ts';
 
-import {members as layoutAttributes} from './fill_attributes';
-import {SegmentVector} from '../segment';
-import {ProgramConfigurationSet} from '../program_configuration';
-import {LineIndexArray, TriangleIndexArray} from '../index_array_type';
+import {members as layoutAttributes} from './fill_attributes.ts';
+import {SegmentVector} from '../segment.ts';
+import {ProgramConfigurationSet} from '../program_configuration.ts';
+import {LineIndexArray, TriangleIndexArray} from '../index_array_type.ts';
 import {classifyRings} from '@maplibre/maplibre-gl-style-spec';
 const EARCUT_MAX_RINGS = 500;
-import {register} from '../../util/web_worker_transfer';
-import {hasPattern, addPatternDependencies} from './pattern_bucket_features';
-import {loadGeometry} from '../load_geometry';
-import {toEvaluationFeature} from '../evaluation_feature';
-import {EvaluationParameters} from '../../style/evaluation_parameters';
+import {register} from '../../util/web_worker_transfer.ts';
+import {hasPattern, addPatternDependencies} from './pattern_bucket_features.ts';
+import {loadGeometry} from '../load_geometry.ts';
+import {toEvaluationFeature} from '../evaluation_feature.ts';
+import {EvaluationParameters} from '../../style/evaluation_parameters.ts';
 
-import type {CanonicalTileID} from '../../source/tile_id';
+import type {CanonicalTileID} from '../../tile/tile_id.ts';
 import type {
     Bucket,
     BucketParameters,
     BucketFeature,
     IndexedFeature,
     PopulateParameters
-} from '../bucket';
-import type {FillStyleLayer} from '../../style/style_layer/fill_style_layer';
-import type {Context} from '../../gl/context';
-import type {IndexBuffer} from '../../gl/index_buffer';
-import type {VertexBuffer} from '../../gl/vertex_buffer';
+} from '../bucket.ts';
+import type {FillStyleLayer} from '../../style/style_layer/fill_style_layer.ts';
+import type {Context} from '../../webgl/context.ts';
+import type {IndexBuffer} from '../../webgl/index_buffer.ts';
+import type {VertexBuffer} from '../../webgl/vertex_buffer.ts';
 import type Point from '@mapbox/point-geometry';
-import type {FeatureStates} from '../../source/source_state';
-import type {ImagePosition} from '../../render/image_atlas';
-import type {VectorTileLayer} from '@mapbox/vector-tile';
-import {subdividePolygon} from '../../render/subdivision';
-import type {SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings';
-import {fillLargeMeshArrays} from '../../render/fill_large_mesh_arrays';
+import type {FeatureStates} from '../../source/source_state.ts';
+import type {ImagePosition} from '../../render/image_atlas.ts';
+import {subdividePolygon} from '../../render/subdivision.ts';
+import type {SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings.ts';
+import {fillLargeMeshArrays} from '../../render/fill_large_mesh_arrays.ts';
+import type {VectorTileLayerLike} from '@maplibre/vt-pbf';
 
 export class FillBucket implements Bucket {
     index: number;
     zoom: number;
     overscaling: number;
-    layers: Array<FillStyleLayer>;
-    layerIds: Array<string>;
-    stateDependentLayers: Array<FillStyleLayer>;
-    stateDependentLayerIds: Array<string>;
-    patternFeatures: Array<BucketFeature>;
+    layers: FillStyleLayer[];
+    layerIds: string[];
+    stateDependentLayers: FillStyleLayer[];
+    stateDependentLayerIds: string[];
+    patternFeatures: BucketFeature[];
 
     layoutVertexArray: FillLayoutArray;
     layoutVertexBuffer: VertexBuffer;
@@ -51,7 +51,7 @@ export class FillBucket implements Bucket {
     indexArray2: LineIndexArray;
     indexBuffer2: IndexBuffer;
 
-    hasPattern: boolean;
+    hasDependencies: boolean;
     programConfigurations: ProgramConfigurationSet<FillStyleLayer>;
     segments: SegmentVector;
     segments2: SegmentVector;
@@ -63,7 +63,7 @@ export class FillBucket implements Bucket {
         this.layers = options.layers;
         this.layerIds = this.layers.map(layer => layer.id);
         this.index = options.index;
-        this.hasPattern = false;
+        this.hasDependencies = false;
         this.patternFeatures = [];
 
         this.layoutVertexArray = new FillLayoutArray();
@@ -75,17 +75,18 @@ export class FillBucket implements Bucket {
         this.stateDependentLayerIds = this.layers.filter((l) => l.isStateDependent()).map((l) => l.id);
     }
 
-    populate(features: Array<IndexedFeature>, options: PopulateParameters, canonical: CanonicalTileID) {
-        this.hasPattern = hasPattern('fill', this.layers, options);
+    populate(features: IndexedFeature[], options: PopulateParameters, canonical: CanonicalTileID): void {
+        this.hasDependencies = hasPattern('fill', this.layers, options);
         const fillSortKey = this.layers[0].layout.get('fill-sort-key');
         const sortFeaturesByKey = !fillSortKey.isConstant();
         const bucketFeatures: BucketFeature[] = [];
 
+        const globalProperties = new EvaluationParameters(this.zoom);
+        const needGeometry = this.layers[0]._featureFilter.needGeometry;
         for (const {feature, id, index, sourceLayerIndex} of features) {
-            const needGeometry = this.layers[0]._featureFilter.needGeometry;
             const evaluationFeature = toEvaluationFeature(feature, needGeometry);
 
-            if (!this.layers[0]._featureFilter.filter(new EvaluationParameters(this.zoom), evaluationFeature, canonical)) continue;
+            if (!this.layers[0]._featureFilter.filter(globalProperties, evaluationFeature, canonical)) continue;
 
             const sortKey = sortFeaturesByKey ?
                 fillSortKey.evaluate(evaluationFeature, {}, canonical, options.availableImages) :
@@ -112,8 +113,8 @@ export class FillBucket implements Bucket {
         for (const bucketFeature of bucketFeatures) {
             const {geometry, index, sourceLayerIndex} = bucketFeature;
 
-            if (this.hasPattern) {
-                const patternFeature = addPatternDependencies('fill', this.layers, bucketFeature, this.zoom, options);
+            if (this.hasDependencies) {
+                const patternFeature = addPatternDependencies('fill', this.layers, bucketFeature, {zoom: this.zoom}, options);
                 // pattern features are added only once the pattern is loaded into the image atlas
                 // so are stored during populate until later updated with positions by tile worker in addFeatures
                 this.patternFeatures.push(patternFeature);
@@ -126,29 +127,31 @@ export class FillBucket implements Bucket {
         }
     }
 
-    update(states: FeatureStates, vtLayer: VectorTileLayer, imagePositions: {
+    update(states: FeatureStates, vtLayer: VectorTileLayerLike, imagePositions: {
         [_: string]: ImagePosition;
-    }) {
+    }): void {
         if (!this.stateDependentLayers.length) return;
-        this.programConfigurations.updatePaintArrays(states, vtLayer, this.stateDependentLayers, imagePositions);
+        this.programConfigurations.updatePaintArrays(states, vtLayer, this.stateDependentLayers, {
+            imagePositions
+        });
     }
 
     addFeatures(options: PopulateParameters, canonical: CanonicalTileID, imagePositions: {
         [_: string]: ImagePosition;
-    }) {
+    }): void {
         for (const feature of this.patternFeatures) {
             this.addFeature(feature, feature.geometry, feature.index, canonical, imagePositions, options.subdivisionGranularity);
         }
     }
 
-    isEmpty() {
+    isEmpty(): boolean {
         return this.layoutVertexArray.length === 0;
     }
 
     uploadPending(): boolean {
         return !this.uploaded || this.programConfigurations.needsUpload;
     }
-    upload(context: Context) {
+    upload(context: Context): void {
         if (!this.uploaded) {
             this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, layoutAttributes);
             this.indexBuffer = context.createIndexBuffer(this.indexArray);
@@ -158,7 +161,7 @@ export class FillBucket implements Bucket {
         this.uploaded = true;
     }
 
-    destroy() {
+    destroy(): void {
         if (!this.layoutVertexBuffer) return;
         this.layoutVertexBuffer.destroy();
         this.indexBuffer.destroy();
@@ -168,9 +171,9 @@ export class FillBucket implements Bucket {
         this.segments2.destroy();
     }
 
-    addFeature(feature: BucketFeature, geometry: Array<Array<Point>>, index: number, canonical: CanonicalTileID, imagePositions: {
+    addFeature(feature: BucketFeature, geometry: Point[][], index: number, canonical: CanonicalTileID, imagePositions: {
         [_: string]: ImagePosition;
-    }, subdivisionGranularity: SubdivisionGranularitySetting) {
+    }, subdivisionGranularity: SubdivisionGranularitySetting): void {
         for (const polygon of classifyRings(geometry, EARCUT_MAX_RINGS)) {
             const subdivided = subdividePolygon(polygon, canonical, subdivisionGranularity.fill.getGranularityForZoomLevel(canonical.z));
 
@@ -190,7 +193,7 @@ export class FillBucket implements Bucket {
                 subdivided.indicesLineList,
             );
         }
-        this.programConfigurations.populatePaintArrays(this.layoutVertexArray.length, feature, index, imagePositions, canonical);
+        this.programConfigurations.populatePaintArrays(this.layoutVertexArray.length, feature, index, {imagePositions, canonical});
     }
 }
 

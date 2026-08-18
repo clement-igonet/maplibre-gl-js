@@ -1,4 +1,4 @@
-import type {RequestParameters} from './ajax';
+import type {RequestParameters} from './ajax.ts';
 
 /**
  * A type of MapLibre resource.
@@ -15,19 +15,19 @@ export const enum ResourceType {
 }
 
 /**
- * This function is used to tranform a request.
+ * This function is used to transform a request.
  * It is used just before executing the relevant request.
  */
-export type RequestTransformFunction = (url: string, resourceType?: ResourceType) => RequestParameters | undefined;
+export type RequestTransformFunction = (url: string, resourceType?: ResourceType) => RequestParameters | Promise<RequestParameters> | undefined;
 
 export class RequestManager {
-    _transformRequestFn: RequestTransformFunction;
+    _transformRequestFn: RequestTransformFunction | null;
 
-    constructor(transformRequestFn?: RequestTransformFunction) {
-        this._transformRequestFn = transformRequestFn;
+    constructor(transformRequestFn?: RequestTransformFunction | null) {
+        this._transformRequestFn = transformRequestFn ?? null;
     }
 
-    transformRequest(url: string, type: ResourceType) {
+    transformRequest(url: string, type: ResourceType): RequestParameters | Promise<RequestParameters> {
         if (this._transformRequestFn) {
             return this._transformRequestFn(url, type) || {url};
         }
@@ -35,7 +35,7 @@ export class RequestManager {
         return {url};
     }
 
-    setTransformRequest(transformRequest: RequestTransformFunction) {
+    setTransformRequest(transformRequest: RequestTransformFunction | null): void {
         this._transformRequestFn = transformRequest;
     }
 }

@@ -1,15 +1,27 @@
-import type {LngLat, LngLatLike} from './lng_lat';
-import type {LngLatBounds} from './lng_lat_bounds';
-import type {MercatorCoordinate} from './mercator_coordinate';
+import type {LngLat, LngLatLike} from './lng_lat.ts';
+import type {LngLatBounds} from './lng_lat_bounds.ts';
+import type {MercatorCoordinate} from './mercator_coordinate.ts';
 import type Point from '@mapbox/point-geometry';
 import type {mat4, mat2, vec3, vec4} from 'gl-matrix';
-import type {UnwrappedTileID, OverscaledTileID, CanonicalTileID} from '../source/tile_id';
-import type {PaddingOptions} from './edge_insets';
-import type {Terrain} from '../render/terrain';
-import type {PointProjection} from '../symbol/projection';
-import type {ProjectionData, ProjectionDataParams} from './projection/projection_data';
-import type {CoveringTilesDetailsProvider} from './projection/covering_tiles_details_provider';
-import type {Frustum} from '../util/primitives/frustum';
+import type {UnwrappedTileID, OverscaledTileID, CanonicalTileID} from '../tile/tile_id.ts';
+import type {PaddingOptions} from './edge_insets.ts';
+import type {Terrain} from '../render/terrain.ts';
+import type {PointProjection} from '../symbol/projection.ts';
+import type {CustomLayerProjectionData, ProjectionDataParams, RendererProjectionData} from './projection/projection_data.ts';
+import type {CoveringTilesDetailsProvider} from './projection/covering_tiles_details_provider.ts';
+import type {Frustum} from '../util/primitives/frustum.ts';
+
+/**
+ * The callback defining how the transform constrains the viewport's lnglat and zoom to respect the longitude and latitude bounds.
+ * @see [Customize the map transform constrain](https://maplibre.org/maplibre-gl-js/docs/examples/customize-the-map-transform-constrain/)
+ */
+export type TransformConstrainFunction =  (
+    lngLat: LngLat,
+    zoom: number
+) => {
+    center: LngLat;
+    zoom: number;
+};
 
 export interface ITransformGetters {
     get tileSize(): number;
@@ -83,6 +95,8 @@ export interface ITransformGetters {
     get nearZ(): number;
     get farZ(): number;
     get autoCalculateNearFarZ(): boolean;
+
+    get constrainOverride(): TransformConstrainFunction;
 }
 
 /**
@@ -92,7 +106,12 @@ export interface ITransformGetters {
 interface ITransformMutators {
     clone(): ITransform;
 
-    apply(that: IReadonlyTransform): void;
+    /**
+     * Applies a transform to the current transform.
+     * @param that - The transform to apply to the current transform.
+     * @param constrain - Whether to constrain the transform's center and zoom and recompute internal matrices once applied.
+     */
+    apply(that: IReadonlyTransform, constrain: boolean): void;
 
     /**
      * Sets the transform's minimal allowed zoom level.
@@ -185,14 +204,22 @@ interface ITransformMutators {
      * Set's the transform's center so that the given point on screen is at the given world coordinates.
      * @param lnglat - Desired world coordinates of the point.
      * @param point - The screen point that should lie at the given coordinates.
+     * @param elevation - Optional ground elevation in meters above sea level at `lnglat`,
+     * defaults to the elevation at the map's center. Ignored when rendering the globe.
      */
-    setLocationAtPoint(lnglat: LngLat, point: Point): void;
+    setLocationAtPoint(lnglat: LngLat, point: Point, elevation?: number): void;
 
     /**
      * Sets or clears the map's geographical constraints.
      * @param bounds - A {@link LngLatBounds} object describing the new geographic boundaries of the map.
      */
     setMaxBounds(bounds?: LngLatBounds | null): void;
+
+    /** Sets or clears the custom callback overriding the transform's default constrain,
+     * whose responsibility is to respect the longitude and latitude bounds by constraining the viewport's lnglat and zoom.
+     * @param constrain - A {@link TransformConstrainFunction} callback defining how the viewport should respect the bounds.
+     */
+    setConstrainOverride(constrain?: TransformConstrainFunction | null): void;
 
     /**
      * @internal
@@ -201,15 +228,14 @@ interface ITransformMutators {
      * Used in mercator transform to precompute tile matrices (posMatrix).
      * @param coords - Array of tile IDs that will be rendered.
      */
-    populateCache(coords: Array<OverscaledTileID>): void;
+    populateCache(coords: OverscaledTileID[]): void;
 
     /**
      * @internal
      * Sets the transform's transition state from one projection to another.
      * @param value - The transition state value.
-     * @param error - The error value.
      */
-    setTransitionState(value: number, error: number): void;
+    setTransitionState(value: number): void;
 }
 
 /**
@@ -268,7 +294,7 @@ export interface IReadonlyTransform extends ITransformGetters {
      * Return any "wrapped" copies of a given tile coordinate that are visible
      * in the current view.
      */
-    getVisibleUnwrappedCoordinates(tileID: CanonicalTileID): Array<UnwrappedTileID>;
+    getVisibleUnwrappedCoordinates(tileID: CanonicalTileID): UnwrappedTileID[];
 
     /**
      * @internal
@@ -278,7 +304,7 @@ export interface IReadonlyTransform extends ITransformGetters {
 
     /**
      * @internal
-     * Return the clipping plane, behind wich nothing should be rendered. If the camera frustum is sufficient
+     * Return the clipping plane, behind which nothing should be rendered. If the camera frustum is sufficient
      * to describe the render geometry (additional clipping is not required), this may be null.
      */
     getClippingPlane(): vec4 | null;
@@ -306,6 +332,16 @@ export interface IReadonlyTransform extends ITransformGetters {
      * @returns lnglat location
      */
     screenPointToLocation(p: Point, terrain?: Terrain): LngLat;
+
+    /**
+     * @internal
+     * Given a point on screen, return its LngLat location assuming the ground there
+     * lies at the given elevation. When rendering the globe the elevation is ignored.
+     * @param p - screen point
+     * @param elevation - ground elevation in meters above sea level
+     * @returns lnglat location
+     */
+    screenPointToLocationAtElevation(p: Point, elevation: number): LngLat;
 
     /**
      * @internal
@@ -340,9 +376,15 @@ export interface IReadonlyTransform extends ITransformGetters {
     isPointOnMapSurface(p: Point, terrain?: Terrain): boolean;
 
     /**
-     * Get center lngLat and zoom to ensure that longitude and latitude bounds are respected and regions beyond the map bounds are not displayed.
+     * @internal
+     * The tranform's default callback that ensures that longitude and latitude bounds are respected by the viewport.
      */
-    getConstrained(lngLat: LngLat, zoom: number): {center: LngLat; zoom: number};
+    defaultConstrain: TransformConstrainFunction;
+
+    /**
+     * Constrain the center lngLat and zoom to ensure that longitude and latitude bounds are respected and regions beyond the map bounds are not displayed.
+     */
+    applyConstrain: TransformConstrainFunction;
 
     maxPitchScaleFactor(): number;
 
@@ -390,7 +432,7 @@ export interface IReadonlyTransform extends ITransformGetters {
      * screen where the *base* of a visible extrusion could be.
      *
      */
-    getCameraQueryGeometry(queryGeometry: Array<Point>): Array<Point>;
+    getCameraQueryGeometry(queryGeometry: Point[]): Point[];
 
     /**
      * Return the distance to the camera in clip space from a LngLat.
@@ -415,7 +457,7 @@ export interface IReadonlyTransform extends ITransformGetters {
      * Generates a `ProjectionData` instance to be used while rendering the supplied tile.
      * @param params - Parameters for the projection data generation.
      */
-    getProjectionData(params: ProjectionDataParams): ProjectionData;
+    getProjectionData(params: ProjectionDataParams): RendererProjectionData;
 
     /**
      * @internal
@@ -463,18 +505,9 @@ export interface IReadonlyTransform extends ITransformGetters {
     projectTileCoordinates(x: number, y: number, unwrappedTileID: UnwrappedTileID, getElevation: (x: number, y: number) => number): PointProjection;
 
     /**
-     * Returns a matrix that will place, rotate and scale a model to display at the given location and altitude
-     * while also being projected by the custom layer matrix.
-     * This function is intended to be called from custom layers.
-     * @param location - Location of the model.
-     * @param altitude - Altitude of the model. May be undefined.
-     */
-    getMatrixForModel(location: LngLatLike, altitude?: number): mat4;
-
-    /**
      * Return projection data such that coordinates in mercator projection in range 0..1 will get projected to the map correctly.
      */
-    getProjectionDataForCustomLayer(applyGlobeMatrix: boolean): ProjectionData;
+    getProjectionDataForCustomLayer(applyGlobeMatrix: boolean): CustomLayerProjectionData;
 
     /**
      * Returns a tile-specific projection matrix. Used for symbol placement fast-path for mercator transform.

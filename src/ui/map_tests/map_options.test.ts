@@ -1,15 +1,15 @@
 import {describe, beforeEach, test, expect, vi} from 'vitest';
-import {createMap, beforeMapTest, createStyle} from '../../util/test/util';
-import {type EvaluationParameters} from '../../style/evaluation_parameters';
-import {Style} from '../../style/style';
-import {config} from '../../util/config';
+import {createMap, beforeMapTest, createStyle} from '../../util/test/util.ts';
+import {type EvaluationParameters} from '../../style/evaluation_parameters.ts';
+import {Style} from '../../style/style.ts';
+import {config} from '../../util/config.ts';
 
 beforeEach(() => {
     beforeMapTest();
     global.fetch = null;
 });
 
-describe('#mapOptions', () => {
+describe('mapOptions', () => {
     test('maxTileCacheZoomLevels: Default value is set', () => {
         const map = createMap();
         expect(map._maxTileCacheZoomLevels).toBe(config.MAX_TILE_CACHE_ZOOM_LEVELS);
@@ -49,11 +49,7 @@ describe('#mapOptions', () => {
         let idleTriggered = false;
         const fadeDuration = 100;
         const spy = vi.spyOn(Style.prototype, 'update').mockImplementation((parameters: EvaluationParameters) => {
-            if (!idleTriggered) {
-                expect(parameters.fadeDuration).toBe(0);
-            } else {
-                expect(parameters.fadeDuration).toBe(fadeDuration);
-            }
+            expect(parameters.fadeDuration).toBe(idleTriggered ? fadeDuration : 0);
         });
         const style = createStyle();
         const map = createMap({style, fadeDuration});

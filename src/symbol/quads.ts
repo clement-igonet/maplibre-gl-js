@@ -1,16 +1,16 @@
 import Point from '@mapbox/point-geometry';
 
-import {GLYPH_PBF_BORDER} from '../style/parse_glyph_pbf';
+import {GLYPH_PBF_BORDER} from '../style/parse_glyph_pbf.ts';
 
-import type {Anchor} from './anchor';
-import type {Box, PositionedIcon, Shaping} from './shaping';
-import {SHAPING_DEFAULT_OFFSET, applyTextFit} from './shaping';
-import {IMAGE_PADDING} from '../render/image_atlas';
-import type {SymbolStyleLayer} from '../style/style_layer/symbol_style_layer';
+import type {Anchor} from './anchor.ts';
+import type {Box, PositionedIcon, Shaping} from './shaping.ts';
+import {SHAPING_DEFAULT_OFFSET, applyTextFit} from './shaping.ts';
+import {IMAGE_PADDING} from '../render/image_atlas.ts';
+import type {SymbolStyleLayer} from '../style/style_layer/symbol_style_layer.ts';
 import type {Feature} from '@maplibre/maplibre-gl-style-spec';
-import type {StyleImage} from '../style/style_image';
-import ONE_EM from './one_em';
-import {type Rect} from '../render/glyph_atlas';
+import type {StyleImage} from '../style/style_image.ts';
+import ONE_EM from './one_em.ts';
+import {type Rect} from '../render/glyph_atlas.ts';
 
 /**
  * A textured quad for rendering a single icon or glyph.
@@ -57,7 +57,7 @@ export function getIconQuads(
     iconRotate: number,
     isSDFIcon: boolean,
     hasIconTextFit: boolean
-): Array<SymbolQuad> {
+): SymbolQuad[] {
     const quads = [];
 
     const image = shapedIcon.image;
@@ -139,7 +139,7 @@ export function getIconQuads(
         if (angle) {
             const sin = Math.sin(angle),
                 cos = Math.cos(angle),
-                matrix = [cos, -sin, sin, cos];
+                matrix = [cos, -sin, sin, cos] as [number, number, number, number];
 
             tl._matMult(matrix);
             tr._matMult(matrix);
@@ -239,7 +239,7 @@ export function getGlyphQuads(
     feature: Feature,
     imageMap: {[_: string]: StyleImage},
     allowVerticalPlacement: boolean
-): Array<SymbolQuad> {
+): SymbolQuad[] {
 
     const textRotate = layer.layout.get('text-rotate').evaluate(feature, {}) * Math.PI / 180;
     const quads = [];
@@ -329,7 +329,7 @@ export function getGlyphQuads(
             if (textRotate) {
                 const sin = Math.sin(textRotate),
                     cos = Math.cos(textRotate),
-                    matrix = [cos, -sin, sin, cos];
+                    matrix = [cos, -sin, sin, cos] as [number, number, number, number];
 
                 tl._matMult(matrix);
                 tr._matMult(matrix);

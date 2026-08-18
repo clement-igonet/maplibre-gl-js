@@ -1,26 +1,35 @@
-import {Event, ErrorEvent, Evented} from '../util/evented';
+import {ErrorEvent, Evented} from '../util/evented.ts';
+import {MapSourceDataEvent, type SourceEventType} from '../ui/events.ts';
 
-import {extend, pick} from '../util/util';
-import {loadTileJson} from './load_tilejson';
-import {TileBounds} from './tile_bounds';
-import {ResourceType} from '../util/request_manager';
+import {ensureError, extend, pick} from '../util/util.ts';
+import {loadTileJson} from './load_tilejson.ts';
+import {TileBounds} from '../tile/tile_bounds.ts';
+import {ResourceType} from '../util/request_manager.ts';
+import {MessageType} from '../util/actor_messages.ts';
+import {isAbortError} from '../util/abort_error.ts';
 
-import type {Source} from './source';
-import type {OverscaledTileID} from './tile_id';
-import type {Map} from '../ui/map';
-import type {Dispatcher} from '../util/dispatcher';
-import type {Tile} from './tile';
+import type {Source} from './source.ts';
+import type {OverscaledTileID} from '../tile/tile_id.ts';
+import type {Map} from '../ui/map.ts';
+import type {Dispatcher} from '../util/dispatcher.ts';
+import type {Tile} from '../tile/tile.ts';
 import type {VectorSourceSpecification, PromoteIdSpecification} from '@maplibre/maplibre-gl-style-spec';
-import type {WorkerTileParameters, WorkerTileResult} from './worker_source';
-import {MessageType} from '../util/actor_messages';
+import type {WorkerTileParameters, OverzoomParameters, WorkerTileResult, TileEncoding} from './worker_source.ts';
 
 export type VectorTileSourceOptions = VectorSourceSpecification & {
     collectResourceTiming?: boolean;
     tileSize?: number;
 };
 
+export type LoadTileResult = {
+    /**
+     * Indicates that the tile requested was not modified.
+     */
+    unmodified?: boolean;
+};
+
 /**
- * A source containing vector tiles in [Mapbox Vector Tile format](https://docs.mapbox.com/vector-tiles/reference/).
+ * A source containing vector tiles in [Maplibre Vector Tile format](https://maplibre.org/maplibre-tile-spec/) or [Mapbox Vector Tile format](https://docs.mapbox.com/vector-tiles/reference/).
  * (See the [Style Specification](https://maplibre.org/maplibre-style-spec/) for detailed documentation of options.)
  *
  * @group Sources
@@ -52,15 +61,16 @@ export type VectorTileSourceOptions = VectorSourceSpecification & {
  * ```ts
  * map.getSource('some id').setTiles(['https://d25uarhxywzl1j.cloudfront.net/v0.1/{z}/{x}/{y}.mvt']);
  * ```
- * @see [Add a vector tile source](https://maplibre.org/maplibre-gl-js/docs/examples/vector-source/)
+ * @see [Add a vector tile source](https://maplibre.org/maplibre-gl-js/docs/examples/add-a-vector-tile-source/)
  */
-export class VectorTileSource extends Evented implements Source {
+export class VectorTileSource extends Evented<SourceEventType> implements Source {
     type: 'vector';
     id: string;
     minzoom: number;
     maxzoom: number;
     url: string;
     scheme: string;
+    encoding: TileEncoding;
     tileSize: number;
     promoteId: PromoteIdSpecification;
 
@@ -69,7 +79,7 @@ export class VectorTileSource extends Evented implements Source {
     dispatcher: Dispatcher;
     map: Map;
     bounds: [number, number, number, number];
-    tiles: Array<string>;
+    tiles: string[];
     tileBounds: TileBounds;
     reparseOverscaled: boolean;
     isTileClipped: boolean;
@@ -90,7 +100,7 @@ export class VectorTileSource extends Evented implements Source {
         this.isTileClipped = true;
         this._loaded = false;
 
-        extend(this, pick(options, ['url', 'scheme', 'tileSize', 'promoteId']));
+        extend(this, pick(options, ['url', 'scheme', 'tileSize', 'promoteId', 'encoding']));
         this._options = extend({type: 'vector'}, options);
 
         this._collectResourceTiming = options.collectResourceTiming;
@@ -102,28 +112,32 @@ export class VectorTileSource extends Evented implements Source {
         this.setEventedParent(eventedParent);
     }
 
-    async load() {
+    async load(sourceDataChanged: boolean = false): Promise<void> {
         this._loaded = false;
-        this.fire(new Event('dataloading', {dataType: 'source'}));
+        this.fire(new MapSourceDataEvent('dataloading'));
         this._tileJSONRequest = new AbortController();
         try {
-            const tileJSON = await loadTileJson(this._options, this.map._requestManager, this._tileJSONRequest);
+            const tileJSON = await loadTileJson(this._options, this.map._requestManager, this._tileJSONRequest, this.map._ownerWindow);
             this._tileJSONRequest = null;
             this._loaded = true;
-            this.map.style.sourceCaches[this.id].clearTiles();
             if (tileJSON) {
                 extend(this, tileJSON);
                 if (tileJSON.bounds) this.tileBounds = new TileBounds(tileJSON.bounds, this.minzoom, this.maxzoom);
 
-                // `content` is included here to prevent a race condition where `Style#_updateSources` is called
+                // `content` is included here to prevent a race condition where `Style._updateSources` is called
                 // before the TileJSON arrives. this makes sure the tiles needed are loaded once TileJSON arrives
                 // ref: https://github.com/mapbox/mapbox-gl-js/pull/4347#discussion_r104418088
-                this.fire(new Event('data', {dataType: 'source', sourceDataType: 'metadata'}));
-                this.fire(new Event('data', {dataType: 'source', sourceDataType: 'content'}));
+                this.fire(new MapSourceDataEvent('data', {sourceDataType: 'metadata'}));
+                this.fire(new MapSourceDataEvent('data', {sourceDataType: 'content', sourceDataChanged}));
             }
         } catch (err) {
             this._tileJSONRequest = null;
-            this.fire(new ErrorEvent(err));
+            this._loaded = true; // let's pretend it's loaded so the source will be ignored
+
+            // only fire error event if it is not due to aborting the request
+            if (!isAbortError(err)) {
+                this.fire(new ErrorEvent(ensureError(err)));
+            }
         }
     }
 
@@ -131,23 +145,23 @@ export class VectorTileSource extends Evented implements Source {
         return this._loaded;
     }
 
-    hasTile(tileID: OverscaledTileID) {
+    hasTile(tileID: OverscaledTileID): boolean {
         return !this.tileBounds || this.tileBounds.contains(tileID.canonical);
     }
 
-    onAdd(map: Map) {
+    onAdd(map: Map): void {
         this.map = map;
         this.load();
     }
 
-    setSourceProperty(callback: Function) {
+    setSourceProperty(callback: Function): void {
         if (this._tileJSONRequest) {
             this._tileJSONRequest.abort();
         }
 
         callback();
 
-        this.load();
+        this.load(true);
     }
 
     /**
@@ -155,7 +169,7 @@ export class VectorTileSource extends Evented implements Source {
      *
      * @param tiles - An array of one or more tile source URLs, as in the TileJSON spec.
      */
-    setTiles(tiles: Array<string>): this {
+    setTiles(tiles: string[]): this {
         this.setSourceProperty(() => {
             this._options.tiles = tiles;
         });
@@ -177,7 +191,7 @@ export class VectorTileSource extends Evented implements Source {
         return this;
     }
 
-    onRemove() {
+    onRemove(): void {
         if (this._tileJSONRequest) {
             this._tileJSONRequest.abort();
             this._tileJSONRequest = null;
@@ -188,10 +202,10 @@ export class VectorTileSource extends Evented implements Source {
         return extend({}, this._options);
     }
 
-    async loadTile(tile: Tile): Promise<void> {
+    async loadTile(tile: Tile): Promise<LoadTileResult | void> {
         const url = tile.tileID.canonical.url(this.tiles, this.map.getPixelRatio(), this.scheme);
         const params: WorkerTileParameters = {
-            request: this.map._requestManager.transformRequest(url, ResourceType.Tile),
+            request: await this.map._requestManager.transformRequest(url, ResourceType.Tile),
             uid: tile.uid,
             tileID: tile.tileID,
             zoom: tile.tileID.overscaledZ,
@@ -201,12 +215,16 @@ export class VectorTileSource extends Evented implements Source {
             pixelRatio: this.map.getPixelRatio(),
             showCollisionBoxes: this.map.showCollisionBoxes,
             promoteId: this.promoteId,
-            subdivisionGranularity: this.map.style.projection.subdivisionGranularity
+            subdivisionGranularity: this.map.style.projection.subdivisionGranularity,
+            encoding: this.encoding,
+            overzoomParameters: await this._getOverzoomParameters(tile),
+            etag: tile.etag
         };
         params.request.collectResourceTiming = this._collectResourceTiming;
+        await this.dispatcher.waitForInitComplete();
         let messageType: MessageType.loadTile | MessageType.reloadTile = MessageType.reloadTile;
         if (!tile.actor || tile.state === 'expired') {
-            tile.actor = this.dispatcher.getActor();
+            tile.actor = this.dispatcher.getReadyActor();
             messageType = MessageType.loadTile;
         } else if (tile.state === 'loading') {
             return new Promise<void>((resolve, reject) => {
@@ -222,10 +240,14 @@ export class VectorTileSource extends Evented implements Source {
                 return;
             }
             this._afterTileLoadWorkerResponse(tile, data);
+
+            const result: LoadTileResult = {};
+            if (data?.etagUnmodified) result.unmodified = true;
+            return result;
         } catch (err) {
             delete tile.abortController;
 
-            if (tile.aborted) {
+            if (tile.aborted || isAbortError(err)) {
                 return;
             }
             if (err && err.status !== 404) {
@@ -235,14 +257,36 @@ export class VectorTileSource extends Evented implements Source {
         }
     }
 
+    /**
+     * When the requested tile has a higher canonical Z than source maxzoom, pass overzoom parameters so worker can load the
+     * deepest tile at source max zoom to generate sub tiles using geojsonvt for highest performance on vector overscaling
+     */
+    private async _getOverzoomParameters(tile: Tile): Promise<OverzoomParameters | undefined> {
+        if (tile.tileID.canonical.z <= this.maxzoom) {
+            return undefined;
+        }
+        if (this.map._zoomLevelsToOverscale === undefined) {
+            return undefined;
+        }
+        const maxZoomTileID = tile.tileID.scaledTo(this.maxzoom).canonical;
+        const maxZoomTileUrl = maxZoomTileID.url(this.tiles, this.map.getPixelRatio(), this.scheme);
+
+        return {
+            maxZoomTileID,
+            overzoomRequest: await this.map._requestManager.transformRequest(maxZoomTileUrl, ResourceType.Tile)
+        };
+    }
+
     private _afterTileLoadWorkerResponse(tile: Tile, data: WorkerTileResult) {
-        if (data && data.resourceTiming) {
+        if (data?.resourceTiming) {
             tile.resourceTiming = data.resourceTiming;
         }
 
         if (data && this.map._refreshExpiredTiles) {
             tile.setExpiryData(data);
         }
+        tile.etag = data?.etag;
+
         tile.loadVectorData(data, this.map.painter);
 
         if (tile.reloadPromise) {

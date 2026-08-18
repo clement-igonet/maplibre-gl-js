@@ -1,8 +1,8 @@
 import {describe, test, expect} from 'vitest';
-import {type EvaluationParameters} from '../evaluation_parameters';
-import {type ZoomHistory} from '../zoom_history';
-import {SymbolStyleLayer} from './symbol_style_layer';
-import {INVALID_TEXT_OFFSET, evaluateVariableOffset, getTextVariableAnchorOffset} from './variable_text_anchor';
+import {type EvaluationParameters} from '../evaluation_parameters.ts';
+import {type ZoomHistory} from '../zoom_history.ts';
+import {SymbolStyleLayer} from './symbol_style_layer.ts';
+import {INVALID_TEXT_OFFSET, evaluateVariableOffset, getTextVariableAnchorOffset} from './variable_text_anchor.ts';
 
 describe('evaluateVariableOffset', () => {
     test('fromRadialOffset', () => {
@@ -42,7 +42,7 @@ describe('evaluateVariableOffset', () => {
 });
 
 function createSymbolLayer(layerProperties) {
-    const layer = new SymbolStyleLayer(layerProperties);
+    const layer = new SymbolStyleLayer(layerProperties, {});
     layer.recalculate({zoom: 0, zoomHistory: {} as ZoomHistory} as EvaluationParameters, []);
     return layer;
 }

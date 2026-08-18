@@ -1,10 +1,10 @@
 import {describe, beforeEach, afterEach, test, expect, vi} from 'vitest';
-import {AttributionControl, defaultAttributionControlOptions} from './attribution_control';
-import {createMap as globalCreateMap, beforeMapTest, sleep} from '../../util/test/util';
-import simulate from '../../../test/unit/lib/simulate_interaction';
+import {AttributionControl, defaultAttributionControlOptions} from './attribution_control.ts';
+import {createMap as globalCreateMap, beforeMapTest, sleep} from '../../util/test/util.ts';
+import simulate from '../../../test/unit/lib/simulate_interaction.ts';
 import {fakeServer} from 'nise';
-import {type Map} from '../../ui/map';
-import {type MapSourceDataEvent} from '../events';
+import {type Map} from '../../ui/map.ts';
+import {type MapSourceDataEvent} from '../events.ts';
 
 function createMap() {
 
@@ -14,11 +14,13 @@ function createMap() {
             version: 8,
             sources: {},
             layers: [],
-            owner: 'maplibre',
-            id: 'demotiles',
+            metadata: {
+                owner: 'maplibre',
+                id: 'demotiles',
+            },
         },
         hash: true
-    }, undefined);
+    });
 }
 
 let map: Map;
@@ -294,6 +296,7 @@ describe('AttributionControl', () => {
         map.on('data', spy);
         await map.once('load');
         map.addSource('1', {type: 'raster-dem', url: '/source.json'});
+        await sleep(0);
         server.respond();
 
         await sleep(100);
@@ -326,6 +329,7 @@ describe('AttributionControl', () => {
         map.on('data', spy);
         await map.once('load');
         map.addSource('1', {type: 'raster-dem', url: '/source.json'});
+        await sleep(0);
         server.respond();
         map.setTerrain({source: '1'});
         await sleep(100);
@@ -359,6 +363,31 @@ describe('AttributionControl', () => {
         expect(attribution._innerContainer.innerHTML).toBe('Used');
     });
 
+    test('sanitizes html content in attributions', async () => {
+        const attributionControl = new AttributionControl({
+            customAttribution: 'MapLibre<script>alert("xss")</script>'
+        });
+        map.addControl(attributionControl);
+        await map.once('load');
+
+        expect(attributionControl._innerContainer.innerHTML).toBe('MapLibre');
+    });
+
+    test('only recreates attributions if sanitized attribution content changes', async () => {
+        const attributionControl = new AttributionControl({
+            customAttribution: 'MapLibre<script>alert("xss")</script>'
+        });
+        map.addControl(attributionControl);
+        await map.once('load');
+
+        // this will be overwritten if the attribution control re-renders for any reason
+        attributionControl._innerContainer.innerHTML = 'unchanged';
+        map.addSource('1', {type: 'geojson', data: {type: 'FeatureCollection', features: []}});
+
+        await sleep(100);
+
+        expect(attributionControl._innerContainer.innerHTML).toBe('unchanged');
+    });
 });
 
 describe('AttributionControl test regarding the HTML elements details and summary', () => {
@@ -539,6 +568,81 @@ describe('AttributionControl test regarding the HTML elements details and summar
             map.resize();
 
             expect(map.getContainer().querySelectorAll('.maplibregl-ctrl-attrib')[0].getAttribute('open')).toBe('');
+        });
+    });
+
+    describe('edge cases', () => {
+        test('whitespace-only source attribution is filtered out', async () => {
+            const attribution = new AttributionControl({});
+            map.addControl(attribution);
+            await map.once('load');
+
+            map.addSource('whitespace', {
+                type: 'geojson',
+                data: {type: 'FeatureCollection', features: []},
+                attribution: ' '
+            });
+            map.addSource('valid', {
+                type: 'geojson',
+                data: {type: 'FeatureCollection', features: []},
+                attribution: 'Valid Attribution'
+            });
+
+            map.addLayer({id: 'whitespace', type: 'fill', source: 'whitespace'});
+            map.addLayer({id: 'valid', type: 'fill', source: 'valid'});
+
+            await sleep(100);
+
+            const innerContainer = map.getContainer().querySelector('.maplibregl-ctrl-attrib-inner');
+            expect(innerContainer.innerHTML).toBe('Valid Attribution');
+        });
+
+        test('empty customAttribution string results in empty attribution', () => {
+            map.addControl(new AttributionControl({customAttribution: ''}));
+
+            const container = map.getContainer();
+            const attrib = container.querySelector('.maplibregl-ctrl-attrib-inner');
+            expect(attrib.innerHTML).toBe('');
+            expect(container.querySelectorAll('.maplibregl-attrib-empty')).toHaveLength(1);
+        });
+
+        test('compact attribution is initially expanded', () => {
+            Object.defineProperty(map.getCanvasContainer(), 'offsetWidth', {value: 600, configurable: true});
+            map.addControl(new AttributionControl({
+                compact: true,
+                customAttribution: 'Test Attribution'
+            }));
+
+            expect(map.getContainer().querySelectorAll('.maplibregl-compact-show')).toHaveLength(1);
+        });
+
+        test('drag minimizes expanded compact attribution', () => {
+            Object.defineProperty(map.getCanvasContainer(), 'offsetWidth', {value: 600, configurable: true});
+            map.addControl(new AttributionControl({
+                compact: true,
+                customAttribution: 'Test Attribution'
+            }));
+
+            const container = map.getContainer();
+            const toggle = container.querySelector('.maplibregl-ctrl-attrib-button');
+            simulate.click(toggle);
+            simulate.click(toggle);
+            expect(container.querySelectorAll('.maplibregl-compact-show')).toHaveLength(1);
+
+            map.fire('drag');
+            expect(container.querySelectorAll('.maplibregl-compact-show')).toHaveLength(0);
+        });
+
+        test('onRemove cleans up DOM', () => {
+            const attribution = new AttributionControl({customAttribution: 'Test', compact: true});
+            map.addControl(attribution);
+
+            const container = map.getContainer();
+            expect(container.querySelectorAll('.maplibregl-ctrl-attrib')).toHaveLength(1);
+
+            map.removeControl(attribution);
+
+            expect(container.querySelectorAll('.maplibregl-ctrl-attrib')).toHaveLength(0);
         });
     });
 });

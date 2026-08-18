@@ -1,13 +1,13 @@
 
 import {beforeEach, describe, expect, test, vi} from 'vitest';
-import {createMap, beforeMapTest} from '../../util/test/util';
+import {createMap, beforeMapTest} from '../../util/test/util.ts';
 
 beforeEach(() => {
     beforeMapTest();
     global.fetch = null;
 });
 
-describe('#setSky', () => {
+describe('setSky', () => {
     test('calls style setSky when set', () => {
         const map = createMap();
         const spy = vi.fn();
@@ -18,7 +18,7 @@ describe('#setSky', () => {
     });
 });
 
-describe('#getSky', () => {
+describe('getSky', () => {
     test('returns undefined when not set', () => {
         const map = createMap();
         expect(map.getSky()).toBeUndefined();

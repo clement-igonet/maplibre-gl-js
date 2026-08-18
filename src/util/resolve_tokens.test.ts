@@ -1,5 +1,5 @@
 import {test, expect} from 'vitest';
-import {resolveTokens} from './resolve_tokens';
+import {resolveTokens} from './resolve_tokens.ts';
 
 test('resolveToken', () => {
     expect('3 Fine Fields').toBe(resolveTokens({a: 3, b: 'Fine', c: 'Fields'}, '{a} {b} {c}'));
@@ -26,6 +26,9 @@ test('resolveToken', () => {
     expect(resolveTokens({text: '\ufff0'}, '{text}')).toBe('\ufff0');
     expect(resolveTokens({text: '\uffff'}, '{text}')).toBe('\uffff');
 
+    // Unicode beyond 65535.
+    expect(resolveTokens({text: '🌐'}, '{text}')).toBe('🌐');
+
     // Non-string values cast to strings.
     expect(resolveTokens({name: 5000}, '{name}')).toBe('5000');
     expect(resolveTokens({name: -15.5}, '{name}')).toBe('-15.5');
@@ -40,7 +43,7 @@ test('resolveToken', () => {
     expect(resolveTokens({'dashed-property': 'dashed'}, '{dashed-property}')).toBe('dashed');
     expect(resolveTokens({'HØYDE': 150}, '{HØYDE} m')).toBe('150 m');
     expect(
-        resolveTokens({'$special:characters;': 'mapbox'}, '{$special:characters;}')
-    ).toBe('mapbox');
+        resolveTokens({'$special:characters;': 'maplibre'}, '{$special:characters;}')
+    ).toBe('maplibre');
 
 });

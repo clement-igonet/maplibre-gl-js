@@ -1,7 +1,7 @@
 import {describe, test, expect} from 'vitest';
-import {type PositionedIcon, type Box,  type Shaping, applyTextFit, shapeIcon, fitIconToText} from './shaping';
-import {ImagePosition} from '../render/image_atlas';
-import {type StyleImage, TextFit} from '../style/style_image';
+import {type PositionedIcon, type Box, type Shaping, applyTextFit, shapeIcon, fitIconToText} from './shaping.ts';
+import {ImagePosition} from '../render/image_atlas.ts';
+import {type StyleImage, TextFit} from '../style/style_image.ts';
 
 describe('applyTextFit', () => {
 
@@ -120,7 +120,8 @@ describe('shapeIcon', () => {
         stretchY: undefined,
         paddedRect: Object.freeze({x: 0, y: 0, w: 22, h: 22}),
         pixelRatio: 1,
-        version: 1
+        version: 1,
+        needsFirstWebGLRender: false
     });
 
     test('text-anchor: center', () => {

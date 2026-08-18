@@ -1,15 +1,14 @@
-import {DOM} from '../../util/dom';
-
-import {defaultEasing, bezier, zoomScale, scaleZoom} from '../../util/util';
-import {browser} from '../../util/browser';
+import {DOM} from '../../util/dom.ts';
+import {defaultEasing, bezier, zoomScale, scaleZoom, evaluateZoomSnap} from '../../util/util.ts';
+import {now} from '../../util/time_control.ts';
 import {interpolates} from '@maplibre/maplibre-gl-style-spec';
-import {LngLat} from '../../geo/lng_lat';
-import {TransformProvider} from './transform-provider';
+import {LngLat} from '../../geo/lng_lat.ts';
 
-import type {Map} from '../map';
+import type {TransformProvider} from './transform-provider.ts';
+import type {Map} from '../map.ts';
+import type {AroundCenterOptions} from './two_fingers_touch.ts';
+import type {Handler} from '../handler_manager.ts';
 import type Point from '@mapbox/point-geometry';
-import type {AroundCenterOptions} from './two_fingers_touch';
-import type {Handler} from '../handler_manager';
 
 // deltaY value for mouse scroll wheel identification
 const wheelZoomDelta = 4.000244140625;
@@ -46,7 +45,7 @@ export class ScrollZoomHandler implements Handler {
     _timeout: ReturnType<typeof setTimeout>; // used for delayed-handling of a single wheel movement
     _finishTimeout: ReturnType<typeof setTimeout>; // used to delay final '{move,zoom}end' events
 
-    _lastWheelEvent: any;
+    _lastWheelEvent: WheelEvent;
     _lastWheelEventTime: number;
 
     _lastExpectedZoom: number;
@@ -60,16 +59,16 @@ export class ScrollZoomHandler implements Handler {
         easing: (_: number) => number;
     };
 
-    _frameId: boolean;
+    _needsRerender: boolean;
     _triggerRenderFrame: () => void;
 
     _defaultZoomRate: number;
     _wheelZoomRate: number;
 
     /** @internal */
-    constructor(map: Map, triggerRenderFrame: () => void) {
+    constructor(map: Map, triggerRenderFrame: () => void, transformProvider: TransformProvider) {
         this._map = map;
-        this._tr = new TransformProvider(map);
+        this._tr = transformProvider;
         this._triggerRenderFrame = triggerRenderFrame;
 
         this._delta = 0;
@@ -87,7 +86,7 @@ export class ScrollZoomHandler implements Handler {
      * map.scrollZoom.setZoomRate(1/25);
      * ```
      */
-    setZoomRate(zoomRate: number) {
+    setZoomRate(zoomRate: number): void {
         this._defaultZoomRate = zoomRate;
     }
 
@@ -100,7 +99,7 @@ export class ScrollZoomHandler implements Handler {
      * map.scrollZoom.setWheelZoomRate(1/600);
      * ```
      */
-    setWheelZoomRate(wheelZoomRate: number) {
+    setWheelZoomRate(wheelZoomRate: number): void {
         this._wheelZoomRate = wheelZoomRate;
     }
 
@@ -108,7 +107,7 @@ export class ScrollZoomHandler implements Handler {
      * Returns a Boolean indicating whether the "scroll to zoom" interaction is enabled.
      * @returns `true` if the "scroll to zoom" interaction is enabled.
      */
-    isEnabled() {
+    isEnabled(): boolean {
         return !!this._enabled;
     }
 
@@ -117,11 +116,11 @@ export class ScrollZoomHandler implements Handler {
     * render is called, so _active is not a good candidate for determining if a scroll zoom animation is in
     * progress.
     */
-    isActive() {
+    isActive(): boolean {
         return !!this._active || this._finishTimeout !== undefined;
     }
 
-    isZooming() {
+    isZooming(): boolean {
         return !!this._zooming;
     }
 
@@ -135,7 +134,7 @@ export class ScrollZoomHandler implements Handler {
      * map.scrollZoom.enable({ around: 'center' })
      * ```
      */
-    enable(options?: AroundCenterOptions | boolean) {
+    enable(options?: AroundCenterOptions | boolean): void {
         if (this.isEnabled()) return;
         this._enabled = true;
         this._aroundCenter = !!options && (options as AroundCenterOptions).around === 'center';
@@ -149,7 +148,7 @@ export class ScrollZoomHandler implements Handler {
      * map.scrollZoom.disable();
      * ```
      */
-    disable() {
+    disable(): void {
         if (!this.isEnabled()) return;
         this._enabled = false;
     }
@@ -157,7 +156,7 @@ export class ScrollZoomHandler implements Handler {
     /**
      * Determines whether or not the gesture is blocked due to cooperativeGestures.
      */
-    _shouldBePrevented(e: WheelEvent) {
+    _shouldBePrevented(e: WheelEvent): boolean {
         if (!this._map.cooperativeGestures.isEnabled()) {
             return false;
         }
@@ -168,17 +167,17 @@ export class ScrollZoomHandler implements Handler {
         return !isBypassed;
     }
 
-    wheel(e: WheelEvent) {
+    wheel(e: WheelEvent): void {
         if (!this.isEnabled()) return;
         if (this._shouldBePrevented(e)) {
             this._map.cooperativeGestures.notifyGestureBlocked('wheel_zoom', e);
             return;
         }
         let value = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? e.deltaY * 40 : e.deltaY;
-        const now = browser.now(),
-            timeDelta = now - (this._lastWheelEventTime || 0);
+        const currentTime = now(),
+            timeDelta = currentTime - (this._lastWheelEventTime || 0);
 
-        this._lastWheelEventTime = now;
+        this._lastWheelEventTime = currentTime;
 
         if (value !== 0 && (value % wheelZoomDelta) === 0) {
             // This one is definitely a mouse wheel event.
@@ -225,7 +224,7 @@ export class ScrollZoomHandler implements Handler {
         e.preventDefault();
     }
 
-    _onTimeout = (initialEvent: MouseEvent) => {
+    _onTimeout = (initialEvent: MouseEvent): void => {
         this._type = 'wheel';
         this._delta -= this._lastValue;
         if (!this._active) {
@@ -233,12 +232,10 @@ export class ScrollZoomHandler implements Handler {
         }
     };
 
-    _start(e: MouseEvent) {
+    _start(e: MouseEvent): void {
         if (!this._delta) return;
 
-        if (this._frameId) {
-            this._frameId = null;
-        }
+        this._needsRerender = false;
 
         this._active = true;
         if (!this.isZooming()) {
@@ -260,15 +257,21 @@ export class ScrollZoomHandler implements Handler {
             this._aroundPoint = pos;
         }
 
-        if (!this._frameId) {
-            this._frameId = true;
+        if (!this._needsRerender) {
+            this._needsRerender = true;
             this._triggerRenderFrame();
         }
     }
 
-    renderFrame() {
-        if (!this._frameId) return;
-        this._frameId = null;
+    renderFrame(): {
+        noInertia: boolean;
+        needsRenderFrame: boolean;
+        zoomDelta: number;
+        around: Point;
+        originalEvent: WheelEvent;
+    } | void {
+        if (!this._needsRerender) return;
+        this._needsRerender = false;
 
         if (!this.isActive()) return;
         const tr = this._tr.transform;
@@ -289,7 +292,7 @@ export class ScrollZoomHandler implements Handler {
         if (this._delta !== 0) {
             // For trackpad events and single mouse wheel ticks, use the default zoom rate
             const zoomRate = (this._type === 'wheel' && Math.abs(this._delta) > wheelZoomDelta) ? this._wheelZoomRate : this._defaultZoomRate;
-            // Scale by sigmoid of scroll wheel delta.
+            // Scale by sigmoid of scroll wheel delta so the map responds to small scrolls and compresses large scrolls
             let scale = maxScalePerFrame / (1 + Math.exp(-Math.abs(this._delta * zoomRate)));
 
             if (this._delta < 0 && scale !== 0) {
@@ -297,7 +300,15 @@ export class ScrollZoomHandler implements Handler {
             }
 
             const fromScale = typeof this._targetZoom !== 'number' ? tr.scale : zoomScale(this._targetZoom);
-            this._targetZoom = Math.min(tr.maxZoom, Math.max(tr.minZoom, scaleZoom(fromScale * scale)));
+            const target = tr.applyConstrain(tr.getCameraLngLat(), scaleZoom(fromScale * scale)).zoom;
+            const zoomSnap = this._map.getZoomSnap();
+
+            if (this._type === 'wheel' && zoomSnap > 0) {
+                const currentSnapped = evaluateZoomSnap(tr.zoom, zoomSnap);
+                this._targetZoom = evaluateZoomSnap(target, zoomSnap, target - currentSnapped);
+            } else {
+                this._targetZoom = target;
+            }
 
             // if this is a mouse wheel, refresh the starting zoom and easing
             // function we're using to smooth out the zooming between wheel
@@ -318,16 +329,14 @@ export class ScrollZoomHandler implements Handler {
         let zoom;
 
         if (this._type === 'wheel' && startZoom && easing) {
-            const lastWheelEventTimeDiff = browser.now() - this._lastWheelEventTime;
+            const lastWheelEventTimeDiff = now() - this._lastWheelEventTime;
 
             const t = Math.min((lastWheelEventTimeDiff + wheelEventTimeDiffAdjustment) / 200, 1);
 
             const k = easing(t);
             zoom = interpolates.number(startZoom, targetZoom, k);
             if (t < 1) {
-                if (!this._frameId) {
-                    this._frameId = true;
-                }
+                this._needsRerender = true;
             } else {
                 finished = true;
             }
@@ -360,12 +369,12 @@ export class ScrollZoomHandler implements Handler {
         };
     }
 
-    _smoothOutEasing(duration: number) {
+    _smoothOutEasing(duration: number): (t: number) => number {
         let easing = defaultEasing;
 
         if (this._prevEase) {
             const currentEase = this._prevEase;
-            const t = (browser.now() - currentEase.start) / currentEase.duration;
+            const t = (now() - currentEase.start) / currentEase.duration;
             const speed = currentEase.easing(t + 0.01) - currentEase.easing(t);
 
             // Quick hack to make new bezier that is continuous with last
@@ -376,7 +385,7 @@ export class ScrollZoomHandler implements Handler {
         }
 
         this._prevEase = {
-            start: browser.now(),
+            start: now(),
             duration,
             easing
         };
@@ -384,7 +393,7 @@ export class ScrollZoomHandler implements Handler {
         return easing;
     }
 
-    reset() {
+    reset(): void {
         this._active = false;
         this._zooming = false;
         delete this._targetZoom;

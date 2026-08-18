@@ -1,7 +1,7 @@
-import {LngLat} from '../geo/lng_lat';
+import {LngLat} from '../geo/lng_lat.ts';
 
 import type Point from '@mapbox/point-geometry';
-import type {IReadonlyTransform} from '../geo/transform_interface';
+import type {IReadonlyTransform} from '../geo/transform_interface.ts';
 
 /**
  * Given a LngLat, prior projected position, and a transform, return a new LngLat shifted
@@ -16,7 +16,10 @@ import type {IReadonlyTransform} from '../geo/transform_interface';
  * map center changes by ±360° due to automatic wrapping, and when about to go off screen,
  * should wrap just enough to avoid doing so.
  */
-export function smartWrap(lngLat: LngLat, priorPos: Point, transform: IReadonlyTransform): LngLat {
+export function smartWrap(lngLat: LngLat, priorPos: Point, transform: IReadonlyTransform, useNormalWrap: boolean = false): LngLat {
+    if (useNormalWrap || !transform.getCoveringTilesDetailsProvider().allowWorldCopies()) {
+        return lngLat?.wrap();
+    }
     const originalLngLat = new LngLat(lngLat.lng, lngLat.lat);
     lngLat = new LngLat(lngLat.lng, lngLat.lat);
 
