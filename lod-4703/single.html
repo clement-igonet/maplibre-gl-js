@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>#4703 single build test</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="dist-pr/maplibre-gl.css">
+<style>
+    body, html { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+    #map { position: absolute; inset: 0; }
+    .tag { position: absolute; top: 8px; left: 8px; z-index: 2; color: #fff;
+           padding: 8px 12px; border-radius: 4px; font: 700 15px system-ui, sans-serif; }
+    .tag.pr { background: #1a7f37; }
+    .tag.main { background: #6e7781; }
+    .hud { position: absolute; bottom: 8px; left: 8px; z-index: 2; background: rgba(0,0,0,.8); color: #fff;
+           padding: 8px 12px; border-radius: 4px; font: 600 13px monospace; white-space: pre; }
+    .switch { position: absolute; top: 8px; right: 8px; z-index: 3; background: rgba(255,255,255,.95);
+              padding: 8px 12px; border-radius: 4px; font: 500 13px system-ui, sans-serif; }
+    .switch a { display: inline-block; margin-left: 6px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="tag" id="tag">loading</div>
+<div class="hud" id="hud">…</div>
+<div class="switch">
+    switch build (keeps the camera):
+    <a href="#" id="to-main">main</a>
+    <a href="#" id="to-pr">PR #8049</a>
+    <br>tiles:
+    <a href="#" id="to-numbers">numbered</a>
+    <a href="#" id="to-osm">OpenStreetMap</a>
+</div>
+<script type="module">
+const params = new URLSearchParams(location.search);
+const build = params.get('build') === 'main' ? 'main' : 'pr';
+const tiles = params.get('tiles') === 'osm' ? 'osm' : 'numbers';
+
+const lib = await import(build === 'main' ? './dist-main/maplibre-gl-dev.mjs' : './dist-pr/maplibre-gl-dev.mjs');
+
+const tag = document.getElementById('tag');
+tag.textContent = build === 'main' ? 'main (current MapLibre)' : 'PR #8049 (the fix)';
+tag.className = `tag ${build}`;
+
+const src = tiles === 'osm'
+    ? {type: 'raster', tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap contributors'}
+    : {type: 'raster', url: 'https://demotiles.maplibre.org/debug-tiles/number/tiles.json', tileSize: 256, maxzoom: 19};
+
+const map = new lib.Map({
+    container: 'map',
+    center: [11.39, 47.27],
+    zoom: 14.2,
+    pitch: 84,
+    bearing: -35,
+    hash: true,          // the camera lives in the URL: copy it to the other build
+    maxPitch: 85,
+    maxZoom: 22,
+    style: {
+        version: 8,
+        sources: {
+            base: src,
+            terrainSource: {type: 'raster-dem', encoding: 'terrarium', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 15, attribution: 'Mapzen/AWS'}
+        },
+        layers: [{id: 'base', type: 'raster', source: 'base'}],
+        terrain: {source: 'terrainSource', exaggeration: 1}
+    }
+});
+map.showTileBoundaries = tiles === 'numbers';
+window.map = map;
+
+const hud = document.getElementById('hud');
+setInterval(() => {
+    const tm = map.style?.tileManagers?.base;
+    const zs = [...(tm?._inViewTiles?.getAllTiles() ?? [])].map(t => t.tileID.canonical.z);
+    if (!zs.length) return;
+    const c = {}; for (const z of zs) c[z] = (c[z] || 0) + 1;
+    const breakdown = Object.keys(c).sort((a, b) => a - b).map(z => `z${z}:${c[z]}`).join(' ');
+    hud.textContent = `${build.toUpperCase()}  zoom ${map.getZoom().toFixed(1)}  pitch ${map.getPitch().toFixed(0)}\n` +
+                      `${zs.length} tiles, deepest z${Math.max(...zs)}\n${breakdown}`;
+}, 300);
+
+// The links keep the current camera (it is in location.hash).
+const go = (b, t) => {
+    const q = new URLSearchParams({build: b, tiles: t});
+    location.href = `${location.pathname}?${q}${location.hash}`;
+};
+document.getElementById('to-main').onclick = (e) => { e.preventDefault(); go('main', tiles); };
+document.getElementById('to-pr').onclick = (e) => { e.preventDefault(); go('pr', tiles); };
+document.getElementById('to-numbers').onclick = (e) => { e.preventDefault(); go(build, 'numbers'); };
+document.getElementById('to-osm').onclick = (e) => { e.preventDefault(); go(build, 'osm'); };
+</script>
+</body>
+</html>
