@@ -55,14 +55,18 @@ function makeMap(lib, container, hudEl) {
     map.showTileBoundaries = true;
 
     function stats() {
-        const src = map.style.sourceCaches ? map.style.sourceCaches['numbers'] : map.style.getSourceCache?.('numbers');
-        const ids = src ? Object.values(src._tiles ?? {}).map(t => t.tileID.canonical.z) : [];
-        if (!ids.length) return {n: 0, min: 0, max: 0};
-        return {n: ids.length, min: Math.min(...ids), max: Math.max(...ids)};
+        const tm = map.style?.tileManagers?.numbers;
+        const tiles = tm?._inViewTiles?.getAllTiles ? [...tm._inViewTiles.getAllTiles()] : [];
+        const zs = tiles.map(t => t.tileID.canonical.z);
+        if (!zs.length) return null;
+        const counts = {};
+        for (const z of zs) counts[z] = (counts[z] || 0) + 1;
+        const breakdown = Object.keys(counts).sort((a, b) => a - b).map(z => `z${z}:${counts[z]}`).join(' ');
+        return {n: zs.length, max: Math.max(...zs), breakdown};
     }
     const track = (name) => {
         const s = stats();
-        hudEl.textContent = `${name}\ntiles ${s.n}  zoom range ${s.min}-${s.max}`;
+        hudEl.textContent = s ? `${name}\n${s.n} tiles, deepest z${s.max}\n${s.breakdown}` : `${name}\n(loading)`;
     };
     return {map, track};
 }
