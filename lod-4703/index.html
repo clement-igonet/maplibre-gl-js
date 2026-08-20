@@ -22,7 +22,7 @@
 <body>
 <div id="wrap">
     <div class="half"><div id="map-main" class="map"></div>
-        <div class="tag">main</div><div class="hud" id="hud-main">idle</div></div>
+        <div class="tag">main (drag here)</div><div class="hud" id="hud-main">idle</div></div>
     <div class="half"><div id="map-pr" class="map"></div>
         <div class="tag">PR #8049</div><div class="hud" id="hud-pr">idle</div></div>
 </div>
@@ -75,23 +75,26 @@ const left = makeMap(mainlib, 'map-main', document.getElementById('hud-main'));
 const right = makeMap(prlib, 'map-pr', document.getElementById('hud-pr'));
 window.maps = {left, right};
 
-// One camera for both windows: whichever map is moved drives the other.
-let syncing = false;
-function follow(from, to) {
-    from.map.on('move', () => {
-        if (syncing) return;
-        syncing = true;
-        to.map.jumpTo({
-            center: from.map.getCenter(),
-            zoom: from.map.getZoom(),
-            bearing: from.map.getBearing(),
-            pitch: from.map.getPitch()
-        });
-        syncing = false;
-    });
-}
-follow(left, right);
-follow(right, left);
+// One camera for both windows: the left map is the only control and the right one
+// copies it every frame. Terrain elevation settles asynchronously and differently in
+// each build, so an event-based sync drifts apart; re-applying each frame does not.
+right.map.dragPan.disable();
+right.map.scrollZoom.disable();
+right.map.dragRotate.disable();
+right.map.keyboard.disable();
+right.map.doubleClickZoom.disable();
+right.map.touchZoomRotate.disable();
+(function syncCamera() {
+    const c = left.map.getCenter();
+    const rc = right.map.getCenter();
+    if (Math.abs(rc.lng - c.lng) > 1e-9 || Math.abs(rc.lat - c.lat) > 1e-9 ||
+        Math.abs(right.map.getZoom() - left.map.getZoom()) > 1e-6 ||
+        Math.abs(right.map.getBearing() - left.map.getBearing()) > 1e-6 ||
+        Math.abs(right.map.getPitch() - left.map.getPitch()) > 1e-6) {
+        right.map.jumpTo({center: c, zoom: left.map.getZoom(), bearing: left.map.getBearing(), pitch: left.map.getPitch()});
+    }
+    requestAnimationFrame(syncCamera);
+})();
 
 async function runOne(m, name) {
     const timer = setInterval(() => { left.track(name); right.track(name); }, 200);
