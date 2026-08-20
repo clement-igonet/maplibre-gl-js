@@ -83,11 +83,11 @@ async function runOne(m, name) {
         for (let p = 60; p <= 85; p += 1) { m.map.jumpTo({pitch: p}); await sleep(220); }
         await sleep(2500);
     } else {
-        m.map.jumpTo({center: [11.35, 47.26], zoom: 14.5, pitch: 80, bearing: 60});
-        await sleep(3500);
+        m.map.jumpTo({center: [11.35, 47.26], zoom: 15.5, pitch: 82, bearing: 60});
+        await sleep(4000);
         let lng = 11.35;
-        for (let i = 0; i < 24; i++) { lng += 0.0007; m.map.jumpTo({center: [lng, 47.26]}); await sleep(240); }
-        await sleep(1500);
+        for (let i = 0; i < 26; i++) { lng += 0.0004; m.map.jumpTo({center: [lng, 47.26]}); await sleep(240); }
+        await sleep(1200);
     }
     clearInterval(timer);
     m.track(name);
