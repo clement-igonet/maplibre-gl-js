@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>#4703 tile selection: main vs PR #8049, numbered tiles</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="dist-pr/maplibre-gl.css">
+<style>
+    body, html { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+    #wrap { display: flex; height: 100%; }
+    .half { position: relative; flex: 1; }
+    .half .map { position: absolute; inset: 0; }
+    .tag { position: absolute; top: 8px; left: 8px; z-index: 2; background: rgba(0,0,0,.8); color: #fff;
+           padding: 6px 10px; border-radius: 4px; font: 600 13px system-ui, sans-serif; }
+    .hud { position: absolute; bottom: 8px; left: 8px; z-index: 2; background: rgba(0,0,0,.8); color: #fff;
+           padding: 8px 12px; border-radius: 4px; font: 600 13px monospace; white-space: pre; }
+    .half:last-child .tag, .half:last-child .hud { left: auto; right: 8px; }
+    #controls { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 3; }
+    #controls button { font: 600 13px system-ui, sans-serif; margin: 0 2px; padding: 6px 10px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+    <div class="half"><div id="map-main" class="map"></div>
+        <div class="tag">main</div><div class="hud" id="hud-main">idle</div></div>
+    <div class="half"><div id="map-pr" class="map"></div>
+        <div class="tag">PR #8049</div><div class="hud" id="hud-pr">idle</div></div>
+</div>
+<div id="controls">
+    <button type="button" onclick="runBoth('pitch-up')">pitch up to 85</button>
+    <button type="button" onclick="runBoth('fly-along')">fly along the valley</button>
+</div>
+<script type="module">
+import * as mainlib from './dist-main/maplibre-gl-dev.mjs';
+import * as prlib from './dist-pr/maplibre-gl-dev.mjs';
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const START = {center: [11.39, 47.27], zoom: 13.5, pitch: 60, bearing: -35};
+
+function makeMap(lib, container, hudEl) {
+    const map = new lib.Map({
+        container,
+        center: START.center, zoom: START.zoom, pitch: START.pitch, bearing: START.bearing,
+        maxPitch: 85, maxZoom: 22,
+        style: {
+            version: 8,
+            sources: {
+                numbers: {type: 'raster', url: 'https://demotiles.maplibre.org/debug-tiles/number/tiles.json', tileSize: 256, maxzoom: 19},
+                terrainSource: {type: 'raster-dem', encoding: 'terrarium', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 15, attribution: 'Mapzen/AWS'}
+            },
+            layers: [{id: 'numbers', type: 'raster', source: 'numbers'}],
+            terrain: {source: 'terrainSource', exaggeration: 1}
+        }
+    });
+    map.showTileBoundaries = true;
+
+    function stats() {
+        const src = map.style.sourceCaches ? map.style.sourceCaches['numbers'] : map.style.getSourceCache?.('numbers');
+        const ids = src ? Object.values(src._tiles ?? {}).map(t => t.tileID.canonical.z) : [];
+        if (!ids.length) return {n: 0, min: 0, max: 0};
+        return {n: ids.length, min: Math.min(...ids), max: Math.max(...ids)};
+    }
+    const track = (name) => {
+        const s = stats();
+        hudEl.textContent = `${name}\ntiles ${s.n}  zoom range ${s.min}-${s.max}`;
+    };
+    return {map, track};
+}
+
+const left = makeMap(mainlib, 'map-main', document.getElementById('hud-main'));
+const right = makeMap(prlib, 'map-pr', document.getElementById('hud-pr'));
+window.maps = {left, right};
+
+async function runOne(m, name) {
+    const timer = setInterval(() => m.track(name), 200);
+    m.map.jumpTo(START);
+    await sleep(3000);
+    if (name === 'pitch-up') {
+        for (let p = 60; p <= 85; p += 1) { m.map.jumpTo({pitch: p}); await sleep(220); }
+        await sleep(2500);
+    } else {
+        m.map.jumpTo({...START, pitch: 82});
+        await sleep(2500);
+        let lng = 11.39;
+        for (let i = 0; i < 30; i++) { lng += 0.0015; m.map.jumpTo({center: [lng, 47.27]}); await sleep(200); }
+        await sleep(2000);
+    }
+    clearInterval(timer);
+    m.track(name);
+}
+
+window.runBoth = async (name) => {
+    await Promise.all([runOne(left, name), runOne(right, name)]);
+    const read = (m) => m.track(name) || document.getElementById(m === left ? 'hud-main' : 'hud-pr').textContent;
+    return {scenario: name, main: read(left), pr: read(right)};
+};
+</script>
+</body>
+</html>
