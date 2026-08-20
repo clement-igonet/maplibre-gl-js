@@ -75,8 +75,26 @@ const left = makeMap(mainlib, 'map-main', document.getElementById('hud-main'));
 const right = makeMap(prlib, 'map-pr', document.getElementById('hud-pr'));
 window.maps = {left, right};
 
+// One camera for both windows: whichever map is moved drives the other.
+let syncing = false;
+function follow(from, to) {
+    from.map.on('move', () => {
+        if (syncing) return;
+        syncing = true;
+        to.map.jumpTo({
+            center: from.map.getCenter(),
+            zoom: from.map.getZoom(),
+            bearing: from.map.getBearing(),
+            pitch: from.map.getPitch()
+        });
+        syncing = false;
+    });
+}
+follow(left, right);
+follow(right, left);
+
 async function runOne(m, name) {
-    const timer = setInterval(() => m.track(name), 200);
+    const timer = setInterval(() => { left.track(name); right.track(name); }, 200);
     m.map.jumpTo(START);
     await sleep(3000);
     if (name === 'pitch-up') {
@@ -90,11 +108,12 @@ async function runOne(m, name) {
         await sleep(1200);
     }
     clearInterval(timer);
-    m.track(name);
+    left.track(name);
+    right.track(name);
 }
 
 window.runBoth = async (name) => {
-    await Promise.all([runOne(left, name), runOne(right, name)]);
+    await runOne(left, name);
     const read = (m) => m.track(name) || document.getElementById(m === left ? 'hud-main' : 'hud-pr').textContent;
     return {scenario: name, main: read(left), pr: read(right)};
 };
