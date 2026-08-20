@@ -68,6 +68,21 @@ const map = new lib.Map({
 map.showTileBoundaries = tiles === 'numbers';
 window.map = map;
 
+// The camera asked for in the URL is authoritative: terrain elevation nudges the zoom
+// while the DEM loads, and it settles differently in each build, so re-apply it once
+// everything is loaded. Both builds then sit at exactly the same camera.
+const wanted = (() => {
+    const p = location.hash.slice(1).split('/').map(Number);
+    return p.length >= 3 && p.every(v => isFinite(v))
+        ? {zoom: p[0], center: [p[2], p[1]], bearing: p[3] ?? 0, pitch: p[4] ?? 0} : null;
+})();
+if (wanted) {
+    map.once('idle', () => {
+        map.jumpTo(wanted);
+        setTimeout(() => map.jumpTo(wanted), 1500);
+    });
+}
+
 const hud = document.getElementById('hud');
 setInterval(() => {
     const tm = map.style?.tileManagers?.base;
