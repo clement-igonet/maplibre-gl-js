@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>#4703 at Rumer Spitze (2454 m): main vs PR #8049</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="dist-pr/maplibre-gl.css">
+<style>
+    body, html { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+    #wrap { display: flex; height: 100%; }
+    .half { position: relative; flex: 1; }
+    .half .map { position: absolute; inset: 0; }
+    .tag { position: absolute; top: 8px; left: 8px; z-index: 2; background: rgba(0,0,0,.8); color: #fff;
+           padding: 6px 10px; border-radius: 4px; font: 600 13px system-ui, sans-serif; }
+    .hud { position: absolute; bottom: 8px; left: 8px; z-index: 2; background: rgba(0,0,0,.8); color: #fff;
+           padding: 8px 12px; border-radius: 4px; font: 600 13px monospace; white-space: pre; }
+    .half:last-child .tag, .half:last-child .hud { left: auto; right: 8px; }
+    #controls { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 3; }
+    #controls button { font: 600 13px system-ui, sans-serif; margin: 0 2px; padding: 6px 10px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+    <div class="half"><div id="map-main" class="map"></div>
+        <div class="tag">main</div><div class="hud" id="hud-main">idle</div></div>
+    <div class="half"><div id="map-pr" class="map"></div>
+        <div class="tag">PR #8049</div><div class="hud" id="hud-pr">idle</div></div>
+</div>
+<div id="controls">
+    <button type="button" onclick="look()">look at Rumer Spitze</button>
+    <button type="button" onclick="approach()">approach the summit</button>
+</div>
+<script type="module">
+import * as mainlib from './dist-main/maplibre-gl-dev.mjs';
+import * as prlib from './dist-pr/maplibre-gl-dev.mjs';
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+// Rumer Spitze, Karwendel, 2454 m
+const PEAK = [11.4133, 47.3183];
+const VIEW = {center: [11.4133, 47.2905], zoom: 14.6, pitch: 83, bearing: 0};
+
+function makeMap(lib, container, hudEl) {
+    const map = new lib.Map({
+        container,
+        center: VIEW.center, zoom: VIEW.zoom, pitch: VIEW.pitch, bearing: VIEW.bearing,
+        maxPitch: 85, maxZoom: 22,
+        style: {
+            version: 8,
+            sources: {
+                osm: {type: 'raster', tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap contributors'},
+                terrainSource: {type: 'raster-dem', encoding: 'terrarium', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 15, attribution: 'Mapzen/AWS'}
+            },
+            layers: [{id: 'osm', type: 'raster', source: 'osm'}],
+            terrain: {source: 'terrainSource', exaggeration: 1}
+        }
+    });
+    const track = () => {
+        const tm = map.style?.tileManagers?.osm;
+        const tiles = [...(tm?._inViewTiles?.getAllTiles() ?? [])];
+        const zs = tiles.map(t => t.tileID.canonical.z);
+        if (!zs.length) { hudEl.textContent = '(loading)'; return null; }
+        const c = {}; for (const z of zs) c[z] = (c[z] || 0) + 1;
+        // zoom of the tile covering the peak, the detail actually drawn on the summit
+        const peakTiles = tiles.filter(t => {
+            const n = 2 ** t.tileID.canonical.z;
+            const x = Math.floor((PEAK[0] + 180) / 360 * n);
+            const lat = PEAK[1] * Math.PI / 180;
+            const y = Math.floor((1 - Math.log(Math.tan(lat) + 1 / Math.cos(lat)) / Math.PI) / 2 * n);
+            return t.tileID.canonical.x === x && t.tileID.canonical.y === y;
+        }).map(t => t.tileID.canonical.z);
+        const peakZ = peakTiles.length ? Math.max(...peakTiles) : 0;
+        hudEl.textContent = `${zs.length} tiles, deepest z${Math.max(...zs)}\ndetail on the summit: z${peakZ}`;
+        return {n: zs.length, max: Math.max(...zs), peakZ};
+    };
+    return {map, track};
+}
+
+const left = makeMap(mainlib, 'map-main', document.getElementById('hud-main'));
+const right = makeMap(prlib, 'map-pr', document.getElementById('hud-pr'));
+window.maps = {left, right};
+
+window.look = async () => {
+    for (const m of [left, right]) m.map.jumpTo(VIEW);
+    await sleep(9000);
+    return {main: left.track(), pr: right.track()};
+};
+
+window.approach = async () => {
+    for (const m of [left, right]) m.map.jumpTo({...VIEW, zoom: 13.8});
+    await sleep(6000);
+    const timer = setInterval(() => { left.track(); right.track(); }, 200);
+    for (let i = 0; i <= 22; i++) {
+        const lat = 47.2905 + i * 0.0007;
+        for (const m of [left, right]) m.map.jumpTo({center: [11.4133, lat], zoom: 13.8 + i * 0.045, pitch: 83, bearing: 0});
+        await sleep(260);
+    }
+    await sleep(2500);
+    clearInterval(timer);
+    return {main: left.track(), pr: right.track()};
+};
+</script>
+</body>
+</html>
