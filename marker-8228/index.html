@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Marker elevation (#8228)</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="dist/maplibre-gl.css">
+<style>
+    body, html { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+    #map { position: absolute; inset: 0; }
+    .note { position: absolute; top: 8px; left: 8px; z-index: 2; background: rgba(0,0,0,.8); color: #fff;
+            padding: 8px 12px; border-radius: 4px; font: 500 13px system-ui, sans-serif; max-width: 22em; }
+    .lbl { background: #1a7f37; color: #fff; padding: 3px 7px; border-radius: 3px;
+           font: 700 12px system-ui, sans-serif; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+    .lbl.ground { background: #6e7781; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="note" id="note">Markers at the same location, raised with <code>heightOffset</code>.</div>
+<script type="module">
+import * as maplibregl from './dist/maplibre-gl-dev.mjs';
+
+const AT = [11.3833, 47.2700];   // Innsbruck, in the valley
+
+const map = new maplibregl.Map({
+    container: 'map',
+    center: [11.3833, 47.2610],
+    zoom: 14.4,
+    pitch: 72,
+    bearing: 0,
+    hash: true,
+    maxPitch: 85,
+    style: {
+        version: 8,
+        sources: {
+            osm: {type: 'raster', tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap contributors'},
+            terrainSource: {type: 'raster-dem', encoding: 'terrarium', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 15, attribution: 'Mapzen/AWS'}
+        },
+        layers: [{id: 'osm', type: 'raster', source: 'osm'}],
+        terrain: {source: 'terrainSource', exaggeration: 1}
+    }
+});
+window.map = map;
+
+function label(text, cls) {
+    const el = document.createElement('div');
+    el.className = `lbl${cls ? ' ' + cls : ''}`;
+    el.textContent = text;
+    return el;
+}
+
+map.on('load', () => {
+    // one marker per floor of an imaginary tower, plus the ground reference
+    new maplibregl.Marker({element: label('ground', 'ground')}).setLngLat(AT).addTo(map);
+    for (const floor of [1, 2, 3, 4, 5]) {
+        new maplibregl.Marker({element: label(`floor ${floor} (+${floor * 60} m)`), heightOffset: floor * 60})
+            .setLngLat(AT).addTo(map);
+    }
+});
+</script>
+</body>
+</html>
