@@ -17,7 +17,7 @@
 </head>
 <body>
 <div id="map"></div>
-<div class="note" id="note">The default <code>Marker</code>, raised with <code>heightOffset</code>: grey on the ground, blue at +60 m steps above it. The purple one uses <code>heightAnchor: absolute</code> at 2500 m.</div>
+<div class="note" id="note">The default <code>Marker</code>, raised with <code>heightOffset</code>: grey on the ground, blue at +60 m steps above it. The purple one sits at 2334 m with <code>heightAnchor: absolute</code>, the height of the Hafelekarspitze it marks.</div>
 <script type="module">
 import * as maplibregl from './dist/maplibre-gl-dev.mjs';
 
@@ -25,9 +25,9 @@ const AT = [11.3833, 47.2700];   // Innsbruck, in the valley
 
 const map = new maplibregl.Map({
     container: 'map',
-    center: [11.3833, 47.2610],
-    zoom: 14.4,
-    pitch: 72,
+    center: [11.3900, 47.2850],
+    zoom: 13.6,
+    pitch: 78,
     bearing: 0,
     hash: true,
     maxPitch: 85,
@@ -61,9 +61,9 @@ map.on('load', () => {
             .addTo(map);
     }
     // a second location using the absolute anchor, at a fixed altitude
-    new maplibregl.Marker({color: '#8250df', heightOffset: 2500, heightAnchor: 'absolute'})
-        .setLngLat([11.4133, 47.2860])
-        .setPopup(new maplibregl.Popup().setText('2500 m above the datum'))
+    new maplibregl.Marker({color: '#8250df', heightOffset: 2334, heightAnchor: 'absolute'})
+        .setLngLat([11.3833, 47.3117])
+        .setPopup(new maplibregl.Popup().setText('Hafelekarspitze, 2334 m, heightAnchor: absolute'))
         .addTo(map);
 });
 </script>
