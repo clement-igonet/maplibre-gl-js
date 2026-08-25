@@ -74,6 +74,7 @@ const base = document.getElementById('base');
 const tbody = document.querySelector('#out tbody');
 
 function measure() {
+    map.redraw();                                  // the drawing buffer is only readable right after a draw
     const canvas = map.getCanvas();
     const off = document.createElement('canvas');
     off.width = canvas.width; off.height = canvas.height;
