@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>#6482 - when fill-extrusion-vertical-gradient shows</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../lod-6630/dist-fix/maplibre-gl.css">
+<style>
+  body { margin: 0; font: 14px/1.45 system-ui, sans-serif; }
+  #map { position: absolute; inset: 0; }
+  #panel { position: absolute; z-index: 2; top: 10px; left: 10px; width: 340px; padding: 12px 14px;
+           background: rgba(255,255,255,.94); border-radius: 6px; box-shadow: 0 1px 6px rgba(0,0,0,.3); }
+  h1 { margin: 0 0 6px; font-size: 15px; }
+  p { margin: 0 0 8px; color: #444; }
+  code { background: #eef0f3; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+  label { display: block; margin: 5px 0; }
+  table { border-collapse: collapse; margin-top: 8px; font-size: 12px; width: 100%; }
+  th, td { text-align: right; padding: 2px 6px; border-bottom: 1px solid #e3e6ea; font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; }
+  .flat { color: #a11; }
+  .grad { color: #161; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>When does the vertical gradient show?</h1>
+  <p>Identical boxes, 20 m to 300 m tall.
+     The wall shading comes from <code>fill-extrusion-vertical-gradient</code>.</p>
+  <label><input type="checkbox" id="grad" checked> vertical gradient</label>
+  <label><input type="checkbox" id="base"> give every box a 20 m base</label>
+  <table id="out"><thead><tr><th>height</th><th>wall shades</th><th>luminance</th></tr></thead><tbody></tbody></table>
+  <p style="margin-top:8px;font-size:12px">One shade means a flat wall, no gradient at all.</p>
+</div>
+<div id="map"></div>
+
+<script type="module">
+import {Map as MlMap} from '../lod-6630/dist-main/maplibre-gl-dev.mjs';
+
+const HEIGHTS = [20, 50, 100, 150, 300];
+const makeData = (base) => ({
+    type: 'FeatureCollection',
+    features: HEIGHTS.map((h, i) => {
+        const lng = -0.004 + i * 0.002, lat = 0, w = 0.00035;
+        return {type: 'Feature', properties: {height: h, base, label: `${h} m`},
+            geometry: {type: 'Polygon', coordinates: [[
+                [lng - w, lat - w], [lng + w, lat - w], [lng + w, lat + w], [lng - w, lat + w], [lng - w, lat - w]
+            ]]}};
+    })
+});
+
+let currentData = makeData(0);
+
+const map = new MlMap({
+    container: 'map',
+    preserveDrawingBuffer: true,
+    style: {
+        version: 8,
+        sources: {boxes: {type: 'geojson', data: currentData}},
+        layers: [
+            {id: 'bg', type: 'background', paint: {'background-color': '#12203a'}},
+            {id: 'boxes', type: 'fill-extrusion', source: 'boxes', paint: {
+                'fill-extrusion-color': '#909090',
+                'fill-extrusion-height': ['get', 'height'],
+                'fill-extrusion-base': ['get', 'base'],
+                'fill-extrusion-vertical-gradient': true
+            }}
+        ]
+    },
+    center: [-0.0018, -0.0011], zoom: 15.9, pitch: 58, bearing: 0
+});
+
+const grad = document.getElementById('grad');
+const base = document.getElementById('base');
+const tbody = document.querySelector('#out tbody');
+
+function measure() {
+    const canvas = map.getCanvas();
+    const off = document.createElement('canvas');
+    off.width = canvas.width; off.height = canvas.height;
+    const ctx = off.getContext('2d');
+    ctx.drawImage(canvas, 0, 0);
+    const data = currentData;
+    tbody.innerHTML = '';
+    for (const f of data.features) {
+        const c = f.geometry.coordinates[0];
+        const p = map.project([(c[0][0] + c[1][0]) / 2, c[0][1]]);
+        const col = ctx.getImageData(Math.round(p.x * devicePixelRatio), 0, 1, off.height).data;
+        const runs = [];
+        for (let y = 0; y < off.height; y++) {
+            const r = col[y * 4], g = col[y * 4 + 1], b = col[y * 4 + 2];
+            if (b > 40 && r < 40 && g < 50) continue;
+            const lum = Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
+            const last = runs[runs.length - 1];
+            if (last && last.lum === lum) last.n++; else runs.push({lum, n: 1});
+        }
+        const big = runs.filter(r => r.n >= 3);
+        const wall = big.filter(r => r.lum !== Math.max(...big.map(x => x.lum)));
+        const shades = wall.length;
+        const lums = wall.map(r => r.lum);
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${f.properties.height} m</td>` +
+            `<td class="${shades <= 1 ? 'flat' : 'grad'}">${shades}</td>` +
+            `<td>${lums.length ? `${Math.min(...lums)}..${Math.max(...lums)}` : '-'}</td>`;
+        tbody.appendChild(row);
+    }
+}
+
+function refresh() {
+    currentData = makeData(base.checked ? 20 : 0);
+    map.getSource('boxes').setData(currentData);
+    map.setPaintProperty('boxes', 'fill-extrusion-vertical-gradient', grad.checked);
+    map.once('idle', measure);
+}
+grad.addEventListener('change', refresh);
+base.addEventListener('change', refresh);
+map.on('load', () => map.once('idle', measure));
+</script>
+</body>
+</html>

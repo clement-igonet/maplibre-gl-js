@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>#6482 vertical-gradient probe</title>
+<link rel="stylesheet" href="../lod-6630/dist-fix/maplibre-gl.css">
+<style>body{margin:0}#map{position:absolute;inset:0}</style>
+</head>
+<body>
+<div id="map"></div>
+<script type="module">
+import {Map as MlMap} from '../lod-6630/dist-main/maplibre-gl-dev.mjs';
+
+const params = new URLSearchParams(location.search);
+const HEIGHTS = (params.get('h') || '20,50,100,150,300').split(',').map(Number);
+const BASE = Number(params.get('base') || 0);
+const features = HEIGHTS.map((h, i) => {
+    const lng = -0.004 + i * 0.002, lat = 0;
+    const w = 0.00035, d = 0.00035;
+    return {type: 'Feature', properties: {height: h, base: BASE},
+        geometry: {type: 'Polygon', coordinates: [[
+            [lng - w, lat - d], [lng + w, lat - d], [lng + w, lat + d], [lng - w, lat + d], [lng - w, lat - d]
+        ]]}};
+});
+
+const map = window.__map = new MlMap({
+    container: 'map',
+    preserveDrawingBuffer: true,
+    style: {
+        version: 8,
+        sources: {boxes: {type: 'geojson', data: {type: 'FeatureCollection', features}}},
+        layers: [
+            {id: 'bg', type: 'background', paint: {'background-color': '#0000ff'}},
+            {id: 'boxes', type: 'fill-extrusion', source: 'boxes', paint: {
+                'fill-extrusion-color': '#909090',
+                'fill-extrusion-height': ['get', 'height'],
+                'fill-extrusion-base': ['get', 'base'],
+                'fill-extrusion-vertical-gradient': true
+            }}
+        ]
+    },
+    center: [0, -0.004],
+    zoom: 16.2,
+    pitch: 70,
+    bearing: 0
+});
+
+window.__probe = (gradient) => {
+    map.setPaintProperty('boxes', 'fill-extrusion-vertical-gradient', gradient);
+    return new Promise(resolve => map.once('idle', () => {
+        const canvas = map.getCanvas();
+        const off = document.createElement('canvas');
+        off.width = canvas.width; off.height = canvas.height;
+        off.getContext('2d').drawImage(canvas, 0, 0);
+        const ctx = off.getContext('2d');
+        const out = features.map(f => {
+            const c = f.geometry.coordinates[0];
+            const midLng = (c[0][0] + c[1][0]) / 2;
+            const p = map.project([midLng, c[0][1]]);
+            const x = Math.round(p.x * window.devicePixelRatio);
+            const col = ctx.getImageData(x, 0, 1, off.height).data;
+            const runs = [];
+            for (let y = 0; y < off.height; y++) {
+                const r = col[y * 4], g = col[y * 4 + 1], b = col[y * 4 + 2];
+                if (b > 200 && r < 60) continue;           // background
+                const lum = Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
+                const last = runs[runs.length - 1];
+                if (last && last.lum === lum) last.n++; else runs.push({lum, n: 1});
+            }
+            const big = runs.filter(r => r.n >= 3);
+            return {height: f.properties.height, shades: big.length,
+                    lums: big.map(r => r.lum), min: Math.min(...big.map(r => r.lum)), max: Math.max(...big.map(r => r.lum))};
+        });
+        resolve(out);
+    }));
+};
+</script>
+</body>
+</html>
