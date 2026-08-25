@@ -17,7 +17,7 @@
 </head>
 <body>
 <div id="map"></div>
-<div class="note" id="note">Markers at the same location, raised with <code>heightOffset</code>.</div>
+<div class="note" id="note">The default <code>Marker</code>, raised with <code>heightOffset</code>: grey on the ground, blue at +60 m steps above it. The purple one uses <code>heightAnchor: absolute</code> at 2500 m.</div>
 <script type="module">
 import * as maplibregl from './dist/maplibre-gl-dev.mjs';
 
@@ -51,12 +51,20 @@ function label(text, cls) {
 }
 
 map.on('load', () => {
-    // one marker per floor of an imaginary tower, plus the ground reference
-    new maplibregl.Marker({element: label('ground', 'ground')}).setLngLat(AT).addTo(map);
+    // default markers, the ordinary Marker API, raised with heightOffset
+    new maplibregl.Marker({color: '#6e7781'}).setLngLat(AT)
+        .setPopup(new maplibregl.Popup().setText('on the ground')).addTo(map);
     for (const floor of [1, 2, 3, 4, 5]) {
-        new maplibregl.Marker({element: label(`floor ${floor} (+${floor * 60} m)`), heightOffset: floor * 60})
-            .setLngLat(AT).addTo(map);
+        new maplibregl.Marker({heightOffset: floor * 60})
+            .setLngLat(AT)
+            .setPopup(new maplibregl.Popup().setText(`+${floor * 60} m`))
+            .addTo(map);
     }
+    // a second location using the absolute anchor, at a fixed altitude
+    new maplibregl.Marker({color: '#8250df', heightOffset: 2500, heightAnchor: 'absolute'})
+        .setLngLat([11.4133, 47.2860])
+        .setPopup(new maplibregl.Popup().setText('2500 m above the datum'))
+        .addTo(map);
 });
 </script>
 </body>
