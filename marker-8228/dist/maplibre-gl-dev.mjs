@@ -27121,9 +27121,18 @@ var Marker = class extends Evented {
 	setLngLat(lnglat) {
 		this._lngLat = LngLat.convert(lnglat);
 		this._pos = null;
-		if (this._popup) this._popup.setLngLat(this._lngLat);
+		this._syncPopup();
 		this._update();
 		return this;
+	}
+	/**
+	* Keeps the bound popup on the marker's anchor, height included, so a popup on a roof does not
+	* fall back to the street below.
+	*/
+	_syncPopup() {
+		if (!this._popup) return;
+		this._popup.setHeightOffset(this._heightOffset, this._heightAnchor);
+		if (this._lngLat) this._popup.setLngLat(this._lngLat);
 	}
 	/**
 	* Returns the `Marker`'s HTML element.
@@ -27167,6 +27176,7 @@ var Marker = class extends Evented {
 				} : this._offset;
 			}
 			this._popup = popup;
+			this._syncPopup();
 			this._element.addEventListener("keypress", this._onKeyPress);
 		}
 		this._updateTabIndex();
@@ -27296,6 +27306,7 @@ var Marker = class extends Evented {
 	setHeightOffset(heightOffset, heightAnchor) {
 		this._heightOffset = heightOffset;
 		if (heightAnchor) this._heightAnchor = heightAnchor;
+		this._syncPopup();
 		this._update();
 		return this;
 	}
@@ -28386,7 +28397,9 @@ const defaultOptions = {
 	maxWidth: "240px",
 	subpixelPositioning: false,
 	locationOccludedOpacity: void 0,
-	padding: void 0
+	padding: void 0,
+	heightOffset: 0,
+	heightAnchor: "ground"
 };
 const focusQuerySelector = [
 	"a[href]",
@@ -28511,7 +28524,9 @@ var Popup = class extends Evented {
 			let cursor;
 			if (event && "point" in event && event.point) cursor = event.point;
 			if (this._trackPointer && !cursor) return;
-			const pos = this._flatPos = this._pos = this._trackPointer && cursor ? cursor : this._map.project(this._lngLat);
+			const elevation = this._elevation();
+			const anchorPoint = this._trackPointer && cursor ? cursor : elevation === void 0 ? this._map.project(this._lngLat) : this._map._camera.transform.locationToScreenPointAtElevation(this._lngLat, elevation);
+			const pos = this._flatPos = this._pos = anchorPoint;
 			if (this._map.terrain) this._flatPos = this._trackPointer && cursor ? cursor : this._map._camera.transform.locationToScreenPoint(this._lngLat);
 			let anchor = this.options.anchor;
 			const offset = normalizeOffset(this.options.offset);
@@ -28538,6 +28553,8 @@ var Popup = class extends Evented {
 			this.remove();
 		};
 		this.options = extend(Object.create(defaultOptions), options);
+		this._heightOffset = this.options.heightOffset || 0;
+		this._heightAnchor = this.options.heightAnchor || "ground";
 	}
 	/**
 	* Adds the popup to a map.
@@ -28579,6 +28596,44 @@ var Popup = class extends Evented {
 	*/
 	isOpen() {
 		return !!this._map;
+	}
+	/**
+	* The height in meters at which the popup is anchored, or `undefined` when it sits on the ground.
+	*/
+	_elevation() {
+		if (this._heightAnchor === "absolute") return this._heightOffset;
+		if (!this._heightOffset) return;
+		const terrain = this._map.terrain;
+		return this._heightOffset + (terrain ? terrain.getElevationForLngLat(this._lngLat, this._map._camera.transform) : 0);
+	}
+	/**
+	* Sets the height at which the popup is anchored above its location, and moves it there.
+	* @param heightOffset - the height in meters
+	* @param heightAnchor - the datum the height is measured from, `ground` (the default) or `absolute`
+	* @example
+	* ```ts
+	* new Popup().setLngLat([0, 0]).setHeightOffset(120).setHTML('on the roof').addTo(map);
+	* ```
+	*/
+	setHeightOffset(heightOffset, heightAnchor) {
+		this._heightOffset = heightOffset;
+		if (heightAnchor) this._heightAnchor = heightAnchor;
+		this._update();
+		return this;
+	}
+	/**
+	* Returns the height in meters at which the popup is anchored above its location.
+	* @returns the height offset
+	*/
+	getHeightOffset() {
+		return this._heightOffset;
+	}
+	/**
+	* Returns the datum the popup's height offset is measured from.
+	* @returns `ground` or `absolute`
+	*/
+	getHeightAnchor() {
+		return this._heightAnchor;
 	}
 	/**
 	* Returns the geographical location of the popup's anchor.
