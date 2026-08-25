@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<title>Elevated markers and labels on 3D buildings</title>
+<title>Markers on building roofs (#8228)</title>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="dist/maplibre-gl.css">
@@ -9,26 +9,32 @@
     body, html { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
     #map { position: absolute; inset: 0; }
     .note { position: absolute; top: 8px; left: 8px; z-index: 2; background: rgba(0,0,0,.82); color: #fff;
-            padding: 10px 14px; border-radius: 4px; font: 500 13px/1.5 system-ui, sans-serif; max-width: 25em; }
+            padding: 10px 14px; border-radius: 4px; font: 500 13px/1.5 system-ui, sans-serif; max-width: 26em; }
     .note code { color: #9ae6b4; }
     .note b { color: #ffd580; }
+    .roof {
+        background: #fff; border: 1px solid #b9c0c8; border-radius: 4px; padding: 3px 7px; cursor: pointer;
+        font: 600 11px/1.3 system-ui, sans-serif; color: #24292f; white-space: nowrap;
+        box-shadow: 0 1px 4px rgba(0,0,0,.35); text-align: center;
+    }
+    .roof .h { display: block; font-weight: 700; color: #0969da; }
+    .roof.selected { background: #ff8c00; border-color: #b35f00; color: #fff; }
+    .roof.selected .h { color: #fff; }
 </style>
 </head>
 <body>
 <div id="map"></div>
 <div class="note">
-    <b>Roof labels</b> come from the style: a symbol layer with
-    <code>symbol-height-offset: ['get', 'render_height']</code> (6.6.0).<br>
-    <b>Markers</b> are DOM elements raised with <code>heightOffset</code>
-    (<a href="https://github.com/maplibre/maplibre-gl-js/issues/8228" style="color:#9cf">#8228</a>),
-    which the style properties cannot do.
+    A <b>Marker on the roof of every building</b>: <code>heightOffset</code> is the building's own
+    <code>render_height</code> (<a href="https://github.com/maplibre/maplibre-gl-js/issues/8228" style="color:#9cf">#8228</a>).<br>
+    Click a marker to select the building.
 </div>
 <script type="module">
 import * as maplibregl from './dist/maplibre-gl-dev.mjs';
 
 const map = new maplibregl.Map({
     container: 'map',
-    center: [-74.0090, 40.7075],   // Lower Manhattan, tall OSM building heights
+    center: [-74.0090, 40.7075],
     zoom: 16,
     pitch: 68,
     bearing: -20,
@@ -38,40 +44,84 @@ const map = new maplibregl.Map({
 });
 window.map = map;
 
-map.on('load', async () => {
+let selectedId = null;
+const markers = new Map();          // building id -> Marker
+
+function centroid(geometry) {
+    const ring = geometry.type === 'Polygon' ? geometry.coordinates[0] : geometry.coordinates[0][0];
+    let x = 0, y = 0;
+    for (const [lng, lat] of ring) { x += lng; y += lat; }
+    return [x / ring.length, y / ring.length];
+}
+
+function poiNameAt(lngLat) {
+    const p = map.project(lngLat);
+    const layers = map.getStyle().layers.filter(l => l.type === 'symbol' && /poi/.test(l.id)).map(l => l.id);
+    if (!layers.length) return null;
+    const box = [[p.x - 22, p.y - 22], [p.x + 22, p.y + 22]];
+    const hit = map.queryRenderedFeatures(box, {layers}).find(f => f.properties?.name);
+    return hit ? hit.properties.name : null;
+}
+
+function select(id) {
+    if (selectedId !== null) {
+        map.setFeatureState({source: 'osm', sourceLayer: 'building', id: selectedId}, {selected: false});
+        markers.get(selectedId)?.getElement().classList.remove('selected');
+    }
+    selectedId = selectedId === id ? null : id;
+    if (selectedId !== null) {
+        map.setFeatureState({source: 'osm', sourceLayer: 'building', id: selectedId}, {selected: true});
+        markers.get(selectedId)?.getElement().classList.add('selected');
+    }
+}
+
+function refreshMarkers() {
+    const features = map.queryRenderedFeatures({layers: ['buildings']})
+        .filter(f => f.id !== undefined && (f.properties.render_height ?? 0) >= 40);
+    // one marker per building, the tallest ones first, capped so the view stays readable
+    const byId = new Map();
+    for (const f of features) if (!byId.has(f.id)) byId.set(f.id, f);
+    const chosen = [...byId.values()]
+        .sort((a, b) => b.properties.render_height - a.properties.render_height)
+        .slice(0, 30);
+    const keep = new Set(chosen.map(f => f.id));
+
+    for (const [id, marker] of markers) if (!keep.has(id)) { marker.remove(); markers.delete(id); }
+
+    for (const f of chosen) {
+        if (markers.has(f.id)) continue;
+        const at = centroid(f.geometry);
+        const height = Math.round(f.properties.render_height);
+        const name = poiNameAt(at);
+        const el = document.createElement('div');
+        el.className = 'roof';
+        el.innerHTML = `${name ? `${name}<span class="h">${height} m</span>` : `<span class="h">${height} m</span>`}`;
+        el.addEventListener('click', (e) => { e.stopPropagation(); select(f.id); });
+        const marker = new maplibregl.Marker({element: el, heightOffset: height, heightAnchor: 'ground'})
+            .setLngLat(at).addTo(map);
+        markers.set(f.id, marker);
+    }
+}
+
+map.on('load', () => {
     map.addSource('osm', {type: 'vector', url: 'https://tiles.openfreemap.org/planet'});
     map.addLayer({
         id: 'buildings', type: 'fill-extrusion', source: 'osm', 'source-layer': 'building',
+        minzoom: 14,
         paint: {
-            'fill-extrusion-color': '#cfd6de',
+            'fill-extrusion-color': [
+                'case',
+                ['boolean', ['feature-state', 'selected'], false], '#ff8c00',
+                ['coalesce', ['get', 'colour'], '#cfd6de']
+            ],
             'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 12],
             'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
-            'fill-extrusion-opacity': 0.92
+            'fill-extrusion-opacity': 0.95
         }
     });
-    // labels sitting on the roofs: the height offset is bound to the same attribute
-    // that extrudes the building, so each label rides its own roof
-    map.addLayer({
-        id: 'roof-labels', type: 'symbol', source: 'osm', 'source-layer': 'building',
-        filter: ['>', ['coalesce', ['get', 'render_height'], 0], 25],
-        layout: {
-            'text-field': ['concat', ['to-string', ['round', ['coalesce', ['get', 'render_height'], 0]]], ' m'],
-            'text-size': 12,
-            'text-allow-overlap': false,
-            'symbol-height-offset': ['coalesce', ['get', 'render_height'], 0],
-            'symbol-height-anchor': 'ground'
-        },
-        paint: {'text-color': '#1a3d1f', 'text-halo-color': '#fff', 'text-halo-width': 1.6}
-    });
-
-    // DOM markers at the same spot, one on the ground and one on the roof level
-    const at = [-74.0105, 40.7060];
-    new maplibregl.Marker({color: '#6e7781'}).setLngLat(at)
-        .setPopup(new maplibregl.Popup().setText('ground')).addTo(map);
-    new maplibregl.Marker({color: '#1a7f37', heightOffset: 60}).setLngLat(at)
-        .setPopup(new maplibregl.Popup().setText('Marker heightOffset: 60 m')).addTo(map);
-    new maplibregl.Marker({color: '#8250df', heightOffset: 120}).setLngLat(at)
-        .setPopup(new maplibregl.Popup().setText('Marker heightOffset: 120 m')).addTo(map);
+    map.on('idle', refreshMarkers);
+    // clicking a building selects it too
+    map.on('click', 'buildings', (e) => { if (e.features?.[0]?.id !== undefined) select(e.features[0].id); });
 });
 </script>
 </body>
