@@ -56,6 +56,11 @@ void main() {
     vec2 display_size_a = (pattern_br_a - pattern_tl_a) / pixel_ratio_from;
     vec2 display_size_b = (pattern_br_b - pattern_tl_b) / pixel_ratio_to;
 
+    // The wall gradient below is a property of the element itself, so measure it before the
+    // terrain offsets move the element up the slope, and from the wall rather than from the
+    // ground: a raised `base` used to switch the gradient off entirely (#6482).
+    float wall_height = max(0.0, max(0.0, height) - max(0.0, base));
+
     #ifdef TERRAIN3D
 	    // Raise the "ceiling" of elements by the elevation of the centroid, in meters.
         float height_terrain3d_offset = get_elevation(a_centroid);
@@ -101,7 +106,7 @@ void main() {
         // and otherwise calculates the gradient based on base + height
         directional *= (
             (1.0 - u_vertical_gradient) +
-            (u_vertical_gradient * clamp((t + base) * pow(height / 150.0, 0.5), mix(0.7, 0.98, 1.0 - u_lightintensity), 1.0)));
+            (u_vertical_gradient * clamp(t * pow(wall_height / 150.0, 0.5), mix(0.7, 0.98, 1.0 - u_lightintensity), 1.0)));
     }
 
     v_lighting.rgb += clamp(directional * u_lightcolor, mix(vec3(0.0), vec3(0.3), 1.0 - u_lightcolor), vec3(1.0));
