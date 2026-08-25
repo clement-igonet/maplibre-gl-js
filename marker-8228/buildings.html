@@ -112,7 +112,7 @@ map.on('load', () => {
             'fill-extrusion-color': [
                 'case',
                 ['boolean', ['feature-state', 'selected'], false], '#ff8c00',
-                ['coalesce', ['get', 'colour'], '#cfd6de']
+                '#cfd6de'
             ],
             'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 12],
             'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
