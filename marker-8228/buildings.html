@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Elevated markers and labels on 3D buildings</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="dist/maplibre-gl.css">
+<style>
+    body, html { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+    #map { position: absolute; inset: 0; }
+    .note { position: absolute; top: 8px; left: 8px; z-index: 2; background: rgba(0,0,0,.82); color: #fff;
+            padding: 10px 14px; border-radius: 4px; font: 500 13px/1.5 system-ui, sans-serif; max-width: 25em; }
+    .note code { color: #9ae6b4; }
+    .note b { color: #ffd580; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="note">
+    <b>Roof labels</b> come from the style: a symbol layer with
+    <code>symbol-height-offset: ['get', 'render_height']</code> (6.6.0).<br>
+    <b>Markers</b> are DOM elements raised with <code>heightOffset</code>
+    (<a href="https://github.com/maplibre/maplibre-gl-js/issues/8228" style="color:#9cf">#8228</a>),
+    which the style properties cannot do.
+</div>
+<script type="module">
+import * as maplibregl from './dist/maplibre-gl-dev.mjs';
+
+const map = new maplibregl.Map({
+    container: 'map',
+    center: [13.4050, 52.5170],   // Berlin, dense OSM building heights
+    zoom: 16.4,
+    pitch: 68,
+    bearing: -20,
+    hash: true,
+    maxPitch: 85,
+    style: 'https://demotiles.maplibre.org/style.json'
+});
+window.map = map;
+
+map.on('load', async () => {
+    map.addSource('osm', {
+        type: 'vector',
+        tiles: ['https://tiles.openfreemap.org/planet/{z}/{x}/{y}.pbf'],
+        maxzoom: 14,
+        attribution: '© OpenStreetMap contributors, OpenFreeMap'
+    });
+    map.addLayer({
+        id: 'buildings', type: 'fill-extrusion', source: 'osm', 'source-layer': 'building',
+        paint: {
+            'fill-extrusion-color': '#cfd6de',
+            'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 12],
+            'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
+            'fill-extrusion-opacity': 0.92
+        }
+    });
+    // labels sitting on the roofs: the height offset is bound to the same attribute
+    // that extrudes the building, so each label rides its own roof
+    map.addLayer({
+        id: 'roof-labels', type: 'symbol', source: 'osm', 'source-layer': 'building',
+        filter: ['>', ['coalesce', ['get', 'render_height'], 0], 25],
+        layout: {
+            'text-field': ['concat', ['to-string', ['round', ['coalesce', ['get', 'render_height'], 0]]], ' m'],
+            'text-size': 12,
+            'text-allow-overlap': false,
+            'symbol-height-offset': ['coalesce', ['get', 'render_height'], 0],
+            'symbol-height-anchor': 'ground'
+        },
+        paint: {'text-color': '#1a3d1f', 'text-halo-color': '#fff', 'text-halo-width': 1.6}
+    });
+
+    // DOM markers at the same spot, one on the ground and one on the roof level
+    const at = [13.4050, 52.5185];
+    new maplibregl.Marker({color: '#6e7781'}).setLngLat(at)
+        .setPopup(new maplibregl.Popup().setText('ground')).addTo(map);
+    new maplibregl.Marker({color: '#1a7f37', heightOffset: 60}).setLngLat(at)
+        .setPopup(new maplibregl.Popup().setText('Marker heightOffset: 60 m')).addTo(map);
+    new maplibregl.Marker({color: '#8250df', heightOffset: 120}).setLngLat(at)
+        .setPopup(new maplibregl.Popup().setText('Marker heightOffset: 120 m')).addTo(map);
+});
+</script>
+</body>
+</html>
