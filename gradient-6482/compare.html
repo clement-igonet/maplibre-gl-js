@@ -6,164 +6,169 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="../lod-6630/dist-fix/maplibre-gl.css">
 <style>
-  body { margin: 0; font: 14px/1.45 system-ui, sans-serif; background: #f6f7f9; color: #222; }
-  header { padding: 10px 16px; background: #fff; border-bottom: 1px solid #ddd; }
-  h1 { margin: 0 0 4px; font-size: 16px; }
-  header p { margin: 0 0 6px; color: #555; }
-  #expect { margin: 8px 0 0; padding: 6px 10px; border-radius: 4px; font-weight: 600; }
+  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; background: #f4f6f8; color: #1c2430; }
+  header { padding: 12px 18px; background: #fff; border-bottom: 1px solid #dde2e8; }
+  h1 { margin: 0 0 4px; font-size: 17px; }
+  header p { margin: 0; color: #5a6572; }
+  #controls { margin-top: 8px; display: flex; gap: 20px; flex-wrap: wrap; }
+  #expect { margin: 10px 0 0; padding: 7px 11px; border-radius: 4px; font-weight: 600; }
   #expect.same { background: #eef2f7; color: #445; }
   #expect.diff { background: #e8f5ec; color: #14532d; }
-  code { background: #eef0f3; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
-  #controls { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
-  label { display: inline-block; }
-  #maps { display: flex; gap: 2px; height: 620px; }
-  .pane { flex: 1; position: relative; }
-  .map { position: absolute; inset: 0; }
-  .tag { position: absolute; z-index: 2; top: 8px; left: 8px; padding: 4px 8px; border-radius: 4px;
-         background: rgba(255,255,255,.93); font-weight: 600; font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
-  .before { color: #a11; } .after { color: #161; }
-  table { border-collapse: collapse; width: 100%; background: #fff; font-size: 13px; }
-  th, td { padding: 4px 10px; border-bottom: 1px solid #e3e6ea; text-align: right; font-variant-numeric: tabular-nums; }
-  th:first-child, td:first-child { text-align: left; }
-  .flat { color: #a11; font-weight: 600; } .grad { color: #161; font-weight: 600; }
+  #panes { display: flex; gap: 14px; padding: 14px 18px; }
+  .pane { flex: 1; background: #fff; border: 1px solid #dde2e8; border-radius: 6px; overflow: hidden; }
+  .pane h2 { margin: 0; padding: 8px 12px; font-size: 14px; border-bottom: 1px solid #eceff3; }
+  .pane.before h2 { color: #a11; } .pane.after h2 { color: #161; }
+  .map { height: 340px; }
+  .readout { padding: 10px 12px 14px; }
+  .readout .label { display: flex; justify-content: space-between; font-size: 12px; color: #5a6572; margin-bottom: 4px; }
+  canvas.strip { width: 100%; height: 54px; display: block; border: 1px solid #dde2e8; border-radius: 3px; image-rendering: pixelated; }
+  .verdict { margin-top: 8px; font-weight: 600; font-size: 13px; }
+  .verdict.flat { color: #a11; } .verdict.grad { color: #161; }
 </style>
 </head>
 <body>
 <header>
   <h1>fill-extrusion-vertical-gradient: main vs a candidate fix</h1>
-  <p>Identical boxes, 20 m to 300 m. "Wall shades" counts distinct luminances down the wall, read back from the canvas.
-     One shade means a flat wall, so no gradient at all.</p>
+  <p>One 300 m building. The bar under each map is its wall, sampled pixel by pixel from the top of the wall to the bottom.</p>
   <div id="controls">
     <label><input type="checkbox" id="grad" checked> vertical gradient</label>
-    <label><input type="checkbox" id="base" checked> 20 m base on every box</label>
+    <label><input type="checkbox" id="base" checked> raise the base to 20 m</label>
     <label><input type="checkbox" id="terrain"> 3D terrain (500 m plateau)</label>
   </div>
   <p id="expect"></p>
 </header>
-<div id="maps">
-  <div class="pane"><div class="tag before">main</div><div id="before" class="map"></div></div>
-  <div class="pane"><div class="tag after">candidate fix</div><div id="after" class="map"></div></div>
+<div id="panes">
+  <div class="pane before">
+    <h2>main</h2>
+    <div id="before" class="map"></div>
+    <div class="readout">
+      <div class="label"><span>top of the wall</span><span>bottom of the wall</span></div>
+      <canvas id="strip-before" class="strip" width="300" height="54"></canvas>
+      <div id="verdict-before" class="verdict"></div>
+    </div>
+  </div>
+  <div class="pane after">
+    <h2>candidate fix</h2>
+    <div id="after" class="map"></div>
+    <div class="readout">
+      <div class="label"><span>top of the wall</span><span>bottom of the wall</span></div>
+      <canvas id="strip-after" class="strip" width="300" height="54"></canvas>
+      <div id="verdict-after" class="verdict"></div>
+    </div>
+  </div>
 </div>
-<table>
-  <thead><tr><th>height</th><th>main: shades</th><th>main: luminance</th><th>fix: shades</th><th>fix: luminance</th></tr></thead>
-  <tbody id="out"></tbody>
-</table>
 
 <script type="module">
 import * as mainGl from '../lod-6630/dist-main/maplibre-gl-dev.mjs';
 import * as fixGl from './dist-fix/maplibre-gl-dev.mjs';
 
-const HEIGHTS = [20, 50, 100, 150, 300];
 const makeData = (base) => ({
     type: 'FeatureCollection',
-    features: HEIGHTS.map((h, i) => {
-        const lng = -0.004 + i * 0.002, lat = 0, w = 0.00035;
-        return {type: 'Feature', properties: {height: h, base},
-            geometry: {type: 'Polygon', coordinates: [[
-                [lng - w, lat - w], [lng + w, lat - w], [lng + w, lat + w], [lng - w, lat + w], [lng - w, lat - w]
-            ]]}};
-    })
+    features: [{
+        type: 'Feature', properties: {height: 300, base},
+        geometry: {type: 'Polygon', coordinates: [[
+            [-0.0006, -0.0006], [0.0006, -0.0006], [0.0006, 0.0006], [-0.0006, 0.0006], [-0.0006, -0.0006]
+        ]]}
+    }]
 });
 
-// a constant 500 m plateau, so terrain elevation is the only thing that changes
 const FLAT_DEM = (() => {
     const c = document.createElement('canvas');
     c.width = c.height = 256;
     const ctx = c.getContext('2d');
-    const v = (500 + 10000) / 0.1;                 // terrarium-free: use maplibre encoding below
-    const r = Math.floor(v / 65536), g = Math.floor((v % 65536) / 256), b = Math.floor(v % 256);
-    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    const v = (500 + 10000) / 0.1;
+    ctx.fillStyle = `rgb(${Math.floor(v / 65536)},${Math.floor((v % 65536) / 256)},${Math.floor(v % 256)})`;
     ctx.fillRect(0, 0, 256, 256);
     return c.toDataURL();
 })();
 
-let currentData = makeData(0);
+let currentData = makeData(20);
 
-function build(gl, container) {
-    const map = new gl.Map({
-        container,
-        preserveDrawingBuffer: true,
-        style: {
-            version: 8,
-            sources: {
-                boxes: {type: 'geojson', data: currentData},
-                dem: {type: 'raster-dem', tiles: [FLAT_DEM], tileSize: 256, encoding: 'mapbox', maxzoom: 20}
-            },
-            layers: [
-                {id: 'bg', type: 'background', paint: {'background-color': '#12203a'}},
-                {id: 'boxes', type: 'fill-extrusion', source: 'boxes', paint: {
-                    'fill-extrusion-color': '#909090',
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-base': ['get', 'base'],
-                    'fill-extrusion-vertical-gradient': true
-                }}
-            ]
+const build = (gl, container) => new gl.Map({
+    container,
+    preserveDrawingBuffer: true,
+    style: {
+        version: 8,
+        sources: {
+            boxes: {type: 'geojson', data: currentData},
+            dem: {type: 'raster-dem', tiles: [FLAT_DEM], tileSize: 256, encoding: 'mapbox', maxzoom: 20}
         },
-        center: [0, -0.0011], zoom: 15.3, pitch: 56, bearing: 0
-    });
-    return map;
-}
+        layers: [
+            {id: 'bg', type: 'background', paint: {'background-color': '#16233c'}},
+            {id: 'boxes', type: 'fill-extrusion', source: 'boxes', paint: {
+                'fill-extrusion-color': '#9aa3ad',
+                'fill-extrusion-height': ['get', 'height'],
+                'fill-extrusion-base': ['get', 'base'],
+                'fill-extrusion-vertical-gradient': true
+            }}
+        ]
+    },
+    center: [0, -0.0008], zoom: 17.2, pitch: 70, bearing: 0
+});
 
-const maps = [build(mainGl, 'before'), build(fixGl, 'after')];
+const maps = {before: build(mainGl, 'before'), after: build(fixGl, 'after')};
 
-function measure(map) {
+function sampleWall(map) {
     map.redraw();                                  // the drawing buffer is only readable right after a draw
     const canvas = map.getCanvas();
     const off = document.createElement('canvas');
     off.width = canvas.width; off.height = canvas.height;
     const ctx = off.getContext('2d');
     ctx.drawImage(canvas, 0, 0);
-    return currentData.features.map(f => {
-        const c = f.geometry.coordinates[0];
-        const p = map.project([(c[0][0] + c[1][0]) / 2, c[0][1]]);
-        const col = ctx.getImageData(Math.round(p.x * devicePixelRatio), 0, 1, off.height).data;
-        const runs = [];
-        for (let y = 0; y < off.height; y++) {
-            const r = col[y * 4], g = col[y * 4 + 1], b = col[y * 4 + 2];
-            if (b > 40 && r < 40 && g < 50) continue;
-            const lum = Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
-            const last = runs[runs.length - 1];
-            if (last && last.lum === lum) last.n++; else runs.push({lum, n: 1});
-        }
-        const big = runs.filter(r => r.n >= 3);
-        if (!big.length) return {shades: 0, lums: []};
-        const roof = Math.max(...big.map(r => r.lum));
-        const wall = big.filter(r => r.lum !== roof).map(r => r.lum);
-        return {shades: wall.length, lums: wall};
-    });
+    const p = map.project([0, -0.0006]);
+    const col = ctx.getImageData(Math.round(p.x * devicePixelRatio), 0, 1, off.height).data;
+
+    const px = [];
+    for (let y = 0; y < off.height; y++) {
+        const r = col[y * 4], g = col[y * 4 + 1], b = col[y * 4 + 2];
+        if (b > 45 && r < 45 && g < 55) continue;  // background
+        px.push({y, lum: Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b)});
+    }
+    if (!px.length) return [];
+    // the roof caps the column, so drop the first run, but only when it is short enough
+    // to actually be the roof: a flat wall is itself one long run
+    let i = 1;
+    while (i < px.length && px[i].lum === px[0].lum && px[i].y === px[i - 1].y + 1) i++;
+    if (i > px.length * 0.4) i = 0;
+    return px.slice(i).map(s => s.lum);
+}
+
+function draw(which, lums) {
+    const canvas = document.getElementById(`strip-${which}`);
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const verdict = document.getElementById(`verdict-${which}`);
+    if (!lums.length) { verdict.textContent = 'no wall visible'; verdict.className = 'verdict'; return; }
+    for (let x = 0; x < canvas.width; x++) {
+        const lum = lums[Math.min(lums.length - 1, Math.floor(x / canvas.width * lums.length))];
+        ctx.fillStyle = `rgb(${lum},${lum},${lum})`;
+        ctx.fillRect(x, 0, 1, canvas.height);
+    }
+    const min = Math.min(...lums), max = Math.max(...lums);
+    const flat = max - min <= 1;
+    verdict.className = `verdict ${flat ? 'flat' : 'grad'}`;
+    verdict.textContent = flat ?
+        `flat: one shade (${min}) from top to bottom, no gradient` :
+        `gradient: ${max} at the top down to ${min} at the bottom`;
 }
 
 const grad = document.getElementById('grad');
 const base = document.getElementById('base');
 const terrain = document.getElementById('terrain');
-const out = document.getElementById('out');
 
 function describe() {
     const el = document.getElementById('expect');
     if (!grad.checked) {
         el.className = 'same';
-        el.textContent = 'Gradient off on both sides, so the two panes match. Tick it back on.';
+        el.textContent = 'Gradient switched off on both sides, so both bars are flat.';
     } else if (base.checked || terrain.checked) {
         el.className = 'diff';
-        el.textContent = terrain.checked ?
-            'On terrain main draws no gradient at all, at any height. The fix restores it. The panes should differ.' :
-            'With a raised base main draws no gradient at all, at any height. The fix restores it. The panes should differ.';
+        el.textContent = (terrain.checked ? 'On terrain, ' : 'With a raised base, ') +
+            'main draws a flat wall with no gradient at all. The fix restores it. The two bars should differ.';
     } else {
         el.className = 'same';
-        el.textContent = 'Ground-level base on flat ground: the fix changes nothing here, so the panes match on purpose. ' +
-            'Tick "20 m base" or "3D terrain" to see the difference.';
+        el.textContent = 'Ground-level base on flat ground: the fix changes nothing, so both bars match on purpose.';
     }
-}
-
-function render() {
-    describe();
-    const [a, b] = maps.map(measure);
-    out.innerHTML = '';
-    HEIGHTS.forEach((h, i) => {
-        const cell = (m) => `<td class="${m.shades <= 1 ? 'flat' : 'grad'}">${m.shades}</td>` +
-            `<td>${m.lums.length ? `${Math.min(...m.lums)}..${Math.max(...m.lums)}` : '-'}</td>`;
-        out.insertAdjacentHTML('beforeend', `<tr><td>${h} m</td>${cell(a[i])}${cell(b[i])}</tr>`);
-    });
 }
 
 const settled = (map) => new Promise(res => {
@@ -172,29 +177,29 @@ const settled = (map) => new Promise(res => {
 });
 
 async function refresh() {
+    describe();
     currentData = makeData(base.checked ? 20 : 0);
-    for (const map of maps) {
+    for (const map of Object.values(maps)) {
         map.getSource('boxes').setData(currentData);
         map.setPaintProperty('boxes', 'fill-extrusion-vertical-gradient', grad.checked);
         map.setTerrain(terrain.checked ? {source: 'dem', exaggeration: 1} : null);
     }
     await new Promise(res => setTimeout(res, 400));
-    await Promise.all(maps.map(settled));
-    render();
-    return true;
+    await Promise.all(Object.values(maps).map(settled));
+    for (const [which, map] of Object.entries(maps)) draw(which, sampleWall(map));
 }
 for (const el of [grad, base, terrain]) el.addEventListener('change', refresh);
 
 window.__set = async (opts) => {
     grad.checked = opts.gradient !== false;
-    base.checked = !!opts.base;
+    base.checked = opts.base !== false;
     terrain.checked = !!opts.terrain;
     await refresh();
-    return [...document.querySelectorAll('#out tr')].map(t => [...t.children].map(c => c.textContent).join(' | '));
+    return ['before', 'after'].map(w => `${w}: ${document.getElementById(`verdict-${w}`).textContent}`);
 };
 
 let ready = 0;
-for (const map of maps) map.on('load', () => map.once('idle', () => { if (++ready === maps.length) refresh(); }));
+for (const map of Object.values(maps)) map.on('load', () => map.once('idle', () => { if (++ready === 2) refresh(); }));
 </script>
 </body>
 </html>
