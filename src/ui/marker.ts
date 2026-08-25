@@ -536,9 +536,19 @@ export class Marker extends Evented<MarkerEventType> {
     setLngLat(lnglat: LngLatLike): this {
         this._lngLat = LngLat.convert(lnglat);
         this._pos = null;
-        if (this._popup) this._popup.setLngLat(this._lngLat);
+        this._syncPopup();
         this._update();
         return this;
+    }
+
+    /**
+     * Keeps the bound popup on the marker's anchor, height included, so a popup on a roof does not
+     * fall back to the street below.
+     */
+    _syncPopup(): void {
+        if (!this._popup) return;
+        this._popup.setHeightOffset(this._heightOffset, this._heightAnchor);
+        if (this._lngLat) this._popup.setLngLat(this._lngLat);
     }
 
     /**
@@ -586,6 +596,7 @@ export class Marker extends Evented<MarkerEventType> {
                 } as Offset : this._offset;
             }
             this._popup = popup;
+            this._syncPopup();
 
             this._element.addEventListener('keypress', this._onKeyPress);
         }
@@ -848,6 +859,7 @@ export class Marker extends Evented<MarkerEventType> {
     setHeightOffset(heightOffset: number, heightAnchor?: HeightAnchor): this {
         this._heightOffset = heightOffset;
         if (heightAnchor) this._heightAnchor = heightAnchor;
+        this._syncPopup();
         this._update();
         return this;
     }

@@ -1149,6 +1149,33 @@ describe('marker', () => {
         map.remove();
     });
 
+    test('a bound popup is raised to the marker height', () => {
+        const map = createMap({pitch: 60, zoom: 12});
+        const ground = new Marker().setLngLat([0, 0]).setPopup(new Popup().setText('ground')).addTo(map);
+        const raised = new Marker({heightOffset: 5000}).setLngLat([0, 0]).setPopup(new Popup().setText('raised')).addTo(map);
+
+        ground.togglePopup();
+        raised.togglePopup();
+
+        expect(raised.getPopup().getHeightOffset()).toBe(5000);
+        expect(raised.getPopup()._pos.y).toBeLessThan(ground.getPopup()._pos.y);
+
+        map.remove();
+    });
+
+    test('setHeightOffset raises a popup that is already bound', () => {
+        const map = createMap({pitch: 60, zoom: 12});
+        const marker = new Marker().setLngLat([0, 0]).setPopup(new Popup().setText('x')).addTo(map);
+        marker.togglePopup();
+        const atGround = marker.getPopup()._pos.y;
+
+        marker.setHeightOffset(5000);
+
+        expect(marker.getPopup()._pos.y).toBeLessThan(atGround);
+
+        map.remove();
+    });
+
     test('setHeightOffset moves an existing marker', () => {
         const map = createMap({pitch: 60, zoom: 12});
         const marker = new Marker().setLngLat([0, 0]).addTo(map);
