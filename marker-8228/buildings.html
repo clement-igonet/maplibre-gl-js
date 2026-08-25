@@ -28,23 +28,18 @@ import * as maplibregl from './dist/maplibre-gl-dev.mjs';
 
 const map = new maplibregl.Map({
     container: 'map',
-    center: [13.4050, 52.5170],   // Berlin, dense OSM building heights
-    zoom: 16.4,
+    center: [-74.0090, 40.7075],   // Lower Manhattan, tall OSM building heights
+    zoom: 16,
     pitch: 68,
     bearing: -20,
     hash: true,
     maxPitch: 85,
-    style: 'https://demotiles.maplibre.org/style.json'
+    style: 'https://tiles.openfreemap.org/styles/bright'
 });
 window.map = map;
 
 map.on('load', async () => {
-    map.addSource('osm', {
-        type: 'vector',
-        tiles: ['https://tiles.openfreemap.org/planet/{z}/{x}/{y}.pbf'],
-        maxzoom: 14,
-        attribution: '© OpenStreetMap contributors, OpenFreeMap'
-    });
+    map.addSource('osm', {type: 'vector', url: 'https://tiles.openfreemap.org/planet'});
     map.addLayer({
         id: 'buildings', type: 'fill-extrusion', source: 'osm', 'source-layer': 'building',
         paint: {
@@ -70,7 +65,7 @@ map.on('load', async () => {
     });
 
     // DOM markers at the same spot, one on the ground and one on the roof level
-    const at = [13.4050, 52.5185];
+    const at = [-74.0105, 40.7060];
     new maplibregl.Marker({color: '#6e7781'}).setLngLat(at)
         .setPopup(new maplibregl.Popup().setText('ground')).addTo(map);
     new maplibregl.Marker({color: '#1a7f37', heightOffset: 60}).setLngLat(at)
