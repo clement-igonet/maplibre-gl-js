@@ -10,6 +10,9 @@
   header { padding: 10px 16px; background: #fff; border-bottom: 1px solid #ddd; }
   h1 { margin: 0 0 4px; font-size: 16px; }
   header p { margin: 0 0 6px; color: #555; }
+  #expect { margin: 8px 0 0; padding: 6px 10px; border-radius: 4px; font-weight: 600; }
+  #expect.same { background: #eef2f7; color: #445; }
+  #expect.diff { background: #e8f5ec; color: #14532d; }
   code { background: #eef0f3; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
   #controls { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
   label { display: inline-block; }
@@ -32,9 +35,10 @@
      One shade means a flat wall, so no gradient at all.</p>
   <div id="controls">
     <label><input type="checkbox" id="grad" checked> vertical gradient</label>
-    <label><input type="checkbox" id="base"> 20 m base on every box</label>
+    <label><input type="checkbox" id="base" checked> 20 m base on every box</label>
     <label><input type="checkbox" id="terrain"> 3D terrain (500 m plateau)</label>
   </div>
+  <p id="expect"></p>
 </header>
 <div id="maps">
   <div class="pane"><div class="tag before">main</div><div id="before" class="map"></div></div>
@@ -134,7 +138,25 @@ const base = document.getElementById('base');
 const terrain = document.getElementById('terrain');
 const out = document.getElementById('out');
 
+function describe() {
+    const el = document.getElementById('expect');
+    if (!grad.checked) {
+        el.className = 'same';
+        el.textContent = 'Gradient off on both sides, so the two panes match. Tick it back on.';
+    } else if (base.checked || terrain.checked) {
+        el.className = 'diff';
+        el.textContent = terrain.checked ?
+            'On terrain main draws no gradient at all, at any height. The fix restores it. The panes should differ.' :
+            'With a raised base main draws no gradient at all, at any height. The fix restores it. The panes should differ.';
+    } else {
+        el.className = 'same';
+        el.textContent = 'Ground-level base on flat ground: the fix changes nothing here, so the panes match on purpose. ' +
+            'Tick "20 m base" or "3D terrain" to see the difference.';
+    }
+}
+
 function render() {
+    describe();
     const [a, b] = maps.map(measure);
     out.innerHTML = '';
     HEIGHTS.forEach((h, i) => {
