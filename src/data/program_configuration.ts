@@ -260,12 +260,28 @@ class SourceExpressionBinder implements AttributeBinder {
     }
 }
 
+/**
+ * The two zooms a composite paint property is sampled at, to be blended between while the tile is
+ * on screen. The samples are normally one zoom level apart, but a ramp whose stops both sit inside
+ * that level is sampled at the stops themselves: sampling a level apart would stretch such a ramp
+ * over the whole level and it would only finish at the next integer zoom (#6630).
+ */
+function samplingZooms(expression: CompositeExpression, zoom: number): [number, number] {
+    const stops = expression.zoomStops;
+    if (stops?.length === 2 && stops[0] >= zoom && stops[1] <= zoom + 1 && stops[1] > stops[0]) {
+        return [stops[0], stops[1]];
+    }
+    return [zoom, zoom + 1];
+}
+
 class CompositeExpressionBinder implements AttributeBinder, UniformBinder {
     expression: CompositeExpression;
     uniformNames: string[];
     type: string;
     useIntegerZoom: boolean;
     zoom: number;
+    lowerZoom: number;
+    upperZoom: number;
     maxValue: number;
 
     paintVertexArray: StructArray;
@@ -280,6 +296,7 @@ class CompositeExpressionBinder implements AttributeBinder, UniformBinder {
         this.type = type;
         this.useIntegerZoom = useIntegerZoom;
         this.zoom = zoom;
+        [this.lowerZoom, this.upperZoom] = samplingZooms(expression, zoom);
         this.maxValue = 0;
         this.paintVertexAttributes = names.map((name) => ({
             name: `a_${name}`,
@@ -291,16 +308,16 @@ class CompositeExpressionBinder implements AttributeBinder, UniformBinder {
     }
 
     populatePaintArray(newLength: number, feature: Feature, options: PaintOptions) {
-        const min = this.expression.evaluate(new EvaluationParameters(this.zoom, options), feature, {}, options.canonical, [], options.formattedSection);
-        const max = this.expression.evaluate(new EvaluationParameters(this.zoom + 1, options), feature, {}, options.canonical, [], options.formattedSection);
+        const min = this.expression.evaluate(new EvaluationParameters(this.lowerZoom, options), feature, {}, options.canonical, [], options.formattedSection);
+        const max = this.expression.evaluate(new EvaluationParameters(this.upperZoom, options), feature, {}, options.canonical, [], options.formattedSection);
         const start = this.paintVertexArray.length;
         this.paintVertexArray.resize(newLength);
         this._setPaintValue(start, newLength, min, max);
     }
 
     updatePaintArray(start: number, end: number, feature: Feature, featureState: FeatureState, options: PaintOptions) {
-        const min = this.expression.evaluate(new EvaluationParameters(this.zoom, options), feature, featureState);
-        const max = this.expression.evaluate(new EvaluationParameters(this.zoom + 1, options), feature, featureState);
+        const min = this.expression.evaluate(new EvaluationParameters(this.lowerZoom, options), feature, featureState);
+        const max = this.expression.evaluate(new EvaluationParameters(this.upperZoom, options), feature, featureState);
         this._setPaintValue(start, end, min, max);
     }
 
@@ -337,7 +354,7 @@ class CompositeExpressionBinder implements AttributeBinder, UniformBinder {
 
     setUniform(uniform: Uniform<any>, globals: GlobalProperties): void {
         const currentZoom = this.useIntegerZoom ? Math.floor(globals.zoom) : globals.zoom;
-        const factor = clamp(this.expression.interpolationFactor(currentZoom, this.zoom, this.zoom + 1), 0, 1);
+        const factor = clamp(this.expression.interpolationFactor(currentZoom, this.lowerZoom, this.upperZoom), 0, 1);
         uniform.set(factor);
     }
 
