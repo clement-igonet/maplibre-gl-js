@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>#7328 - hiding native 3D buildings inside a perimeter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../lod-6630/dist-fix/maplibre-gl.css">
+<style>
+  body { margin: 0; font: 14px/1.45 system-ui, sans-serif; }
+  #map { position: absolute; inset: 0; }
+  #panel { position: absolute; z-index: 2; top: 10px; left: 10px; width: 330px; padding: 12px 14px;
+           background: rgba(255,255,255,.94); border-radius: 6px; box-shadow: 0 1px 6px rgba(0,0,0,.3); }
+  #panel h1 { margin: 0 0 6px; font-size: 15px; }
+  #panel p { margin: 0 0 8px; color: #444; }
+  #panel code { background: #eef0f3; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+  label { display: block; margin: 6px 0; }
+  #count { font-variant-numeric: tabular-nums; color: #555; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>Hiding native 3D buildings inside a perimeter</h1>
+  <p>The native buildings inside the red outline are removed with a layer filter, no change to the tiles:<br>
+     <code>[">", ["distance", perimeter], 0]</code></p>
+  <label><input type="checkbox" id="clip" checked> apply the filter</label>
+  <label><input type="checkbox" id="custom" checked> show custom buildings inside</label>
+  <p id="count"></p>
+</div>
+<div id="map"></div>
+
+<script type="module">
+import {Map as MlMap} from '../lod-6630/dist-main/maplibre-gl-dev.mjs';
+
+const PERIMETER = {
+    type: 'Polygon',
+    coordinates: [[
+        [-74.0128, 40.7052], [-74.0086, 40.7052],
+        [-74.0086, 40.7085], [-74.0128, 40.7085], [-74.0128, 40.7052]
+    ]]
+};
+
+function boxAt(lng, lat, w, h, height) {
+    return {
+        type: 'Feature',
+        properties: {height},
+        geometry: {type: 'Polygon', coordinates: [[
+            [lng - w, lat - h], [lng + w, lat - h], [lng + w, lat + h], [lng - w, lat + h], [lng - w, lat - h]
+        ]]}
+    };
+}
+
+const CUSTOM = {
+    type: 'FeatureCollection',
+    features: [
+        boxAt(-74.0118, 40.7062, 0.0008, 0.0006, 180),
+        boxAt(-74.0100, 40.7060, 0.0006, 0.0005, 120),
+        boxAt(-74.0110, 40.7076, 0.0009, 0.0007, 240),
+        boxAt(-74.0093, 40.7075, 0.0005, 0.0006, 90)
+    ]
+};
+
+const map = window.__map = new MlMap({
+    container: 'map',
+    style: 'https://tiles.openfreemap.org/styles/bright',
+    center: [-74.0107, 40.7068],
+    zoom: 15.6,
+    pitch: 62,
+    bearing: -22
+});
+
+map.on('load', () => {
+    map.addSource('perimeter', {type: 'geojson', data: PERIMETER});
+    map.addSource('custom', {type: 'geojson', data: CUSTOM});
+
+    map.addLayer({
+        id: 'native-buildings',
+        source: 'openmaptiles',
+        'source-layer': 'building',
+        type: 'fill-extrusion',
+        minzoom: 14,
+        filter: ['>', ['distance', PERIMETER], 0],
+        paint: {
+            'fill-extrusion-color': '#c3ccd8',
+            'fill-extrusion-height': ['get', 'render_height'],
+            'fill-extrusion-base': ['get', 'render_min_height'],
+            'fill-extrusion-opacity': 0.95
+        }
+    });
+
+    map.addLayer({
+        id: 'custom-buildings',
+        source: 'custom',
+        type: 'fill-extrusion',
+        paint: {
+            'fill-extrusion-color': '#e4572e',
+            'fill-extrusion-height': ['get', 'height'],
+            'fill-extrusion-opacity': 0.9
+        }
+    });
+
+    map.addLayer({
+        id: 'perimeter-outline',
+        source: 'perimeter',
+        type: 'line',
+        paint: {'line-color': '#d00', 'line-width': 2, 'line-dasharray': [2, 1]}
+    });
+
+    const clip = document.getElementById('clip');
+    const custom = document.getElementById('custom');
+    const count = document.getElementById('count');
+
+    const refresh = () => {
+        map.setFilter('native-buildings', clip.checked ? ['>', ['distance', PERIMETER], 0] : null);
+        map.setLayoutProperty('custom-buildings', 'visibility', custom.checked ? 'visible' : 'none');
+    };
+    clip.addEventListener('change', refresh);
+    custom.addEventListener('change', refresh);
+
+    map.on('idle', () => {
+        count.textContent = `${map.queryRenderedFeatures({layers: ['native-buildings']}).length} native buildings drawn`;
+    });
+});
+</script>
+</body>
+</html>
