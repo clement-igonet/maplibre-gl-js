@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Multi-floor building exploration</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="dist/maplibre-gl.css">
+<style>
+  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; color: #1c2430; }
+  #map { position: absolute; inset: 0; }
+  #panel { position: absolute; z-index: 2; top: 12px; left: 12px; width: 250px; padding: 14px;
+           background: rgba(255,255,255,.95); border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.28); }
+  h1 { margin: 0 0 2px; font-size: 15px; }
+  .sub { margin: 0 0 10px; color: #5a6572; font-size: 12px; }
+  ul { list-style: none; margin: 0 0 10px; padding: 0; }
+  li { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  li:hover { background: #eef2f7; }
+  li.on { background: #e4572e; color: #fff; font-weight: 600; }
+  li.under { color: #7a5c3e; }
+  li.on.under { color: #fff; }
+  .lvl { width: 26px; font-variant-numeric: tabular-nums; text-align: right; }
+  .depth { margin-left: auto; font-size: 11px; opacity: .75; }
+  label.opt { display: block; font-size: 12px; margin-top: 8px; }
+  .note { margin-top: 10px; font-size: 11px; color: #5a6572; border-top: 1px solid #e3e6ea; padding-top: 8px; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>Multi-floor exploration</h1>
+  <p class="sub">Pick a level. Its markers appear at that level's height.</p>
+  <ul id="levels"></ul>
+  <label class="opt"><input type="checkbox" id="cut" checked> cut the ground open</label>
+  <label class="opt"><input type="checkbox" id="labels" checked> show level labels</label>
+  <p class="note" id="note"></p>
+</div>
+<div id="map"></div>
+
+<script type="module">
+import * as maplibregl from './dist/maplibre-gl-dev.mjs';
+
+const CENTRE = [2.3735, 48.8443];          // Gare de Lyon, Paris
+const FLOOR_H = 4;                          // metres per level
+const LEVELS = [5, 4, 3, 2, 1, 0, -1, -2];
+const NAMES = {
+    5: 'Offices', 4: 'Offices', 3: 'Offices', 2: 'Mezzanine',
+    1: 'Concourse', 0: 'Street hall', '-1': 'Metro', '-2': 'RER platforms'
+};
+const POIS = {
+    5: [['Meeting room', -0.3, 0.3]],
+    4: [['Open space', 0.2, -0.2]],
+    3: [['Open space', -0.2, -0.3]],
+    2: [['Cafe', 0.3, 0.2], ['Lift', 0, 0]],
+    1: [['Ticket office', -0.4, 0.2], ['Shops', 0.4, -0.2]],
+    0: [['Main entrance', 0, -0.6], ['Information', 0.35, 0.35]],
+    '-1': [['Metro line 1', -0.35, 0], ['Metro line 14', 0.35, 0]],
+    '-2': [['Platform A', -0.3, 0.35], ['Platform B', 0.3, -0.35]]
+};
+
+// a 60 x 40 m footprint, kept simple on purpose: the code does not care about its shape
+const HALF_LNG = 0.00041, HALF_LAT = 0.00018;
+const ring = (sx, sy) => [[
+    [CENTRE[0] - HALF_LNG * sx, CENTRE[1] - HALF_LAT * sy],
+    [CENTRE[0] + HALF_LNG * sx, CENTRE[1] - HALF_LAT * sy],
+    [CENTRE[0] + HALF_LNG * sx, CENTRE[1] + HALF_LAT * sy],
+    [CENTRE[0] - HALF_LNG * sx, CENTRE[1] + HALF_LAT * sy],
+    [CENTRE[0] - HALF_LNG * sx, CENTRE[1] - HALF_LAT * sy]
+]];
+
+const floors = {
+    type: 'FeatureCollection',
+    features: LEVELS.map(l => ({
+        type: 'Feature',
+        properties: {level: l, base: l * FLOOR_H, top: (l + 1) * FLOOR_H - 0.4,
+                     labelHeight: l * FLOOR_H + FLOOR_H / 2, name: NAMES[l]},
+        geometry: {type: 'Polygon', coordinates: ring(1, 1)}
+    }))
+};
+
+// the ground is a big square with the building punched out of it, so the levels below
+// street level stay visible. Its own base is negative, which is what opens the pit.
+// the base is carried as a feature property rather than written as a literal: the style spec
+// still caps fill-extrusion-base at a minimum of 0, so a literal negative value fails validation
+// and the whole style refuses to load, while a data-driven value is only checked at runtime
+const PIT_DEPTH = -FLOOR_H * 2.4;
+const groundWithHole = {
+    type: 'Feature', properties: {base: PIT_DEPTH},
+    geometry: {type: 'Polygon', coordinates: [ring(4.2, 6.5)[0], ring(1.5, 2.0)[0]]}
+};
+const groundSolid = {type: 'Feature', properties: {base: 0}, geometry: {type: 'Polygon', coordinates: ring(4.2, 6.5)}};
+
+const labels = {
+    type: 'FeatureCollection',
+    features: LEVELS.map(l => ({
+        type: 'Feature',
+        properties: {level: l, labelHeight: l * FLOOR_H + FLOOR_H / 2, name: `${l >= 0 ? l : l} · ${NAMES[l]}`},
+        geometry: {type: 'Point', coordinates: [CENTRE[0] + HALF_LNG * 1.15, CENTRE[1]]}
+    }))
+};
+
+let selected = 0;
+
+const map = window.__map = new maplibregl.Map({
+    container: 'map',
+    style: {
+        version: 8,
+        glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+        sources: {
+            floors: {type: 'geojson', data: floors},
+            ground: {type: 'geojson', data: groundWithHole},
+            labels: {type: 'geojson', data: labels}
+        },
+        layers: [
+            {id: 'sky', type: 'background', paint: {'background-color': '#cfd8e3'}},
+            {id: 'ground', type: 'fill-extrusion', source: 'ground', paint: {
+                'fill-extrusion-color': '#8d9aa8',
+                'fill-extrusion-base': ['get', 'base'],
+                'fill-extrusion-height': 0,
+                'fill-extrusion-opacity': 1
+            }},
+            {id: 'floors-other', type: 'fill-extrusion', source: 'floors',
+             filter: ['!=', ['get', 'level'], selected],
+             paint: {
+                'fill-extrusion-color': ['case', ['<', ['get', 'level'], 0], '#b08968', '#aab6c4'],
+                'fill-extrusion-base': ['get', 'base'],
+                'fill-extrusion-height': ['get', 'top'],
+                'fill-extrusion-opacity': 0.35
+            }},
+            {id: 'floors-on', type: 'fill-extrusion', source: 'floors',
+             filter: ['==', ['get', 'level'], selected],
+             paint: {
+                'fill-extrusion-color': '#e4572e',
+                'fill-extrusion-base': ['get', 'base'],
+                'fill-extrusion-height': ['get', 'top'],
+                'fill-extrusion-opacity': 0.96
+            }},
+            {id: 'level-labels', type: 'symbol', source: 'labels',
+             layout: {
+                'text-field': ['get', 'name'],
+                'text-font': ['Noto Sans Regular'],
+                'text-size': 12,
+                'text-anchor': 'left',
+                'text-offset': [0.8, 0],
+                'symbol-height-offset': ['get', 'labelHeight'],
+                'symbol-height-anchor': 'absolute',
+                'text-allow-overlap': true
+             },
+             paint: {'text-color': '#1c2430', 'text-halo-color': '#fff', 'text-halo-width': 1.6}}
+        ]
+    },
+    center: [CENTRE[0], CENTRE[1] - 0.00075],
+    zoom: 18.3,
+    pitch: 54,
+    bearing: -26,
+    antialias: true
+});
+
+const markers = [];
+function placeMarkers() {
+    for (const m of markers) m.remove();
+    markers.length = 0;
+    const elevation = selected * FLOOR_H + FLOOR_H / 2;
+    for (const [name, dx, dy] of POIS[selected] || []) {
+        const marker = new maplibregl.Marker({
+            color: selected < 0 ? '#b08968' : '#e4572e',
+            heightOffset: elevation,
+            heightAnchor: 'ground'
+        })
+            .setLngLat([CENTRE[0] + HALF_LNG * dx, CENTRE[1] + HALF_LAT * dy])
+            .setPopup(new maplibregl.Popup({offset: 24}).setText(`${name} — level ${selected}`))
+            .addTo(map);
+        markers.push(marker);
+    }
+}
+
+function select(level) {
+    selected = level;
+    map.setFilter('floors-other', ['!=', ['get', 'level'], selected]);
+    map.setFilter('floors-on', ['==', ['get', 'level'], selected]);
+    placeMarkers();
+    for (const li of document.querySelectorAll('#levels li')) li.classList.toggle('on', +li.dataset.level === level);
+    document.getElementById('note').textContent =
+        selected < 0 ?
+            `Level ${selected} sits ${-selected * FLOOR_H} m below street level.` :
+            `Level ${selected} sits ${selected * FLOOR_H} m above street level.`;
+}
+
+const list = document.getElementById('levels');
+for (const l of LEVELS) {
+    const li = document.createElement('li');
+    li.dataset.level = l;
+    li.className = l < 0 ? 'under' : '';
+    li.innerHTML = `<span class="lvl">${l}</span><span>${NAMES[l]}</span>` +
+        `<span class="depth">${l * FLOOR_H} m</span>`;
+    li.addEventListener('click', () => select(l));
+    list.appendChild(li);
+}
+
+document.getElementById('cut').addEventListener('change', (e) => {
+    map.getSource('ground').setData(e.target.checked ? groundWithHole : groundSolid);
+});
+document.getElementById('labels').addEventListener('change', (e) => {
+    map.setLayoutProperty('level-labels', 'visibility', e.target.checked ? 'visible' : 'none');
+});
+
+map.on('load', () => select(0));
+window.__select = (l) => { select(l); return map.once('idle', () => true); };
+</script>
+</body>
+</html>
