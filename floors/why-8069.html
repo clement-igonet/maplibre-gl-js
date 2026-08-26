@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Why #8069: underground levels at their own height</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="dist-main/maplibre-gl.css">
+<style>
+  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; color: #1c2430; background: #f4f6f8; }
+  header { padding: 12px 18px; background: #fff; border-bottom: 1px solid #dde2e8; }
+  h1 { margin: 0 0 4px; font-size: 17px; }
+  header p { margin: 0; color: #5a6572; }
+  #panes { display: flex; gap: 12px; padding: 12px 18px; }
+  .pane { flex: 1; background: #fff; border: 1px solid #dde2e8; border-radius: 6px; overflow: hidden; }
+  .pane h2 { margin: 0; padding: 8px 12px; font-size: 14px; border-bottom: 1px solid #eceff3; }
+  .pane.before h2 { color: #a11; } .pane.after h2 { color: #161; }
+  .map { height: 520px; }
+  .verdict { padding: 9px 12px; font-size: 13px; border-top: 1px solid #eceff3; }
+  .verdict b { font-variant-numeric: tabular-nums; }
+  .legend { padding: 0 18px 14px; color: #5a6572; font-size: 12px; }
+  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: -1px; margin: 0 3px 0 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Gare de Lyon, the levels below street level</h1>
+  <p>The same OpenStreetMap indoor data in both maps, every level drawn at its own height
+     (pulled apart 10x so the stack is readable).</p>
+</header>
+<div id="panes">
+  <div class="pane before">
+    <h2>main</h2>
+    <div id="before" class="map"></div>
+    <div class="verdict" id="v-before"></div>
+  </div>
+  <div class="pane after">
+    <h2>with #8069</h2>
+    <div id="after" class="map"></div>
+    <div class="verdict" id="v-after"></div>
+  </div>
+</div>
+<p class="legend">
+  <span class="sw" style="background:#7f9fc4"></span> above street level
+  <span class="sw" style="background:#d0d6dd"></span> street level
+  <span class="sw" style="background:#a4714a"></span> below street level
+</p>
+
+<script type="module">
+import * as mainGl from './dist-main/maplibre-gl-dev.mjs';
+import * as fixGl from './dist-8069/maplibre-gl-dev.mjs';
+
+const CENTRE = [2.37568, 48.84387];
+const LEVELS = [2, 1, 0, -1, -2, -3, -4];
+const SPACING = 50;                    // 10x a real station level
+const VIEW = {center: CENTRE, zoom: 16.4, pitch: 70, bearing: -32};
+
+const COLOUR = ['case',
+    ['<', ['get', 'level'], 0], '#a4714a',
+    ['==', ['get', 'level'], 0], '#d0d6dd',
+    '#7f9fc4'];
+
+function explode(collection) {
+    const out = [];
+    for (const f of collection.features) {
+        for (const raw of f.properties.lv.split(';')) {
+            if (raw === '') continue;
+            const level = Number(raw);
+            if (!LEVELS.includes(level)) continue;
+            out.push({...f, properties: {...f.properties, level, elev: level * SPACING}});
+        }
+    }
+    return {type: 'FeatureCollection', features: out};
+}
+
+const shapes = await fetch('gare-de-lyon.geojson').then(r => r.json());
+const data = explode(shapes);
+
+function build(gl, container) {
+    const map = new gl.Map({
+        container, ...VIEW, preserveDrawingBuffer: true,
+        style: 'https://tiles.openfreemap.org/styles/bright', antialias: true
+    });
+    map.on('load', () => {
+        map.addSource('indoor', {type: 'geojson', data});
+        map.addLayer({
+            id: 'levels', type: 'fill-extrusion', source: 'indoor',
+            paint: {
+                'fill-extrusion-color': COLOUR,
+                // the elevation is data-driven on purpose: the style spec still refuses a
+                // negative literal, so this is the only way to ask for it at all
+                'fill-extrusion-base': ['get', 'elev'],
+                'fill-extrusion-height': ['+', ['get', 'elev'], 2],
+                'fill-extrusion-opacity': 0.9
+            }
+        });
+    });
+    return map;
+}
+
+const maps = {before: build(mainGl, 'before'), after: build(fixGl, 'after')};
+
+// how far below street level does anything actually get drawn?
+function report(which, map) {
+    const lowest = Math.min(...LEVELS) * SPACING;
+    const el = document.getElementById(`v-${which}`);
+    const drawn = map.queryRenderedFeatures({layers: ['levels']});
+    const below = drawn.filter(f => f.properties.level < 0).length;
+    el.innerHTML = which === 'before' ?
+        `Every level below 0 is clamped to the ground plane: <b>${below}</b> underground shapes drawn, all of them at 0 m.` :
+        `Underground levels keep their own height, down to <b>${lowest} m</b>: <b>${below}</b> shapes below the street.`;
+}
+
+let ready = 0;
+for (const [which, map] of Object.entries(maps)) {
+    map.on('load', () => map.once('idle', () => { report(which, map); if (++ready === 2) window.__ready = true; }));
+}
+</script>
+</body>
+</html>
