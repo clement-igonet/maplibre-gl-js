@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Opening the ground over Gare de Lyon</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="dist/maplibre-gl.css">
+<style>
+  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; color: #1c2430; }
+  #map { position: absolute; inset: 0; }
+  #panel { position: absolute; z-index: 2; top: 12px; left: 12px; width: 300px; padding: 14px;
+           background: rgba(255,255,255,.96); border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,.3); }
+  h1 { margin: 0 0 4px; font-size: 15px; }
+  p { margin: 0 0 9px; color: #4a5561; font-size: 12.5px; }
+  code { background: #eef0f3; padding: 1px 4px; border-radius: 3px; font-size: 11.5px; }
+  label { display: block; margin: 6px 0; font-size: 13px; }
+  .note { margin-top: 10px; padding-top: 9px; border-top: 1px solid #e3e6ea; font-size: 11.5px; color: #5a6572; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>Opening the ground</h1>
+  <p>Gare de Lyon is mapped down to level -4 in OpenStreetMap.
+     Those levels are drawn at their real depth, but the basemap is an unbroken plane on top of them.</p>
+  <label><input type="checkbox" id="mask" checked> cut the basemap with a mask layer</label>
+  <label><input type="checkbox" id="levels" checked> underground levels</label>
+  <p class="note" id="note"></p>
+</div>
+<div id="map"></div>
+
+<script type="module">
+import * as maplibregl from './dist/maplibre-gl-dev.mjs';
+
+const CENTRE = [2.37568, 48.84387];
+const SPACING = 22;                       // metres between levels on screen
+const UNDER = [-1, -2, -3, -4];
+const D_LNG = 0.0034, D_LAT = 0.0018;
+const box = (s) => [[
+    [CENTRE[0] - D_LNG * s, CENTRE[1] - D_LAT * s], [CENTRE[0] + D_LNG * s, CENTRE[1] - D_LAT * s],
+    [CENTRE[0] + D_LNG * s, CENTRE[1] + D_LAT * s], [CENTRE[0] - D_LNG * s, CENTRE[1] + D_LAT * s],
+    [CENTRE[0] - D_LNG * s, CENTRE[1] - D_LAT * s]
+]];
+
+const [style, shapes] = await Promise.all([
+    fetch('https://tiles.openfreemap.org/styles/bright').then(r => r.json()),
+    fetch('gare-de-lyon.geojson').then(r => r.json())
+]);
+
+// every basemap layer agrees to be cut. In the spec proposal this is the mask layer naming
+// which layers it removes; here it rides in metadata so the style stays valid today.
+for (const layer of style.layers) {
+    layer.metadata = {...(layer.metadata || {}), 'maplibre:masked': true};
+}
+
+const underground = {
+    type: 'FeatureCollection',
+    features: shapes.features.flatMap(f =>
+        f.properties.lv.split(';').filter(Boolean).map(Number)
+            .filter(l => UNDER.includes(l))
+            .map(level => ({...f, properties: {...f.properties, level, elev: level * SPACING}})))
+};
+
+style.sources.hole = {type: 'geojson', data: {type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: box(1)}}};
+style.sources.underground = {type: 'geojson', data: underground};
+
+style.layers.push({
+    id: 'ground-opening', type: 'fill', source: 'hole',
+    metadata: {'maplibre:mask': true},
+    paint: {'fill-color': '#000'}
+});
+style.layers.push({
+    id: 'underground', type: 'fill-extrusion', source: 'underground',
+    paint: {
+        'fill-extrusion-color': ['interpolate', ['linear'], ['get', 'level'], -4, '#7a5230', -1, '#c89b6a'],
+        'fill-extrusion-base': ['get', 'elev'],
+        'fill-extrusion-height': ['+', ['get', 'elev'], 1.6],
+        'fill-extrusion-opacity': 0.97
+    }
+});
+
+const map = window.__map = new maplibregl.Map({
+    container: 'map', style,
+    center: [CENTRE[0], CENTRE[1] - 0.0016],
+    zoom: 16.1, pitch: 66, bearing: -28,
+    preserveDrawingBuffer: true, antialias: true
+});
+
+document.getElementById('note').textContent =
+    `${underground.features.length} shapes below street level, down to ${Math.min(...UNDER) * SPACING} m.`;
+
+document.getElementById('mask').addEventListener('change', (e) =>
+    map.setLayoutProperty('ground-opening', 'visibility', e.target.checked ? 'visible' : 'none'));
+document.getElementById('levels').addEventListener('change', (e) =>
+    map.setLayoutProperty('underground', 'visibility', e.target.checked ? 'visible' : 'none'));
+
+window.__set = async (opts) => {
+    for (const [id, on] of Object.entries(opts)) {
+        const el = document.getElementById(id);
+        el.checked = on;
+        el.dispatchEvent(new Event('change'));
+    }
+    await new Promise(res => map.once('idle', res));
+    return true;
+};
+</script>
+</body>
+</html>
