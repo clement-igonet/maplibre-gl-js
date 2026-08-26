@@ -113,6 +113,21 @@ const map = window.__map = new maplibregl.Map({
     preserveDrawingBuffer: true, antialias: true
 });
 
+// The far plane is derived from the terrain's lowest point, which knows nothing about geometry
+// extruded below the datum, so at low pitch the underground levels fall outside it and vanish.
+// Recompute it each frame with room for the deepest level.
+const DEEPEST = Math.min(...UNDER) * SPACING;
+function keepUndergroundInFrustum() {
+    const t = map._camera?.transform;
+    if (!t?.overrideNearFarZ) return;
+    t.clearNearFarZOverride();
+    const auto = t.farZ;
+    const needed = auto + Math.abs(DEEPEST) * (t.pixelsPerMeter || 1) * 2;
+    t.overrideNearFarZ(t.nearZ, needed);
+}
+map.on('move', keepUndergroundInFrustum);
+map.on('load', keepUndergroundInFrustum);
+
 // DOM markers are not touched by the stencil at all, so they always show
 const markers = [];
 map.on('load', () => {
