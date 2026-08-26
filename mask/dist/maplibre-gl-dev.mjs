@@ -11020,6 +11020,9 @@ var MercatorTransform = class MercatorTransform {
 	screenPointToLocation(p, terrain) {
 		return this.screenPointToMercatorCoordinate(p, terrain)?.toLngLat();
 	}
+	locationToScreenPointAtElevation(lnglat, elevation) {
+		return this.coordinatePoint(MercatorCoordinate.fromLngLat(lnglat), elevation, this._pixelMatrix3D);
+	}
 	screenPointToLocationAtElevation(p, elevation) {
 		return this.screenPointToMercatorCoordinateAtZ(p, elevation - this.elevation)?.toLngLat();
 	}
@@ -13150,11 +13153,12 @@ var VerticalPerspectiveTransform = class VerticalPerspectiveTransform {
 		this.setZoom(this.zoom + getZoomAdjustment(oldLat, this.center.lat));
 	}
 	locationToScreenPoint(lnglat, terrain) {
+		const elevation = terrain ? terrain.getElevationForLngLatZoom(lnglat, this._helper._tileZoom) : 0;
+		return this.locationToScreenPointAtElevation(lnglat, elevation);
+	}
+	locationToScreenPointAtElevation(lnglat, elevation) {
 		const pos = angularCoordinatesToSurfaceVector(lnglat);
-		if (terrain) {
-			const elevation = terrain.getElevationForLngLatZoom(lnglat, this._helper._tileZoom);
-			scale$2(pos, pos, 1 + elevation / earthRadius);
-		}
+		if (elevation) scale$2(pos, pos, 1 + elevation / earthRadius);
 		return this._projectSurfacePointToScreen(pos);
 	}
 	/**
@@ -13695,6 +13699,9 @@ var GlobeTransform = class GlobeTransform {
 		}
 		this._verticalPerspectiveTransform.setLocationAtPoint(lnglat, point, elevation);
 		this.apply(this._verticalPerspectiveTransform, false);
+	}
+	locationToScreenPointAtElevation(lnglat, elevation) {
+		return this.currentTransform.locationToScreenPointAtElevation(lnglat, elevation);
 	}
 	locationToScreenPoint(lnglat, terrain) {
 		return this.currentTransform.locationToScreenPoint(lnglat, terrain);
@@ -17330,7 +17337,7 @@ const identityMat4 = identity(/* @__PURE__ */ new Float32Array(16));
 function drawSymbols(painter, tileManager, layer, coords, variableOffsets, renderOptions) {
 	if (painter.renderPass !== "translucent") return;
 	const { isRenderingToTexture } = renderOptions;
-	const stencilMode = StencilMode.disabled;
+	const stencilMode = painter.maskOnlyStencilMode();
 	const colorMode = painter.colorModeForRenderPass();
 	if (layer._unevaluatedLayout.hasValue("text-variable-anchor") || layer._unevaluatedLayout.hasValue("text-variable-anchor-offset")) updateVariableAnchors(coords, painter, layer, tileManager, layer.layout.get("text-rotation-alignment"), layer.layout.get("text-pitch-alignment"), layer.paint.get("text-translate"), layer.paint.get("text-translate-anchor"), variableOffsets);
 	if (layer.paint.get("icon-opacity").constantOr(1) !== 0) drawLayerSymbols(painter, tileManager, layer, coords, false, layer.paint.get("icon-translate"), layer.paint.get("icon-translate-anchor"), layer.layout.get("icon-rotation-alignment").constantOr("viewport"), layer.layout.get("icon-pitch-alignment"), layer.layout.get("icon-keep-upright"), stencilMode, colorMode, isRenderingToTexture);
@@ -17595,7 +17602,7 @@ function drawCircles(painter, tileManager, layer, coords, renderOptions) {
 	const gl = context.gl;
 	const transform = painter.transform;
 	const depthMode = painter.getDepthModeForSublayer(0, DepthMode.ReadOnly);
-	const stencilMode = StencilMode.disabled;
+	const stencilMode = painter.maskOnlyStencilMode();
 	const colorMode = painter.colorModeForRenderPass();
 	const segmentsRenderStates = [];
 	const radiusCorrectionFactor = transform.getCircleRadiusCorrection();
@@ -18155,9 +18162,9 @@ function drawFillExtrusion(painter, tileManager, layer, coords, renderOptions) {
 		const depthMode = new DepthMode(painter.context.gl.LEQUAL, DepthMode.ReadWrite, painter.depthRangeFor3D);
 		if (opacity === 1 && !layer.paint.get("fill-extrusion-pattern").constantOr(1)) {
 			const colorMode = painter.colorModeForRenderPass();
-			drawExtrusionTiles(painter, tileManager, layer, coords, depthMode, StencilMode.disabled, colorMode, isRenderingToTexture);
+			drawExtrusionTiles(painter, tileManager, layer, coords, depthMode, painter.maskOnlyStencilMode(), colorMode, isRenderingToTexture);
 		} else {
-			drawExtrusionTiles(painter, tileManager, layer, coords, depthMode, StencilMode.disabled, ColorMode.disabled, isRenderingToTexture);
+			drawExtrusionTiles(painter, tileManager, layer, coords, depthMode, painter.maskOnlyStencilMode(), ColorMode.disabled, isRenderingToTexture);
 			drawExtrusionTiles(painter, tileManager, layer, coords, depthMode, painter.stencilModeFor3D(), painter.colorModeForRenderPass(), isRenderingToTexture);
 		}
 	}
@@ -18423,7 +18430,7 @@ function drawTiles(painter, tileManager, layer, coords, stencilModes, useBorder,
 		});
 		const uniformValues = rasterUniformValues(parentTopLeft, parentScaleBy, fadeValues.fadeMix, layer, corners, imageWarp);
 		const mesh = sourceMesh ?? projection.getMeshFromTileID(context, coord.canonical, useBorder, allowPoles, "raster");
-		const stencilMode = stencilModes ? stencilModes[coord.overscaledZ] : StencilMode.disabled;
+		const stencilMode = stencilModes ? stencilModes[coord.overscaledZ] : painter.maskOnlyStencilMode();
 		program.draw(context, gl.TRIANGLES, depthMode, stencilMode, colorMode, flipCullfaceMode ? CullFaceMode.frontCCW : CullFaceMode.backCCW, uniformValues, terrainData, projectionData, layer.id, mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
 	}
 }
@@ -18514,7 +18521,7 @@ function drawBackground(painter, tileManager, layer, coords, renderOptions) {
 	if (painter.isPatternMissing(image)) return;
 	const pass = !image && color.a === 1 && opacity === 1 && painter.opaquePassEnabledForLayer() ? "opaque" : "translucent";
 	if (painter.renderPass !== pass) return;
-	const stencilMode = StencilMode.disabled;
+	const stencilMode = painter.maskOnlyStencilMode();
 	const depthMode = painter.getDepthModeForSublayer(0, pass === "opaque" ? DepthMode.ReadWrite : DepthMode.ReadOnly);
 	const colorMode = painter.colorModeForRenderPass();
 	const program = painter.useProgram(image ? "backgroundPattern" : "background");
@@ -19088,6 +19095,18 @@ var Painter = class Painter {
 		this._maskWritePass = stencil;
 		drawFillMask(this, tileManager, layer, coords, renderOptions);
 		this._maskWritePass = null;
+	}
+	/**
+	* Stencil test for a masked layer that otherwise uses no stencil at all: it drops fragments
+	* wherever a `mask` layer has marked the reserved bit, and is a no-op for everything else.
+	*/
+	maskOnlyStencilMode() {
+		if (!this.currentLayerIsMasked) return StencilMode.disabled;
+		const gl = this.context.gl;
+		return new StencilMode({
+			func: gl.NOTEQUAL,
+			mask: Painter.MASK_BIT
+		}, Painter.MASK_BIT, 0, gl.KEEP, gl.KEEP, gl.KEEP);
 	}
 	stencilModeFor3D() {
 		this.currentStencilSource = void 0;
@@ -26934,7 +26953,7 @@ var Marker = class extends Evented {
 			const isFullyLoaded = this._map.loaded() && !this._map.isMoving();
 			if (e?.type === "terrain" || e?.type === "render" && !isFullyLoaded) this._map.once("render", this._update);
 			this._lngLat = smartWrap(this._lngLat, this._flatPos, this._map._camera.transform);
-			this._flatPos = this._pos = this._map.project(this._lngLat)._add(this._offset);
+			this._flatPos = this._pos = this._elevation() === void 0 ? this._map.project(this._lngLat)._add(this._offset) : this._map._camera.transform.locationToScreenPointAtElevation(this._lngLat, this._elevation())._add(this._offset);
 			if (this._map.terrain) this._flatPos = this._map._camera.transform.locationToScreenPoint(this._lngLat)._add(this._offset);
 			let rotation = "";
 			if (this._rotationAlignment === "viewport" || this._rotationAlignment === "auto") rotation = `rotateZ(${this._rotation}deg)`;
@@ -26992,6 +27011,8 @@ var Marker = class extends Evented {
 		this._draggable = options?.draggable || false;
 		this._clickTolerance = options?.clickTolerance || 0;
 		this._subpixelPositioning = options?.subpixelPositioning || false;
+		this._heightOffset = options?.heightOffset || 0;
+		this._heightAnchor = options?.heightAnchor || "ground";
 		this._isDragging = false;
 		this._roleManaged = false;
 		this._tabIndexManaged = false;
@@ -27216,9 +27237,18 @@ var Marker = class extends Evented {
 	setLngLat(lnglat) {
 		this._lngLat = LngLat.convert(lnglat);
 		this._pos = null;
-		if (this._popup) this._popup.setLngLat(this._lngLat);
+		this._syncPopup();
 		this._update();
 		return this;
+	}
+	/**
+	* Keeps the bound popup on the marker's anchor, height included, so a popup on a roof does not
+	* fall back to the street below.
+	*/
+	_syncPopup() {
+		if (!this._popup) return;
+		this._popup.setHeightOffset(this._heightOffset, this._heightAnchor);
+		if (this._lngLat) this._popup.setLngLat(this._lngLat);
 	}
 	/**
 	* Returns the `Marker`'s HTML element.
@@ -27262,6 +27292,7 @@ var Marker = class extends Evented {
 				} : this._offset;
 			}
 			this._popup = popup;
+			this._syncPopup();
 			this._element.addEventListener("keypress", this._onKeyPress);
 		}
 		this._updateTabIndex();
@@ -27363,6 +27394,51 @@ var Marker = class extends Evented {
 		if (this._popup?.isOpen() && centerIsInvisible) this._popup.remove();
 		this._element.style.opacity = centerIsInvisible ? this._opacityWhenCovered : this._opacity;
 		this._element.classList.toggle("maplibregl-marker-covered", centerIsInvisible);
+	}
+	/**
+	* The elevation the marker is drawn at, in meters above the zero elevation datum, or
+	* undefined when it sits on the ground and the ordinary ground projection applies.
+	* `absolute` ignores the terrain below the marker, `ground` adds the offset to it.
+	*/
+	_elevation() {
+		if (this._heightAnchor === "absolute") return this._heightOffset;
+		if (!this._heightOffset) return;
+		const terrain = this._map.terrain;
+		return this._heightOffset + (terrain ? terrain.getElevationForLngLat(this._lngLat, this._map._camera.transform) : 0);
+	}
+	/**
+	* Sets how far above the ground the marker is drawn, in meters.
+	* @param heightOffset - the height in meters
+	* @param heightAnchor - the datum the height is measured from, `ground` (the default) or `absolute`
+	* @returns `this`
+	* @example
+	* ```ts
+	* // a marker floating 50 m above the terrain
+	* marker.setHeightOffset(50);
+	* // a marker at a fixed altitude, ignoring the terrain below it
+	* marker.setHeightOffset(2000, 'absolute');
+	* ```
+	*/
+	setHeightOffset(heightOffset, heightAnchor) {
+		this._heightOffset = heightOffset;
+		if (heightAnchor) this._heightAnchor = heightAnchor;
+		this._syncPopup();
+		this._update();
+		return this;
+	}
+	/**
+	* Get how far above the ground the marker is drawn, in meters.
+	* @returns The marker's height offset.
+	*/
+	getHeightOffset() {
+		return this._heightOffset;
+	}
+	/**
+	* Get the datum the marker's height offset is measured from.
+	* @returns `ground` or `absolute`.
+	*/
+	getHeightAnchor() {
+		return this._heightAnchor;
 	}
 	/**
 	* Get the marker's offset.
@@ -28437,7 +28513,9 @@ const defaultOptions = {
 	maxWidth: "240px",
 	subpixelPositioning: false,
 	locationOccludedOpacity: void 0,
-	padding: void 0
+	padding: void 0,
+	heightOffset: 0,
+	heightAnchor: "ground"
 };
 const focusQuerySelector = [
 	"a[href]",
@@ -28562,7 +28640,9 @@ var Popup = class extends Evented {
 			let cursor;
 			if (event && "point" in event && event.point) cursor = event.point;
 			if (this._trackPointer && !cursor) return;
-			const pos = this._flatPos = this._pos = this._trackPointer && cursor ? cursor : this._map.project(this._lngLat);
+			const elevation = this._elevation();
+			const anchorPoint = this._trackPointer && cursor ? cursor : elevation === void 0 ? this._map.project(this._lngLat) : this._map._camera.transform.locationToScreenPointAtElevation(this._lngLat, elevation);
+			const pos = this._flatPos = this._pos = anchorPoint;
 			if (this._map.terrain) this._flatPos = this._trackPointer && cursor ? cursor : this._map._camera.transform.locationToScreenPoint(this._lngLat);
 			let anchor = this.options.anchor;
 			const offset = normalizeOffset(this.options.offset);
@@ -28589,6 +28669,8 @@ var Popup = class extends Evented {
 			this.remove();
 		};
 		this.options = extend(Object.create(defaultOptions), options);
+		this._heightOffset = this.options.heightOffset || 0;
+		this._heightAnchor = this.options.heightAnchor || "ground";
 	}
 	/**
 	* Adds the popup to a map.
@@ -28630,6 +28712,44 @@ var Popup = class extends Evented {
 	*/
 	isOpen() {
 		return !!this._map;
+	}
+	/**
+	* The height in meters at which the popup is anchored, or `undefined` when it sits on the ground.
+	*/
+	_elevation() {
+		if (this._heightAnchor === "absolute") return this._heightOffset;
+		if (!this._heightOffset) return;
+		const terrain = this._map.terrain;
+		return this._heightOffset + (terrain ? terrain.getElevationForLngLat(this._lngLat, this._map._camera.transform) : 0);
+	}
+	/**
+	* Sets the height at which the popup is anchored above its location, and moves it there.
+	* @param heightOffset - the height in meters
+	* @param heightAnchor - the datum the height is measured from, `ground` (the default) or `absolute`
+	* @example
+	* ```ts
+	* new Popup().setLngLat([0, 0]).setHeightOffset(120).setHTML('on the roof').addTo(map);
+	* ```
+	*/
+	setHeightOffset(heightOffset, heightAnchor) {
+		this._heightOffset = heightOffset;
+		if (heightAnchor) this._heightAnchor = heightAnchor;
+		this._update();
+		return this;
+	}
+	/**
+	* Returns the height in meters at which the popup is anchored above its location.
+	* @returns the height offset
+	*/
+	getHeightOffset() {
+		return this._heightOffset;
+	}
+	/**
+	* Returns the datum the popup's height offset is measured from.
+	* @returns `ground` or `absolute`
+	*/
+	getHeightAnchor() {
+		return this._heightAnchor;
 	}
 	/**
 	* Returns the geographical location of the popup's anchor.

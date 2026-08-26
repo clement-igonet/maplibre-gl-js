@@ -21,9 +21,10 @@
 <div id="panel">
   <h1>Opening the ground</h1>
   <p>Gare de Lyon is mapped down to level -4 in OpenStreetMap.
-     Those levels are drawn at their real depth, but the basemap is an unbroken plane on top of them.</p>
+     The mask cuts only the ground tiles: everything belonging to the station keeps drawing inside the opening.</p>
   <label><input type="checkbox" id="mask" checked> cut the basemap with a mask layer</label>
   <label><input type="checkbox" id="levels" checked> underground levels</label>
+  <label><input type="checkbox" id="ulabels" checked> underground labels and markers</label>
   <p class="note" id="note"></p>
 </div>
 <div id="map"></div>
@@ -41,9 +42,10 @@ const box = (s) => [[
     [CENTRE[0] - D_LNG * s, CENTRE[1] - D_LAT * s]
 ]];
 
-const [style, shapes] = await Promise.all([
+const [style, shapes, pois] = await Promise.all([
     fetch('https://tiles.openfreemap.org/styles/bright').then(r => r.json()),
-    fetch('gare-de-lyon.geojson').then(r => r.json())
+    fetch('gare-de-lyon.geojson').then(r => r.json()),
+    fetch('gare-de-lyon-pois.geojson').then(r => r.json())
 ]);
 
 // every basemap layer agrees to be cut. In the spec proposal this is the mask layer naming
@@ -63,6 +65,16 @@ const underground = {
 style.sources.hole = {type: 'geojson', data: {type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: box(1)}}};
 style.sources.underground = {type: 'geojson', data: underground};
 
+// the same treatment for the named places on those levels: points, not polygons
+const undergroundPois = {
+    type: 'FeatureCollection',
+    features: pois.features.flatMap(f =>
+        f.properties.lv.split(';').filter(Boolean).map(Number)
+            .filter(l => UNDER.includes(l))
+            .map(level => ({...f, properties: {...f.properties, level, elev: level * SPACING}})))
+};
+style.sources['underground-pois'] = {type: 'geojson', data: undergroundPois};
+
 style.layers.push({
     id: 'ground-opening', type: 'fill', source: 'hole',
     metadata: {'maplibre:mask': true},
@@ -78,11 +90,38 @@ style.layers.push({
     }
 });
 
+// none of these opt into being masked, so they keep drawing inside the opening
+style.layers.push({
+    id: 'underground-labels', type: 'symbol', source: 'underground-pois',
+    layout: {
+        'text-field': ['get', 'name'],
+        'text-font': ['Noto Sans Regular'],
+        'text-size': 11,
+        'text-anchor': 'bottom',
+        'text-max-width': 9,
+        'symbol-height-offset': ['+', ['get', 'elev'], 1.5],
+        'symbol-height-anchor': 'absolute',
+        'text-allow-overlap': false
+    },
+    paint: {'text-color': '#3c2415', 'text-halo-color': 'rgba(255,255,255,.9)', 'text-halo-width': 1.5}
+});
+
 const map = window.__map = new maplibregl.Map({
     container: 'map', style,
     center: [CENTRE[0], CENTRE[1] - 0.0016],
     zoom: 16.1, pitch: 66, bearing: -28,
     preserveDrawingBuffer: true, antialias: true
+});
+
+// DOM markers are not touched by the stencil at all, so they always show
+const markers = [];
+map.on('load', () => {
+    for (const f of undergroundPois.features.slice(0, 5)) {
+        markers.push(new maplibregl.Marker({color: '#8a5a2b', heightOffset: f.properties.elev + 2, heightAnchor: 'ground'})
+            .setLngLat(f.geometry.coordinates)
+            .setPopup(new maplibregl.Popup({offset: 22}).setText(`${f.properties.name} - level ${f.properties.level}`))
+            .addTo(map));
+    }
 });
 
 document.getElementById('note').textContent =
@@ -92,6 +131,10 @@ document.getElementById('mask').addEventListener('change', (e) =>
     map.setLayoutProperty('ground-opening', 'visibility', e.target.checked ? 'visible' : 'none'));
 document.getElementById('levels').addEventListener('change', (e) =>
     map.setLayoutProperty('underground', 'visibility', e.target.checked ? 'visible' : 'none'));
+document.getElementById('ulabels').addEventListener('change', (e) => {
+    map.setLayoutProperty('underground-labels', 'visibility', e.target.checked ? 'visible' : 'none');
+    for (const m of markers) m.getElement().style.display = e.target.checked ? '' : 'none';
+});
 
 window.__set = async (opts) => {
     for (const [id, on] of Object.entries(opts)) {
