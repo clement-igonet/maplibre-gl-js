@@ -55,7 +55,7 @@ export function drawCircles(painter: Painter, tileManager: TileManager, layer: C
     const depthMode = painter.getDepthModeForSublayer(0, DepthMode.ReadOnly);
     // Turn off stencil testing to allow circles to be drawn across boundaries,
     // so that large circles are not clipped to tiles
-    const stencilMode = StencilMode.disabled;
+    const stencilMode = painter.maskOnlyStencilMode();
     const colorMode = painter.colorModeForRenderPass();
 
     const segmentsRenderStates: SegmentsTileRenderState[] = [];

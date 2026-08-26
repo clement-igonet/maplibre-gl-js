@@ -143,7 +143,8 @@ function drawTiles(
         const uniformValues = rasterUniformValues(parentTopLeft, parentScaleBy, fadeValues.fadeMix, layer, corners, imageWarp);
 
         const mesh = sourceMesh ?? projection.getMeshFromTileID(context, coord.canonical, useBorder, allowPoles, 'raster');
-        const stencilMode = stencilModes ? stencilModes[coord.overscaledZ] : StencilMode.disabled;
+        // the overlap stencil already occupies the test, so only the simple case can be masked
+        const stencilMode = stencilModes ? stencilModes[coord.overscaledZ] : painter.maskOnlyStencilMode();
 
         program.draw(context, gl.TRIANGLES, depthMode, stencilMode, colorMode, flipCullfaceMode ? CullFaceMode.frontCCW : CullFaceMode.backCCW,
             uniformValues, terrainData, projectionData, layer.id, mesh.vertexBuffer,

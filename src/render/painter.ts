@@ -440,6 +440,16 @@ export class Painter {
         this._maskWritePass = null;
     }
 
+    /**
+     * Stencil test for a masked layer that otherwise uses no stencil at all: it drops fragments
+     * wherever a `mask` layer has marked the reserved bit, and is a no-op for everything else.
+     */
+    maskOnlyStencilMode(): Readonly<StencilMode> {
+        if (!this.currentLayerIsMasked) return StencilMode.disabled;
+        const gl = this.context.gl;
+        return new StencilMode({func: gl.NOTEQUAL, mask: Painter.MASK_BIT}, Painter.MASK_BIT, 0x00, gl.KEEP, gl.KEEP, gl.KEEP);
+    }
+
     stencilModeFor3D(): StencilMode {
         this.currentStencilSource = undefined;
 
