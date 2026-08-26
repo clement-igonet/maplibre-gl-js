@@ -66,7 +66,7 @@ export function drawSymbols(painter: Painter, tileManager: TileManager, layer: S
 
     const {isRenderingToTexture} = renderOptions;
     // Disable the stencil test so that labels aren't clipped to tile boundaries.
-    const stencilMode = StencilMode.disabled;
+    const stencilMode = painter.maskOnlyStencilMode();
     const colorMode = painter.colorModeForRenderPass();
     const hasVariablePlacement = layer._unevaluatedLayout.hasValue('text-variable-anchor') || layer._unevaluatedLayout.hasValue('text-variable-anchor-offset');
 

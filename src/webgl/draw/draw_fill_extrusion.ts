@@ -28,13 +28,13 @@ export function drawFillExtrusion(painter: Painter, tileManager: TileManager, la
 
         if (opacity === 1 && !layer.paint.get('fill-extrusion-pattern').constantOr(1 as any)) {
             const colorMode = painter.colorModeForRenderPass();
-            drawExtrusionTiles(painter, tileManager, layer, coords, depthMode, StencilMode.disabled, colorMode, isRenderingToTexture);
+            drawExtrusionTiles(painter, tileManager, layer, coords, depthMode, painter.maskOnlyStencilMode(), colorMode, isRenderingToTexture);
 
         } else {
             // Draw transparent buildings in two passes so that only the closest surface is drawn.
             // First draw all the extrusions into only the depth buffer. No colors are drawn.
             drawExtrusionTiles(painter, tileManager, layer, coords, depthMode,
-                StencilMode.disabled,
+                painter.maskOnlyStencilMode(),
                 ColorMode.disabled, isRenderingToTexture);
 
             // Then draw all the extrusions a second type, only coloring fragments if they have the
