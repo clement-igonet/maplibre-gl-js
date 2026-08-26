@@ -45,6 +45,9 @@ import {isCircleStyleLayer} from '../style/style_layer/circle_style_layer.ts';
 import {isHeatmapStyleLayer} from '../style/style_layer/heatmap_style_layer.ts';
 import {isLineStyleLayer} from '../style/style_layer/line_style_layer.ts';
 import {isFillStyleLayer} from '../style/style_layer/fill_style_layer.ts';
+import {drawFillMask} from '../webgl/draw/draw_fill.ts';
+
+import type {FillStyleLayer} from '../style/style_layer/fill_style_layer.ts';
 import {isFillExtrusionStyleLayer} from '../style/style_layer/fill_extrusion_style_layer.ts';
 import {isHillshadeStyleLayer} from '../style/style_layer/hillshade_style_layer.ts';
 import {isColorReliefStyleLayer} from '../style/style_layer/color_relief_style_layer.ts';
@@ -86,6 +89,16 @@ export type RTTObject = {
  * @internal
  * Initialize a new painter object.
  */
+/** A layer that writes the mask instead of drawing itself. */
+export function isMaskLayer(layer: StyleLayer): boolean {
+    return layer.type === 'fill' && !!layer.metadata?.['maplibre:mask'];
+}
+
+/** A layer that agrees to be cut by `mask` layers. */
+export function isMaskedLayer(layer: StyleLayer): boolean {
+    return !!layer.metadata?.['maplibre:masked'];
+}
+
 export class Painter {
     drawFunctions: DrawFunctions;
     context: Context;
@@ -137,6 +150,16 @@ export class Painter {
     tileBorderIndexBuffer: IndexBuffer;
     _tileClippingMaskIDs: {[_: string]: number};
     stencilClearMode: StencilMode;
+    /**
+     * The top stencil bit is reserved for `mask` layers, so tile clipping ids only use the low
+     * seven bits and tile masks are written without disturbing it.
+     */
+    static readonly MASK_BIT = 0x80;
+    static readonly TILE_STENCIL_MASK = 0x7F;
+    /** Whether the layer being drawn opted into being cut by `mask` layers. */
+    currentLayerIsMasked: boolean;
+    /** Set while a `mask` layer is writing its footprint into the reserved stencil bit. */
+    _maskWritePass: StencilMode | null;
     style: Style;
     options: PainterOptions;
     lineAtlas: LineAtlas;
@@ -304,7 +327,7 @@ export class Painter {
 
         this.currentStencilSource = layer.source;
 
-        if (this.nextStencilID + tileIDs.length > 256) {
+        if (this.nextStencilID + tileIDs.length > Painter.MASK_BIT) {
             // we'll run out of fresh IDs so we need to clear and start from scratch
             this.clearStencil();
         }
@@ -352,7 +375,7 @@ export class Painter {
 
             program.draw(context, gl.TRIANGLES, DepthMode.disabled,
                 // Tests will always pass, and ref value will be written to stencil buffer.
-                new StencilMode({func: gl.ALWAYS, mask: 0}, stencilRef, 0xFF, gl.KEEP, gl.KEEP, gl.REPLACE),
+                new StencilMode({func: gl.ALWAYS, mask: 0}, stencilRef, Painter.TILE_STENCIL_MASK, gl.KEEP, gl.KEEP, gl.REPLACE),
                 ColorMode.disabled, renderToTexture ? CullFaceMode.disabled : CullFaceMode.backCCW, null,
                 terrainData, projectionData, '$clipping', mesh.vertexBuffer,
                 mesh.indexBuffer, mesh.segments);
@@ -392,10 +415,35 @@ export class Painter {
         }
     }
 
+    /**
+     * Draws a `mask` layer's polygons into the reserved stencil bit. Nothing reaches the colour
+     * buffer: the polygons only mark where layers that opted in must not draw.
+     */
+    renderMaskLayers(layerIds: string[], renderOptions: RenderOptions): void {
+        for (const layerId of layerIds) {
+            const layer = this.style._layers[layerId];
+            if (!isMaskLayer(layer) || layer.isHidden(this.transform.zoom)) continue;
+            const tileManager = this.style.tileManagers[layer.source];
+            const coords = tileManager?.getVisibleCoordinates(false);
+            this.renderMask(tileManager, layer as FillStyleLayer, coords, renderOptions);
+        }
+    }
+
+    renderMask(tileManager: TileManager, layer: FillStyleLayer, coords: OverscaledTileID[], renderOptions: RenderOptions): void {
+        if (!coords?.length) return;
+        const gl = this.context.gl;
+        const stencil = new StencilMode(
+            {func: gl.ALWAYS, mask: 0}, Painter.MASK_BIT, Painter.MASK_BIT,
+            gl.KEEP, gl.KEEP, gl.REPLACE);
+        this._maskWritePass = stencil;
+        drawFillMask(this, tileManager, layer, coords, renderOptions);
+        this._maskWritePass = null;
+    }
+
     stencilModeFor3D(): StencilMode {
         this.currentStencilSource = undefined;
 
-        if (this.nextStencilID + 1 > 256) {
+        if (this.nextStencilID + 1 > Painter.MASK_BIT) {
             this.clearStencil();
         }
 
@@ -406,7 +454,11 @@ export class Painter {
 
     stencilModeForClipping(tileID: OverscaledTileID): StencilMode {
         const gl = this.context.gl;
-        return new StencilMode({func: gl.EQUAL, mask: 0xFF}, this._tileClippingMaskIDs[tileID.key], 0x00, gl.KEEP, gl.KEEP, gl.REPLACE);
+        // Layers that opted in compare the whole byte, so a set mask bit fails the test and the
+        // fragment is dropped. Everything else ignores the mask bit and draws as before.
+        if (this._maskWritePass) return this._maskWritePass;
+        const compareMask = this.currentLayerIsMasked ? 0xFF : Painter.TILE_STENCIL_MASK;
+        return new StencilMode({func: gl.EQUAL, mask: compareMask}, this._tileClippingMaskIDs[tileID.key], 0x00, gl.KEEP, gl.KEEP, gl.REPLACE);
     }
 
     /*
@@ -431,7 +483,7 @@ export class Painter {
         const stencilValues = coords[0].overscaledZ - minTileZ + 1;
         if (stencilValues > 1) {
             this.currentStencilSource = undefined;
-            if (this.nextStencilID + stencilValues > 256) {
+            if (this.nextStencilID + stencilValues > Painter.MASK_BIT) {
                 this.clearStencil();
             }
             const zToStencilMode = {};
@@ -587,6 +639,9 @@ export class Painter {
         this.context.clear({color: options.showOverdrawInspector ? Color.black : Color.transparent, depth: 1});
         this.clearStencil();
 
+        // mask layers set up the reserved stencil bit before anything they cut is drawn
+        this.renderMaskLayers(layerIds, renderOptions);
+
         // draw sky first to not overwrite symbols
         if (this.style.sky) this.drawFunctions.sky(this, this.style.sky);
 
@@ -688,6 +743,9 @@ export class Painter {
         if (layer.isHidden(this.transform.zoom)) return;
         if (layer.type !== 'background' && layer.type !== 'custom' && !(coords || []).length) return;
         this.id = layer.id;
+        this.currentLayerIsMasked = isMaskedLayer(layer);
+        // mask layers are drawn once per frame in renderMaskLayers, never in layer order
+        if (isMaskLayer(layer)) return;
 
         const draw = this.drawFunctions;
         if (isSymbolStyleLayer(layer)) {

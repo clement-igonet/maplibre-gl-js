@@ -11,7 +11,7 @@ import {updatePatternPositionsInProgram} from '../../render/update_pattern_posit
 import {translatePosition} from '../../util/util.ts';
 import {drawLayerOpacity, prepareDrawLayerOpacity} from './draw_layer_opacity.ts';
 
-import type {ColorMode} from '../color_mode.ts';
+import {ColorMode} from '../color_mode.ts';
 import type {Painter, RenderOptions} from '../../render/painter.ts';
 import type {TileManager} from '../../tile/tile_manager.ts';
 import type {FillStyleLayer} from '../../style/style_layer/fill_style_layer.ts';
@@ -102,6 +102,14 @@ function drawOutline(
     const depthMode = painter.getDepthModeForSublayer(
         layer.getPaintProperty('fill-outline-color') ? 2 : 0, DepthMode.ReadOnly);
     drawFillTiles(painter, tileManager, layer, coords, depthMode, colorMode, true, isRenderingToTexture);
+}
+
+/**
+ * Draws a `mask` layer's polygons for their stencil footprint only. Colour and depth writes are
+ * off, so the geometry never appears; it just marks where masked layers must not draw.
+ */
+export function drawFillMask(painter: Painter, tileManager: TileManager, layer: FillStyleLayer, coords: OverscaledTileID[], renderOptions: RenderOptions): void {
+    drawFillTiles(painter, tileManager, layer, coords, DepthMode.disabled, ColorMode.disabled, false, renderOptions.isRenderingToTexture);
 }
 
 function drawFillTiles(
