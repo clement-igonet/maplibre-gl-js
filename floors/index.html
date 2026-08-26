@@ -29,8 +29,8 @@
   <h1>Gare de Lyon, level by level</h1>
   <p class="sub">Indoor geometry straight from OpenStreetMap, drawn at each level's own height.</p>
   <ul id="levels"></ul>
-  <label class="opt">spacing between levels
-    <input type="range" id="spacing" min="5" max="90" step="1" value="45" style="width:100%">
+  <label class="opt">pull the levels apart
+    <input type="range" id="spacing" min="1" max="20" step="1" value="10" style="width:100%">
     <span id="spacingOut" style="font-variant-numeric:tabular-nums"></span>
   </label>
   <label class="opt"><input type="checkbox" id="cut"> ground plate, cut open</label>
@@ -43,7 +43,8 @@
 import * as maplibregl from './dist/maplibre-gl-dev.mjs';
 
 const CENTRE = [2.37568, 48.84387];   // centre of the mapped indoor data
-let spacing = 45;                       // metres between levels on screen
+let exaggeration = 10;                  // how far apart the levels are pulled, x real height
+let spacing = 50;                       // metres between levels on screen
 const REAL_H = 5;                       // roughly what a station level really is
 const LEVELS = [2, 1, 0, -1, -2, -3, -4];
 const NAMES = {
@@ -222,8 +223,11 @@ for (const l of LEVELS) {
 const spacingInput = document.getElementById('spacing');
 const spacingOut = document.getElementById('spacingOut');
 function applySpacing() {
-    spacing = Number(spacingInput.value);
-    spacingOut.textContent = `${spacing} m apart on screen (really about ${REAL_H} m)`;
+    exaggeration = Number(spacingInput.value);
+    spacing = exaggeration * REAL_H;
+    spacingOut.textContent = exaggeration === 1 ?
+        `true scale, ${REAL_H} m apart` :
+        `x${exaggeration} — ${spacing} m apart on screen, really about ${REAL_H} m`;
     map.getSource('current').setData(explode(window.__shapes));
     const depth = Math.min(...LEVELS) * spacing - 8;
     groundOpen.properties.base = depth;
