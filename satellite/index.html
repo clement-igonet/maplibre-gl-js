@@ -27,7 +27,9 @@
      Orbit runs at a tenth of real speed. The station sits under the ground track, eye height 1.7 m.</p>
   <button id="space" class="on">1. from space</button>
   <button id="chase">2. alongside the satellite</button>
-  <button id="ground">3. from a ground station, tracking</button>
+  <button id="ground-a">3a. from Station A</button>
+  <button id="ground-b">3b. from Station B</button>
+  <button id="ground-c">3c. from Station C</button>
   <button id="pause">pause orbit</button>
   <p id="readout"></p>
 </div>
@@ -37,7 +39,12 @@
 import * as maplibregl from './dist/maplibre-gl-dev.mjs';
 
 const ALT = 500000;                 // metres
-let GROUND = [2.3522, 48.8566];     // ground station, moved onto the ground track at startup
+const STATIONS = [
+    {id: 'a', name: 'Station A', colour: '#f6c177', lngLat: null},
+    {id: 'b', name: 'Station B', colour: '#7ee081', lngLat: null},
+    {id: 'c', name: 'Station C', colour: '#e06c9f', lngLat: null}
+];
+let GROUND = [2.3522, 48.8566];     // the station currently being looked from
 const PERIOD = 94;                  // minutes, roughly a 500 km orbit
 const INCLINATION = 51.6;           // degrees, roughly ISS
 
@@ -45,15 +52,14 @@ let t = 0, running = true, mode = 'space';
 
 // put the station under the ground track so the satellite actually passes overhead,
 // the way a real site is chosen for a given orbit
-function placeStation() {
-    let best = null;
-    for (let m = 0; m < 200; m += 0.05) {
-        const p = satAt(m);
-        if (p[1] > 45 && p[1] < 50 && (!best || p[1] > best.lat)) best = {lng: p[0], lat: p[1], m};
-    }
-    if (best) GROUND = [best.lng, best.lat];
+// spread the stations along the ground track so the satellite passes over each in turn
+function placeStations() {
+    STATIONS.forEach((st, i) => {
+        st.lngLat = satAt(i * PERIOD / 3 + 12);
+    });
+    GROUND = STATIONS[0].lngLat;
 }
-placeStation();
+placeStations();
 
 // a simple circular orbit, good enough to move something believable across the sky
 function satAt(minutes) {
@@ -79,7 +85,11 @@ const map = window.__map = new maplibregl.Map({
         glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
         sources: {
             sat: {type: 'geojson', data: satFeature(satAt(0))},
-            site: {type: 'geojson', data: {type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: GROUND}}},
+            site: {type: 'geojson', data: {type: 'FeatureCollection', features: STATIONS.map(st => ({
+                type: 'Feature',
+                properties: {name: st.name, colour: st.colour},
+                geometry: {type: 'Point', coordinates: st.lngLat}
+            }))}},
             osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256,
                   attribution: '© OpenStreetMap contributors', maxzoom: 18}
         },
@@ -87,7 +97,12 @@ const map = window.__map = new maplibregl.Map({
             {id: 'space', type: 'background', paint: {'background-color': '#05070d'}},
             {id: 'earth', type: 'raster', source: 'osm'},
             {id: 'site', type: 'circle', source: 'site',
-             paint: {'circle-radius': 5, 'circle-color': '#f6c177', 'circle-stroke-color': '#fff', 'circle-stroke-width': 1}},
+             paint: {'circle-radius': 6, 'circle-color': ['get', 'colour'],
+                     'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}},
+            {id: 'site-label', type: 'symbol', source: 'site',
+             layout: {'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': 11,
+                      'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-allow-overlap': true},
+             paint: {'text-color': '#dbe6f2', 'text-halo-color': '#05070d', 'text-halo-width': 1.4}},
             {id: 'sat', type: 'symbol', source: 'sat',
              layout: {
                  'text-field': '● satellite',
@@ -102,7 +117,7 @@ const map = window.__map = new maplibregl.Map({
         ]
     },
     center: satAt(0),
-    zoom: 0.4,
+    zoom: 0,
     maxPitch: 175,                  // needed to look above the horizon
     pitch: 0,
     attributionControl: {compact: true}
@@ -110,11 +125,14 @@ const map = window.__map = new maplibregl.Map({
 
 function setMode(next) {
     mode = next;
-    for (const id of ['space', 'chase', 'ground']) {
+    for (const id of MODES) {
         document.getElementById(id).classList.toggle('on', id === next);
     }
+    const st = STATIONS.find(x => next === 'ground-' + x.id);
+    if (st) GROUND = st.lngLat;
 }
-for (const id of ['space', 'chase', 'ground']) {
+const MODES = ['space', 'chase', 'ground-a', 'ground-b', 'ground-c'];
+for (const id of MODES) {
     document.getElementById(id).addEventListener('click', () => setMode(id));
 }
 document.getElementById('pause').addEventListener('click', (e) => {
@@ -153,7 +171,7 @@ function lookAngles(site, sat) {
 
 function applyCamera(pos) {
     if (mode === 'space') {
-        map.jumpTo({center: pos, zoom: 0.4, pitch: 0, bearing: 0});
+        map.jumpTo({center: pos, zoom: 0, pitch: 0, bearing: 0});
         return {note: 'globe from a distance'};
     }
     if (mode === 'chase') {
