@@ -23,10 +23,11 @@
 <body>
 <div id="panel">
   <h1>Satellite at 500 km</h1>
-  <p>A point in low earth orbit, drawn with <code>symbol-height-offset</code> at 500 000 m, anchored to the datum.</p>
+  <p>A point in low earth orbit at 500 km, drawn with <code>symbol-height-offset</code>, anchored to the datum.
+     Orbit runs at a tenth of real speed. The station sits under the ground track, eye height 1.7 m.</p>
   <button id="space" class="on">1. from space</button>
   <button id="chase">2. alongside the satellite</button>
-  <button id="ground">3. from the ground, looking up</button>
+  <button id="ground">3. from a ground station, tracking</button>
   <button id="pause">pause orbit</button>
   <p id="readout"></p>
 </div>
@@ -36,11 +37,23 @@
 import * as maplibregl from './dist/maplibre-gl-dev.mjs';
 
 const ALT = 500000;                 // metres
-const GROUND = [2.3522, 48.8566];   // Paris, the observing site
+let GROUND = [2.3522, 48.8566];     // ground station, moved onto the ground track at startup
 const PERIOD = 94;                  // minutes, roughly a 500 km orbit
 const INCLINATION = 51.6;           // degrees, roughly ISS
 
 let t = 0, running = true, mode = 'space';
+
+// put the station under the ground track so the satellite actually passes overhead,
+// the way a real site is chosen for a given orbit
+function placeStation() {
+    let best = null;
+    for (let m = 0; m < 200; m += 0.05) {
+        const p = satAt(m);
+        if (p[1] > 45 && p[1] < 50 && (!best || p[1] > best.lat)) best = {lng: p[0], lat: p[1], m};
+    }
+    if (best) GROUND = [best.lng, best.lat];
+}
+placeStation();
 
 // a simple circular orbit, good enough to move something believable across the sky
 function satAt(minutes) {
@@ -109,6 +122,35 @@ document.getElementById('pause').addEventListener('click', (e) => {
     e.target.textContent = running ? 'pause orbit' : 'resume orbit';
 });
 
+const R = 6371008.8;          // mean earth radius, metres
+const EYE = 1.7;              // observer eye height, metres
+
+function ecef(lngDeg, latDeg, h) {
+    const lng = lngDeg * Math.PI / 180, lat = latDeg * Math.PI / 180;
+    const r = R + h;
+    return [r * Math.cos(lat) * Math.cos(lng), r * Math.cos(lat) * Math.sin(lng), r * Math.sin(lat)];
+}
+
+/**
+ * Azimuth and elevation of the satellite as seen from the ground station, the same look angles a
+ * tracking antenna would use. Elevation is negative while the satellite is below the horizon.
+ */
+function lookAngles(site, sat) {
+    const g = ecef(site[0], site[1], EYE);
+    const s = ecef(sat[0], sat[1], ALT);
+    const d = [s[0] - g[0], s[1] - g[1], s[2] - g[2]];
+    const lng = site[0] * Math.PI / 180, lat = site[1] * Math.PI / 180;
+    const up = [Math.cos(lat) * Math.cos(lng), Math.cos(lat) * Math.sin(lng), Math.sin(lat)];
+    const east = [-Math.sin(lng), Math.cos(lng), 0];
+    const north = [-Math.sin(lat) * Math.cos(lng), -Math.sin(lat) * Math.sin(lng), Math.cos(lat)];
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    const range = Math.hypot(d[0], d[1], d[2]);
+    const elevation = Math.asin(dot(d, up) / range) * 180 / Math.PI;
+    let azimuth = Math.atan2(dot(d, east), dot(d, north)) * 180 / Math.PI;
+    if (azimuth < 0) azimuth += 360;
+    return {azimuth, elevation, rangeKm: range / 1000};
+}
+
 function applyCamera(pos) {
     if (mode === 'space') {
         map.jumpTo({center: pos, zoom: 0.4, pitch: 0, bearing: 0});
@@ -121,15 +163,22 @@ function applyCamera(pos) {
         map.jumpTo(opts);
         return {note: 'camera at ' + Math.round((ALT + 60000) / 1000) + ' km, looking at the satellite', opts};
     }
-    // from the ground, looking up at it
-    const opts = map.calculateCameraOptionsFromTo(GROUND, 2, pos, ALT);
-    map.jumpTo(opts);
-    return {note: 'camera on the ground in Paris, looking at the satellite', opts};
+    // from a fixed ground station: point the camera along the antenna's look angles.
+    // pitch 90 is the horizon, so straight up is 180.
+    const look = lookAngles(GROUND, pos);
+    const pitch = Math.min(179.9, 90 + Math.max(0, look.elevation));
+    map.jumpTo({center: GROUND, zoom: 21, pitch, bearing: look.azimuth});
+    return {
+        note: look.elevation < 0 ?
+            `below the horizon (elevation ${look.elevation.toFixed(1)}°), nothing to see yet` :
+            `az ${look.azimuth.toFixed(0)}°  el ${look.elevation.toFixed(1)}°  range ${Math.round(look.rangeKm)} km`,
+        look
+    };
 }
 
 const readout = document.getElementById('readout');
 function frame() {
-    if (running) t += 0.25;
+    if (running) t += 0.025;   // 10x slower than real time for watching
     const pos = satAt(t);
     map.getSource('sat').setData(satFeature(pos));
     let info = {};
@@ -149,13 +198,16 @@ camera altitude ${Number.isFinite(alt) ? Math.round(alt / 1000) + ' km' : String
 }
 map.on('load', () => frame());
 
+window.__t_set = (v) => { t = v; };
 window.__probe = (m) => {
     setMode(m);
     const pos = satAt(t);
     let err = null;
     try { applyCamera(pos); } catch (e) { err = e.message; }
     const tr = map._camera?.transform;
-    return {mode: m, pitch: map.getPitch(), zoom: map.getZoom(), bearing: Math.round(map.getBearing()),
+    const la = lookAngles(GROUND, pos);
+    return {mode: m, pitch: +map.getPitch().toFixed(1), zoom: +map.getZoom().toFixed(1), bearing: Math.round(map.getBearing()),
+            elevationDeg: +la.elevation.toFixed(1), azimuthDeg: +la.azimuth.toFixed(0), rangeKm: Math.round(la.rangeKm),
             cameraAltitudeKm: tr?.getCameraAltitude ? tr.getCameraAltitude() / 1000 : null, error: err};
 };
 </script>
