@@ -117,7 +117,7 @@ const map = window.__map = new maplibregl.Map({
         ]
     },
     center: satAt(0),
-    zoom: 0,
+    zoom: 3.2,
     maxPitch: 175,                  // needed to look above the horizon
     pitch: 0,
     attributionControl: {compact: true}
@@ -171,8 +171,8 @@ function lookAngles(site, sat) {
 
 function applyCamera(pos) {
     if (mode === 'space') {
-        map.jumpTo({center: pos, zoom: 0, pitch: 0, bearing: 0});
-        return {note: 'globe from a distance'};
+        map.jumpTo({center: pos, zoom: 3.2, pitch: 55, bearing: 0});
+        return {note: 'close enough that the 500 km altitude separates from the ground'};
     }
     if (mode === 'chase') {
         // camera just behind and slightly above the satellite, looking at it
@@ -184,13 +184,15 @@ function applyCamera(pos) {
     // from a fixed ground station: point the camera along the antenna's look angles.
     // pitch 90 is the horizon, so straight up is 180.
     const look = lookAngles(GROUND, pos);
-    const pitch = Math.min(179.9, 90 + Math.max(0, look.elevation));
-    map.jumpTo({center: GROUND, zoom: 21, pitch, bearing: look.azimuth});
+    // the camera has to sit AT the station: center is what the camera looks at, so placing the
+    // station there would look down on it instead of out from it
+    const opts = map.calculateCameraOptionsFromTo(GROUND, EYE, pos, ALT);
+    map.jumpTo(opts);
     return {
         note: look.elevation < 0 ?
             `below the horizon (elevation ${look.elevation.toFixed(1)}°), nothing to see yet` :
             `az ${look.azimuth.toFixed(0)}°  el ${look.elevation.toFixed(1)}°  range ${Math.round(look.rangeKm)} km`,
-        look
+        look, opts
     };
 }
 
