@@ -169,6 +169,20 @@ function lookAngles(site, sat) {
     return {azimuth, elevation, rangeKm: range / 1000};
 }
 
+/**
+ * A point in the sky at the given look angles, used as the camera target so the camera stays at
+ * the station and points upward. Aiming straight at the satellite fails once it is below the
+ * horizon: the target is then under the ground and the camera is thrown far out to reach it.
+ */
+function skyPoint(site, azimuthDeg, elevationDeg, range) {
+    const az = azimuthDeg * Math.PI / 180, el = elevationDeg * Math.PI / 180;
+    const horizontal = range * Math.cos(el);
+    const north = horizontal * Math.cos(az), east = horizontal * Math.sin(az);
+    const lat = site[1] + (north / R) * 180 / Math.PI;
+    const lng = site[0] + (east / (R * Math.cos(site[1] * Math.PI / 180))) * 180 / Math.PI;
+    return {lngLat: [lng, lat], alt: EYE + range * Math.sin(el)};
+}
+
 function applyCamera(pos) {
     if (mode === 'space') {
         map.jumpTo({center: pos, zoom: 3.2, pitch: 55, bearing: 0});
@@ -184,13 +198,17 @@ function applyCamera(pos) {
     // from a fixed ground station: point the camera along the antenna's look angles.
     // pitch 90 is the horizon, so straight up is 180.
     const look = lookAngles(GROUND, pos);
-    // the camera has to sit AT the station: center is what the camera looks at, so placing the
-    // station there would look down on it instead of out from it
-    const opts = map.calculateCameraOptionsFromTo(GROUND, EYE, pos, ALT);
+    // point at the satellite while it is up; otherwise hold the antenna on its bearing, tilted
+    // into the sky, so the view never dives back into the ground
+    const visible = look.elevation > 0;
+    const aim = visible ?
+        {lngLat: pos, alt: ALT} :
+        skyPoint(GROUND, look.azimuth, 25, 400000);
+    const opts = map.calculateCameraOptionsFromTo(GROUND, EYE, aim.lngLat, aim.alt);
     map.jumpTo(opts);
     return {
         note: look.elevation < 0 ?
-            `below the horizon (elevation ${look.elevation.toFixed(1)}°), nothing to see yet` :
+            `below the horizon (${look.elevation.toFixed(1)}°), antenna waiting on bearing ${look.azimuth.toFixed(0)}°` :
             `az ${look.azimuth.toFixed(0)}°  el ${look.elevation.toFixed(1)}°  range ${Math.round(look.rangeKm)} km`,
         look, opts
     };
