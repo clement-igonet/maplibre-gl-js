@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tracking a satellite at 500 km</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="dist/maplibre-gl.css">
+<style>
+  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; color: #eaf0f6; background: #05070d; }
+  #map { position: absolute; inset: 0; }
+  #panel { position: absolute; z-index: 2; top: 12px; left: 12px; width: 290px; padding: 14px;
+           background: rgba(10,16,28,.92); border: 1px solid #24334a; border-radius: 8px; }
+  h1 { margin: 0 0 4px; font-size: 15px; }
+  p { margin: 0 0 10px; color: #94a7bd; font-size: 12px; }
+  button { display: block; width: 100%; margin: 5px 0; padding: 7px 10px; font: inherit; font-size: 13px;
+           background: #16233a; color: #eaf0f6; border: 1px solid #2c3e5c; border-radius: 5px; cursor: pointer; text-align: left; }
+  button:hover { background: #1e2f4d; }
+  button.on { background: #2b6cb0; border-color: #4a8fd0; }
+  #readout { margin-top: 10px; padding-top: 9px; border-top: 1px solid #24334a; font-size: 11.5px;
+             color: #94a7bd; white-space: pre-line; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>Satellite at 500 km</h1>
+  <p>A point in low earth orbit, drawn with <code>symbol-height-offset</code> at 500 000 m, anchored to the datum.</p>
+  <button id="space" class="on">1. from space</button>
+  <button id="chase">2. alongside the satellite</button>
+  <button id="ground">3. from the ground, looking up</button>
+  <button id="pause">pause orbit</button>
+  <p id="readout"></p>
+</div>
+<div id="map"></div>
+
+<script type="module">
+import * as maplibregl from './dist/maplibre-gl-dev.mjs';
+
+const ALT = 500000;                 // metres
+const GROUND = [2.3522, 48.8566];   // Paris, the observing site
+const PERIOD = 94;                  // minutes, roughly a 500 km orbit
+const INCLINATION = 51.6;           // degrees, roughly ISS
+
+let t = 0, running = true, mode = 'space';
+
+// a simple circular orbit, good enough to move something believable across the sky
+function satAt(minutes) {
+    const frac = (minutes % PERIOD) / PERIOD;
+    const arg = frac * 2 * Math.PI;
+    const lat = Math.asin(Math.sin(INCLINATION * Math.PI / 180) * Math.sin(arg)) * 180 / Math.PI;
+    let lng = (Math.atan2(Math.cos(INCLINATION * Math.PI / 180) * Math.sin(arg), Math.cos(arg)) * 180 / Math.PI)
+        - frac * 360 * (PERIOD / 1436);       // earth rotation under the orbit
+    lng = ((lng + 540) % 360) - 180;
+    return [lng, lat];
+}
+
+const satFeature = (pos) => ({
+    type: 'FeatureCollection',
+    features: [{type: 'Feature', properties: {alt: ALT}, geometry: {type: 'Point', coordinates: pos}}]
+});
+
+const map = window.__map = new maplibregl.Map({
+    container: 'map',
+    style: {
+        version: 8,
+        projection: {type: 'globe'},
+        glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+        sources: {
+            sat: {type: 'geojson', data: satFeature(satAt(0))},
+            site: {type: 'geojson', data: {type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: GROUND}}},
+            osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256,
+                  attribution: '© OpenStreetMap contributors', maxzoom: 18}
+        },
+        layers: [
+            {id: 'space', type: 'background', paint: {'background-color': '#05070d'}},
+            {id: 'earth', type: 'raster', source: 'osm'},
+            {id: 'site', type: 'circle', source: 'site',
+             paint: {'circle-radius': 5, 'circle-color': '#f6c177', 'circle-stroke-color': '#fff', 'circle-stroke-width': 1}},
+            {id: 'sat', type: 'symbol', source: 'sat',
+             layout: {
+                 'text-field': '● satellite',
+                 'text-font': ['Noto Sans Regular'],
+                 'text-size': 13,
+                 'text-offset': [0, 0],
+                 'text-allow-overlap': true,
+                 'symbol-height-offset': ['get', 'alt'],
+                 'symbol-height-anchor': 'absolute'
+             },
+             paint: {'text-color': '#7ee0ff', 'text-halo-color': '#04121c', 'text-halo-width': 1.6}}
+        ]
+    },
+    center: satAt(0),
+    zoom: 0.4,
+    maxPitch: 175,                  // needed to look above the horizon
+    pitch: 0,
+    attributionControl: {compact: true}
+});
+
+function setMode(next) {
+    mode = next;
+    for (const id of ['space', 'chase', 'ground']) {
+        document.getElementById(id).classList.toggle('on', id === next);
+    }
+}
+for (const id of ['space', 'chase', 'ground']) {
+    document.getElementById(id).addEventListener('click', () => setMode(id));
+}
+document.getElementById('pause').addEventListener('click', (e) => {
+    running = !running;
+    e.target.textContent = running ? 'pause orbit' : 'resume orbit';
+});
+
+function applyCamera(pos) {
+    if (mode === 'space') {
+        map.jumpTo({center: pos, zoom: 0.4, pitch: 0, bearing: 0});
+        return {note: 'globe from a distance'};
+    }
+    if (mode === 'chase') {
+        // camera just behind and slightly above the satellite, looking at it
+        const behind = satAt(t - 2);
+        const opts = map.calculateCameraOptionsFromTo(behind, ALT + 60000, pos, ALT);
+        map.jumpTo(opts);
+        return {note: 'camera at ' + Math.round((ALT + 60000) / 1000) + ' km, looking at the satellite', opts};
+    }
+    // from the ground, looking up at it
+    const opts = map.calculateCameraOptionsFromTo(GROUND, 2, pos, ALT);
+    map.jumpTo(opts);
+    return {note: 'camera on the ground in Paris, looking at the satellite', opts};
+}
+
+const readout = document.getElementById('readout');
+function frame() {
+    if (running) t += 0.25;
+    const pos = satAt(t);
+    map.getSource('sat').setData(satFeature(pos));
+    let info = {};
+    try {
+        info = applyCamera(pos);
+    } catch (err) {
+        info = {note: 'camera error: ' + err.message};
+    }
+    const tr = map._camera?.transform;
+    const alt = tr?.getCameraAltitude ? tr.getCameraAltitude() : NaN;
+    readout.textContent =
+        `satellite  ${pos[0].toFixed(1)}, ${pos[1].toFixed(1)}  at ${ALT / 1000} km
+${info.note}
+pitch ${map.getPitch().toFixed(1)}  zoom ${map.getZoom().toFixed(2)}
+camera altitude ${Number.isFinite(alt) ? Math.round(alt / 1000) + ' km' : String(alt)}`;
+    requestAnimationFrame(frame);
+}
+map.on('load', () => frame());
+
+window.__probe = (m) => {
+    setMode(m);
+    const pos = satAt(t);
+    let err = null;
+    try { applyCamera(pos); } catch (e) { err = e.message; }
+    const tr = map._camera?.transform;
+    return {mode: m, pitch: map.getPitch(), zoom: map.getZoom(), bearing: Math.round(map.getBearing()),
+            cameraAltitudeKm: tr?.getCameraAltitude ? tr.getCameraAltitude() / 1000 : null, error: err};
+};
+</script>
+</body>
+</html>
