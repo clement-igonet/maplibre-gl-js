@@ -6,248 +6,179 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="dist/maplibre-gl.css">
 <style>
-  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; color: #eaf0f6; background: #05070d; }
-  #map { position: absolute; inset: 0; }
-  #panel { position: absolute; z-index: 2; top: 12px; left: 12px; width: 290px; padding: 14px;
-           background: rgba(10,16,28,.92); border: 1px solid #24334a; border-radius: 8px; }
-  h1 { margin: 0 0 4px; font-size: 15px; }
-  p { margin: 0 0 10px; color: #94a7bd; font-size: 12px; }
-  button { display: block; width: 100%; margin: 5px 0; padding: 7px 10px; font: inherit; font-size: 13px;
-           background: #16233a; color: #eaf0f6; border: 1px solid #2c3e5c; border-radius: 5px; cursor: pointer; text-align: left; }
-  button:hover { background: #1e2f4d; }
-  button.on { background: #2b6cb0; border-color: #4a8fd0; }
-  #readout { margin-top: 10px; padding-top: 9px; border-top: 1px solid #24334a; font-size: 11.5px;
-             color: #94a7bd; white-space: pre-line; font-variant-numeric: tabular-nums; }
+  html, body { margin: 0; height: 100%; font: 13px/1.45 system-ui, sans-serif; color: #eaf0f6; background: #05070d; }
+  #wrap { display: flex; flex-direction: column; height: 100%; }
+  header { padding: 8px 14px; border-bottom: 1px solid #1d2941; }
+  h1 { margin: 0 0 2px; font-size: 15px; }
+  header p { margin: 0; color: #8fa3bb; font-size: 12px; }
+  header code { background: #16233a; padding: 1px 4px; border-radius: 3px; }
+  #top { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; flex: 1.15; }
+  #bottom { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; flex: 1; border-top: 2px solid #05070d; }
+  .pane { position: relative; background: #05070d; overflow: hidden; }
+  .map { position: absolute; inset: 0; }
+  .tag { position: absolute; z-index: 2; top: 6px; left: 6px; padding: 3px 7px; border-radius: 4px;
+         background: rgba(5,9,18,.82); font-weight: 600; font-size: 12px; border: 1px solid #24334a; }
+  .val { position: absolute; z-index: 2; bottom: 6px; left: 6px; right: 6px; padding: 3px 7px; border-radius: 4px;
+         background: rgba(5,9,18,.82); font-size: 11px; color: #9db3cc; font-variant-numeric: tabular-nums; }
+  .a { color: #f6c177 } .b { color: #7ee081 } .c { color: #e06c9f }
 </style>
 </head>
 <body>
-<div id="panel">
-  <h1>Satellite at 500 km</h1>
-  <p>A point in low earth orbit at 500 km, drawn with <code>symbol-height-offset</code>, anchored to the datum.
-     Orbit runs at a tenth of real speed. The station sits under the ground track, eye height 1.7 m.</p>
-  <button id="space" class="on">1. from space</button>
-  <button id="chase">2. alongside the satellite</button>
-  <button id="ground-a">3a. from Station A</button>
-  <button id="ground-b">3b. from Station B</button>
-  <button id="ground-c">3c. from Station C</button>
-  <button id="pause">pause orbit</button>
-  <p id="readout"></p>
+<div id="wrap">
+  <header>
+    <h1>One satellite at 500 km, five cameras</h1>
+    <p>A point in low earth orbit drawn with <code>symbol-height-offset</code>, anchored to the datum.
+       Orbit at a tenth of real speed. Each station tracks it with real antenna look angles, eye height 1.7 m.</p>
+  </header>
+  <div id="top">
+    <div class="pane"><div class="tag">from space</div><div id="m-space" class="map"></div><div class="val" id="v-space"></div></div>
+    <div class="pane"><div class="tag">alongside the satellite</div><div id="m-chase" class="map"></div><div class="val" id="v-chase"></div></div>
+  </div>
+  <div id="bottom">
+    <div class="pane"><div class="tag a">Station A</div><div id="m-a" class="map"></div><div class="val" id="v-a"></div></div>
+    <div class="pane"><div class="tag b">Station B</div><div id="m-b" class="map"></div><div class="val" id="v-b"></div></div>
+    <div class="pane"><div class="tag c">Station C</div><div id="m-c" class="map"></div><div class="val" id="v-c"></div></div>
+  </div>
 </div>
-<div id="map"></div>
 
 <script type="module">
 import * as maplibregl from './dist/maplibre-gl-dev.mjs';
 
-const ALT = 500000;                 // metres
-const STATIONS = [
-    {id: 'a', name: 'Station A', colour: '#f6c177', lngLat: null},
-    {id: 'b', name: 'Station B', colour: '#7ee081', lngLat: null},
-    {id: 'c', name: 'Station C', colour: '#e06c9f', lngLat: null}
-];
-let GROUND = [2.3522, 48.8566];     // the station currently being looked from
-const PERIOD = 94;                  // minutes, roughly a 500 km orbit
-const INCLINATION = 51.6;           // degrees, roughly ISS
+const ALT = 500000, PERIOD = 94, INCLINATION = 51.6, R = 6371008.8, EYE = 1.7;
 
-let t = 0, running = true, mode = 'space';
-
-// put the station under the ground track so the satellite actually passes overhead,
-// the way a real site is chosen for a given orbit
-// spread the stations along the ground track so the satellite passes over each in turn
-function placeStations() {
-    STATIONS.forEach((st, i) => {
-        st.lngLat = satAt(i * PERIOD / 3 + 12);
-    });
-    GROUND = STATIONS[0].lngLat;
-}
-placeStations();
-
-// a simple circular orbit, good enough to move something believable across the sky
 function satAt(minutes) {
-    const frac = (minutes % PERIOD) / PERIOD;
-    const arg = frac * 2 * Math.PI;
-    const lat = Math.asin(Math.sin(INCLINATION * Math.PI / 180) * Math.sin(arg)) * 180 / Math.PI;
-    let lng = (Math.atan2(Math.cos(INCLINATION * Math.PI / 180) * Math.sin(arg), Math.cos(arg)) * 180 / Math.PI)
-        - frac * 360 * (PERIOD / 1436);       // earth rotation under the orbit
-    lng = ((lng + 540) % 360) - 180;
-    return [lng, lat];
+    const frac = (minutes % PERIOD) / PERIOD, arg = frac * 2 * Math.PI;
+    const inc = INCLINATION * Math.PI / 180;
+    const lat = Math.asin(Math.sin(inc) * Math.sin(arg)) * 180 / Math.PI;
+    let lng = Math.atan2(Math.cos(inc) * Math.sin(arg), Math.cos(arg)) * 180 / Math.PI - frac * 360 * (PERIOD / 1436);
+    return [((lng + 540) % 360) - 180, lat];
 }
 
-const satFeature = (pos) => ({
-    type: 'FeatureCollection',
-    features: [{type: 'Feature', properties: {alt: ALT}, geometry: {type: 'Point', coordinates: pos}}]
-});
+const STATIONS = [
+    {id: 'a', name: 'Station A', colour: '#f6c177'},
+    {id: 'b', name: 'Station B', colour: '#7ee081'},
+    {id: 'c', name: 'Station C', colour: '#e06c9f'}
+];
+STATIONS.forEach((st, i) => { st.lngLat = satAt(i * PERIOD / 3 + 12); });
 
-const map = window.__map = new maplibregl.Map({
-    container: 'map',
-    style: {
-        version: 8,
-        projection: {type: 'globe'},
-        glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
-        sources: {
-            sat: {type: 'geojson', data: satFeature(satAt(0))},
-            site: {type: 'geojson', data: {type: 'FeatureCollection', features: STATIONS.map(st => ({
-                type: 'Feature',
-                properties: {name: st.name, colour: st.colour},
-                geometry: {type: 'Point', coordinates: st.lngLat}
-            }))}},
-            osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256,
-                  attribution: '© OpenStreetMap contributors', maxzoom: 18}
-        },
-        layers: [
-            {id: 'space', type: 'background', paint: {'background-color': '#05070d'}},
-            {id: 'earth', type: 'raster', source: 'osm'},
-            {id: 'site', type: 'circle', source: 'site',
-             paint: {'circle-radius': 6, 'circle-color': ['get', 'colour'],
-                     'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}},
-            {id: 'site-label', type: 'symbol', source: 'site',
-             layout: {'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': 11,
-                      'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-allow-overlap': true},
-             paint: {'text-color': '#dbe6f2', 'text-halo-color': '#05070d', 'text-halo-width': 1.4}},
-            {id: 'sat', type: 'symbol', source: 'sat',
-             layout: {
-                 'text-field': '● satellite',
-                 'text-font': ['Noto Sans Regular'],
-                 'text-size': 13,
-                 'text-offset': [0, 0],
-                 'text-allow-overlap': true,
-                 'symbol-height-offset': ['get', 'alt'],
-                 'symbol-height-anchor': 'absolute'
-             },
-             paint: {'text-color': '#7ee0ff', 'text-halo-color': '#04121c', 'text-halo-width': 1.6}}
-        ]
-    },
-    center: satAt(0),
-    zoom: 3.2,
-    maxPitch: 175,                  // needed to look above the horizon
-    pitch: 0,
-    attributionControl: {compact: true}
-});
-
-function setMode(next) {
-    mode = next;
-    for (const id of MODES) {
-        document.getElementById(id).classList.toggle('on', id === next);
-    }
-    const st = STATIONS.find(x => next === 'ground-' + x.id);
-    if (st) GROUND = st.lngLat;
-}
-const MODES = ['space', 'chase', 'ground-a', 'ground-b', 'ground-c'];
-for (const id of MODES) {
-    document.getElementById(id).addEventListener('click', () => setMode(id));
-}
-document.getElementById('pause').addEventListener('click', (e) => {
-    running = !running;
-    e.target.textContent = running ? 'pause orbit' : 'resume orbit';
-});
-
-const R = 6371008.8;          // mean earth radius, metres
-const EYE = 1.7;              // observer eye height, metres
-
-function ecef(lngDeg, latDeg, h) {
-    const lng = lngDeg * Math.PI / 180, lat = latDeg * Math.PI / 180;
-    const r = R + h;
+const ecef = (lngD, latD, h) => {
+    const lng = lngD * Math.PI / 180, lat = latD * Math.PI / 180, r = R + h;
     return [r * Math.cos(lat) * Math.cos(lng), r * Math.cos(lat) * Math.sin(lng), r * Math.sin(lat)];
-}
+};
 
-/**
- * Azimuth and elevation of the satellite as seen from the ground station, the same look angles a
- * tracking antenna would use. Elevation is negative while the satellite is below the horizon.
- */
+/** Azimuth and elevation of the satellite from a station, the look angles a tracking antenna uses. */
 function lookAngles(site, sat) {
-    const g = ecef(site[0], site[1], EYE);
-    const s = ecef(sat[0], sat[1], ALT);
-    const d = [s[0] - g[0], s[1] - g[1], s[2] - g[2]];
-    const lng = site[0] * Math.PI / 180, lat = site[1] * Math.PI / 180;
-    const up = [Math.cos(lat) * Math.cos(lng), Math.cos(lat) * Math.sin(lng), Math.sin(lat)];
+    const g = ecef(site[0], site[1], EYE), s = ecef(sat[0], sat[1], ALT);
+    const d = [s[0]-g[0], s[1]-g[1], s[2]-g[2]];
+    const lng = site[0]*Math.PI/180, lat = site[1]*Math.PI/180;
+    const up = [Math.cos(lat)*Math.cos(lng), Math.cos(lat)*Math.sin(lng), Math.sin(lat)];
     const east = [-Math.sin(lng), Math.cos(lng), 0];
-    const north = [-Math.sin(lat) * Math.cos(lng), -Math.sin(lat) * Math.sin(lng), Math.cos(lat)];
-    const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    const north = [-Math.sin(lat)*Math.cos(lng), -Math.sin(lat)*Math.sin(lng), Math.cos(lat)];
+    const dot = (a,b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
     const range = Math.hypot(d[0], d[1], d[2]);
-    const elevation = Math.asin(dot(d, up) / range) * 180 / Math.PI;
-    let azimuth = Math.atan2(dot(d, east), dot(d, north)) * 180 / Math.PI;
+    let azimuth = Math.atan2(dot(d,east), dot(d,north)) * 180/Math.PI;
     if (azimuth < 0) azimuth += 360;
-    return {azimuth, elevation, rangeKm: range / 1000};
+    return {azimuth, elevation: Math.asin(dot(d,up)/range)*180/Math.PI, rangeKm: range/1000};
 }
 
-/**
- * A point in the sky at the given look angles, used as the camera target so the camera stays at
- * the station and points upward. Aiming straight at the satellite fails once it is below the
- * horizon: the target is then under the ground and the camera is thrown far out to reach it.
- */
-function skyPoint(site, azimuthDeg, elevationDeg, range) {
-    const az = azimuthDeg * Math.PI / 180, el = elevationDeg * Math.PI / 180;
-    const horizontal = range * Math.cos(el);
-    const north = horizontal * Math.cos(az), east = horizontal * Math.sin(az);
-    const lat = site[1] + (north / R) * 180 / Math.PI;
-    const lng = site[0] + (east / (R * Math.cos(site[1] * Math.PI / 180))) * 180 / Math.PI;
-    return {lngLat: [lng, lat], alt: EYE + range * Math.sin(el)};
-}
-
-function applyCamera(pos) {
-    if (mode === 'space') {
-        map.jumpTo({center: pos, zoom: 3.2, pitch: 55, bearing: 0});
-        return {note: 'close enough that the 500 km altitude separates from the ground'};
-    }
-    if (mode === 'chase') {
-        // camera just behind and slightly above the satellite, looking at it
-        const behind = satAt(t - 2);
-        const opts = map.calculateCameraOptionsFromTo(behind, ALT + 60000, pos, ALT);
-        map.jumpTo(opts);
-        return {note: 'camera at ' + Math.round((ALT + 60000) / 1000) + ' km, looking at the satellite', opts};
-    }
-    // from a fixed ground station: point the camera along the antenna's look angles.
-    // pitch 90 is the horizon, so straight up is 180.
-    const look = lookAngles(GROUND, pos);
-    // point at the satellite while it is up; otherwise hold the antenna on its bearing, tilted
-    // into the sky, so the view never dives back into the ground
-    const visible = look.elevation > 0;
-    const aim = visible ?
-        {lngLat: pos, alt: ALT} :
-        skyPoint(GROUND, look.azimuth, 25, 400000);
-    const opts = map.calculateCameraOptionsFromTo(GROUND, EYE, aim.lngLat, aim.alt);
-    map.jumpTo(opts);
+/** A point in the sky on a bearing, so the camera can hold position when the pass is below the horizon. */
+function skyPoint(site, azDeg, elDeg, range) {
+    const az = azDeg*Math.PI/180, el = elDeg*Math.PI/180;
+    const horiz = range*Math.cos(el);
     return {
-        note: look.elevation < 0 ?
-            `below the horizon (${look.elevation.toFixed(1)}°), antenna waiting on bearing ${look.azimuth.toFixed(0)}°` :
-            `az ${look.azimuth.toFixed(0)}°  el ${look.elevation.toFixed(1)}°  range ${Math.round(look.rangeKm)} km`,
-        look, opts
+        lngLat: [site[0] + (horiz*Math.sin(az) / (R*Math.cos(site[1]*Math.PI/180)))*180/Math.PI,
+                 site[1] + (horiz*Math.cos(az) / R)*180/Math.PI],
+        alt: EYE + range*Math.sin(el)
     };
 }
 
-const readout = document.getElementById('readout');
-function frame() {
-    if (running) t += 0.025;   // 10x slower than real time for watching
-    const pos = satAt(t);
-    map.getSource('sat').setData(satFeature(pos));
-    let info = {};
-    try {
-        info = applyCamera(pos);
-    } catch (err) {
-        info = {note: 'camera error: ' + err.message};
+const satFeature = (pos) => ({type: 'FeatureCollection', features: [
+    {type: 'Feature', properties: {alt: ALT}, geometry: {type: 'Point', coordinates: pos}}]});
+
+const style = () => ({
+    version: 8,
+    projection: {type: 'globe'},
+    glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+    sources: {
+        sat: {type: 'geojson', data: satFeature(satAt(0))},
+        site: {type: 'geojson', data: {type: 'FeatureCollection', features: STATIONS.map(st => ({
+            type: 'Feature', properties: {name: st.name, colour: st.colour},
+            geometry: {type: 'Point', coordinates: st.lngLat}}))}},
+        osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256,
+              attribution: '© OpenStreetMap contributors', maxzoom: 18}
+    },
+    layers: [
+        {id: 'space', type: 'background', paint: {'background-color': '#05070d'}},
+        {id: 'earth', type: 'raster', source: 'osm'},
+        {id: 'site', type: 'circle', source: 'site',
+         paint: {'circle-radius': 5, 'circle-color': ['get','colour'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.2}},
+        {id: 'site-label', type: 'symbol', source: 'site',
+         layout: {'text-field': ['get','name'], 'text-font': ['Noto Sans Regular'], 'text-size': 10,
+                  'text-offset': [0, 1], 'text-anchor': 'top', 'text-allow-overlap': true},
+         paint: {'text-color': '#cfe0f0', 'text-halo-color': '#05070d', 'text-halo-width': 1.2}},
+        {id: 'sat', type: 'symbol', source: 'sat',
+         layout: {'text-field': '● sat', 'text-font': ['Noto Sans Regular'], 'text-size': 12,
+                  'text-allow-overlap': true, 'symbol-height-offset': ['get','alt'], 'symbol-height-anchor': 'absolute'},
+         paint: {'text-color': '#7ee0ff', 'text-halo-color': '#04121c', 'text-halo-width': 1.4}}
+    ]
+});
+
+const views = [
+    {key: 'space', container: 'm-space'},
+    {key: 'chase', container: 'm-chase'},
+    ...STATIONS.map(st => ({key: st.id, container: `m-${st.id}`, station: st}))
+];
+
+for (const v of views) {
+    v.map = new maplibregl.Map({
+        container: v.container, style: style(),
+        center: satAt(0), zoom: 2, pitch: 0, maxPitch: 179,
+        attributionControl: {compact: true}, preserveDrawingBuffer: true
+    });
+    v.out = document.getElementById(`v-${v.key}`);
+}
+
+function place(v, pos, t) {
+    if (v.key === 'space') {
+        v.map.jumpTo({center: pos, zoom: 3.2, pitch: 55, bearing: 0});
+        return 'the satellite against the globe';
     }
-    const tr = map._camera?.transform;
-    const alt = tr?.getCameraAltitude ? tr.getCameraAltitude() : NaN;
-    readout.textContent =
-        `satellite  ${pos[0].toFixed(1)}, ${pos[1].toFixed(1)}  at ${ALT / 1000} km
-${info.note}
-pitch ${map.getPitch().toFixed(1)}  zoom ${map.getZoom().toFixed(2)}
-camera altitude ${Number.isFinite(alt) ? Math.round(alt / 1000) + ' km' : String(alt)}`;
+    if (v.key === 'chase') {
+        v.map.jumpTo(v.map.calculateCameraOptionsFromTo(satAt(t - 2), ALT + 60000, pos, ALT));
+        return `camera at ${Math.round((ALT + 60000) / 1000)} km`;
+    }
+    const look = lookAngles(v.station.lngLat, pos);
+    const aim = look.elevation > 0 ? {lngLat: pos, alt: ALT} : skyPoint(v.station.lngLat, look.azimuth, 25, 400000);
+    v.map.jumpTo(v.map.calculateCameraOptionsFromTo(v.station.lngLat, EYE, aim.lngLat, aim.alt));
+    return look.elevation > 0 ?
+        `az ${look.azimuth.toFixed(0)}°  el ${look.elevation.toFixed(1)}°  ${Math.round(look.rangeKm)} km  pitch ${v.map.getPitch().toFixed(0)}°` :
+        `below horizon (${look.elevation.toFixed(0)}°), holding az ${look.azimuth.toFixed(0)}°`;
+}
+
+let t = 0;
+function frame() {
+    t += 0.025;
+    const pos = satAt(t);
+    for (const v of views) {
+        v.map.getSource('sat')?.setData(satFeature(pos));
+        try { v.out.textContent = place(v, pos, t); }
+        catch (e) { v.out.textContent = 'camera error: ' + e.message; }
+    }
     requestAnimationFrame(frame);
 }
-map.on('load', () => frame());
-
+// start once every map is up; a map that is already loaded never fires 'load' again
+let started = false;
+function startWhenReady() {
+    if (started) return;
+    if (!views.every(v => v.map.loaded())) return;
+    started = true;
+    frame();
+}
+for (const v of views) v.map.on('load', startWhenReady);
+setInterval(startWhenReady, 500);
+window.__ready = () => started;
+window.__views = views;
 window.__t_set = (v) => { t = v; };
-window.__probe = (m) => {
-    setMode(m);
-    const pos = satAt(t);
-    let err = null;
-    try { applyCamera(pos); } catch (e) { err = e.message; }
-    const tr = map._camera?.transform;
-    const la = lookAngles(GROUND, pos);
-    return {mode: m, pitch: +map.getPitch().toFixed(1), zoom: +map.getZoom().toFixed(1), bearing: Math.round(map.getBearing()),
-            elevationDeg: +la.elevation.toFixed(1), azimuthDeg: +la.azimuth.toFixed(0), rangeKm: Math.round(la.rangeKm),
-            cameraAltitudeKm: tr?.getCameraAltitude ? tr.getCameraAltitude() / 1000 : null, error: err};
-};
 </script>
 </body>
 </html>
