@@ -582,6 +582,10 @@ export class TransformHelper implements ITransformGetters {
             this._pixelsToClipSpaceMatrix = m;
             const halfFov = this.fovInRadians / 2;
             this._cameraToCenterDistance = 0.5 / Math.tan(halfFov) * this._height;
+
+            // gl-js#6585: every transform needs this, not just mercator, or getCameraAltitude
+            // divides by undefined and returns NaN under globe (#6584)
+            this._pixelPerMeter = mercatorZfromAltitude(1, this.center.lat) * this.worldSize;
         }
         this._callbacks.calcMatrices();
     }
