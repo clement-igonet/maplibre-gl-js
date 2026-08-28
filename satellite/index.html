@@ -76,6 +76,12 @@ const SAT = (() => {
 })();
 const LOOK = lookAngles(STATION, SAT);
 
+/** Camera altitude as the map reports it. Returns NaN under globe projection, see gl-js#6584. */
+const altitudeText = (m) => {
+    const a = m._camera?.transform?.getCameraAltitude?.();
+    return Number.isFinite(a) ? `${Math.round(a / 1000)} km` : String(a);
+};
+
 const style = () => ({
     version: 8,
     projection: {type: 'globe'},
@@ -119,7 +125,7 @@ const sat = new maplibregl.Map({
 sat.on('load', () => {
     sat.jumpTo(sat.calculateCameraOptionsFromTo(SAT, ALT, STATION, EYE));
     document.getElementById('v-sat').textContent =
-        `the exact reciprocal of view 3: same two places, same ${Math.round(LOOK.rangeKm)} km line of sight, camera and target swapped  ·  pitch ${sat.getPitch().toFixed(0)}°  ·  renders normally`;
+        `the exact reciprocal of view 3: same two places, same ${Math.round(LOOK.rangeKm)} km line of sight, camera and target swapped  ·  pitch ${sat.getPitch().toFixed(0)}°  ·  renders normally  ·  camera altitude reported as ${altitudeText(sat)}`;
 });
 
 const station = new maplibregl.Map({
@@ -131,11 +137,11 @@ station.on('load', () => {
     station.jumpTo(station.calculateCameraOptionsFromTo(STATION, EYE, SAT, ALT));
     document.getElementById('v-station').textContent =
         `expected: the point ${LOOK.elevation.toFixed(0)}° above the horizon, near the middle of the frame, since the camera is aimed straight at it. ` +
-        `actual: nothing drawn.  az ${LOOK.azimuth.toFixed(0)}°  el ${LOOK.elevation.toFixed(1)}°  range ${Math.round(LOOK.rangeKm)} km  pitch ${station.getPitch().toFixed(0)}°`;
+        `actual: nothing drawn.  az ${LOOK.azimuth.toFixed(0)}°  el ${LOOK.elevation.toFixed(1)}°  range ${Math.round(LOOK.rangeKm)} km  pitch ${station.getPitch().toFixed(0)}°  ·  camera altitude reported as ${altitudeText(station)} (gl-js#6584)`;
 });
 space.on('load', () => {
     document.getElementById('v-space').textContent =
-        `looking south across the station: the point sits well above the surface, not on it`;
+        `looking south across the station: the point sits well above the surface, not on it  ·  camera altitude reported as ${altitudeText(space)}`;
 });
 
 window.__state = () => ({
