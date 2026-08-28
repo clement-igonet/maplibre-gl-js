@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>A fixed point at 500 km, seen from two cameras</title>
+<title>A fixed point at 500 km, seen from three cameras</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="dist/maplibre-gl.css">
 <style>
@@ -12,7 +12,7 @@
   h1 { margin: 0 0 2px; font-size: 15px; }
   header p { margin: 0; color: #8fa3bb; font-size: 12px; }
   header code { background: #16233a; padding: 1px 4px; border-radius: 3px; }
-  #panes { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; flex: 1; }
+  #panes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; flex: 1; }
   .pane { position: relative; background: #05070d; overflow: hidden; }
   .map { position: absolute; inset: 0; }
   .tag { position: absolute; z-index: 2; top: 7px; left: 7px; padding: 4px 8px; border-radius: 4px;
@@ -25,12 +25,13 @@
 <body>
 <div id="wrap">
   <header>
-    <h1>One fixed point at 500 km, two cameras</h1>
+    <h1>One fixed point at 500 km, three cameras</h1>
     <p>Nothing moves. A single <code>symbol</code> with <code>symbol-height-offset: 500000</code> and
        <code>symbol-height-anchor: absolute</code>, and one ground station placed so the point sits 60° above its horizon.</p>
   </header>
   <div id="panes">
     <div class="pane"><div class="tag ok">looking down from a distance</div><div id="m-space" class="map"></div><div class="val" id="v-space"></div></div>
+    <div class="pane"><div class="tag ok">from the point, looking down</div><div id="m-sat" class="map"></div><div class="val" id="v-sat"></div></div>
     <div class="pane"><div class="tag bad">from the station, looking up</div><div id="m-station" class="map"></div><div class="val" id="v-station"></div></div>
   </div>
 </div>
@@ -109,6 +110,17 @@ const space = new maplibregl.Map({
     maxPitch: 179, attributionControl: {compact: true}
 });
 
+// the reciprocal view: camera at the point itself, 500 km up, looking down at the station
+const sat = new maplibregl.Map({
+    container: 'm-sat', style: style(),
+    center: SAT, zoom: 4, pitch: 0, maxPitch: 179, attributionControl: {compact: true}
+});
+sat.on('load', () => {
+    sat.jumpTo(sat.calculateCameraOptionsFromTo(SAT, ALT, STATION, EYE));
+    document.getElementById('v-sat').textContent =
+        `camera at ${ALT/1000} km looking down at the station  ·  pitch ${sat.getPitch().toFixed(0)}°`;
+});
+
 const station = new maplibregl.Map({
     container: 'm-station', style: style(),
     center: STATION, zoom: 4, pitch: 0, maxPitch: 179, attributionControl: {compact: true}
@@ -127,7 +139,8 @@ space.on('load', () => {
 window.__state = () => ({
     satLngLat: SAT, azimuth: +LOOK.azimuth.toFixed(1), elevation: +LOOK.elevation.toFixed(1),
     rangeKm: Math.round(LOOK.rangeKm), stationPitch: +station.getPitch().toFixed(1),
-    spaceLoaded: space.loaded(), stationLoaded: station.loaded()
+    satPitch: +sat.getPitch().toFixed(1),
+    spaceLoaded: space.loaded(), satLoaded: sat.loaded(), stationLoaded: station.loaded()
 });
 </script>
 </body>
