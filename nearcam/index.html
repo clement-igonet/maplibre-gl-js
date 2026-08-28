@@ -28,6 +28,7 @@
      On the ground it draws at every distance, down to 2 m. Put the same triangle in orbit and nothing draws at all.</p>
   <button id="run-ground">sweep, triangle on the ground</button>
   <button id="run-orbit">sweep, triangle at 500 km</button>
+  <p id="mode" style="margin:9px 0 0;font-weight:600;font-size:12.5px"></p>
   <table id="out"><thead><tr><th>camera distance</th><th>nearZ</th><th>farZ</th><th>object</th><th>earth</th></tr></thead><tbody></tbody></table>
 </div>
 <div id="map"></div>
@@ -139,6 +140,9 @@ window.__sweep = async (altitude) => {
     await new Promise(res => map.once('idle', res));
     const tbody = document.querySelector('#out tbody');
     tbody.innerHTML = '';
+    const mode = document.getElementById('mode');
+    mode.textContent = altitude === 0 ? 'running: triangle on the ground' : 'running: triangle at 500 km';
+    mode.style.color = '#8fa3bb';
     const rows = [];
     for (const metres of DISTANCES) {
         // stand the camera `metres` away from the triangle, looking at its top
@@ -156,6 +160,10 @@ window.__sweep = async (altitude) => {
             `<td class="${px > 50 ? 'yes' : 'no'}">${px > 50 ? 'yes' : 'no'}</td>` +
             `<td class="${earth > 2000 ? 'yes' : 'no'}">${earth > 2000 ? 'yes' : 'no'}</td></tr>`);
     }
+    const drawn = rows.filter(r => r.px > 50).length;
+    mode.textContent = (altitude === 0 ? 'triangle on the ground' : 'triangle at 500 km') +
+        ` — drawn in ${drawn} of ${rows.length} camera positions`;
+    mode.style.color = drawn > 0 ? '#7ee081' : '#ff8f8f';
     return rows;
 };
 document.getElementById('run-ground').addEventListener('click', () => window.__sweep(0));
