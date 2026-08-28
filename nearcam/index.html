@@ -24,9 +24,10 @@
 <body>
 <div id="panel">
   <h1>Custom layer, up close</h1>
-  <p>A 12 m triangle drawn by a <code>custom</code> layer at a fixed spot.
-     The camera walks toward it. The near plane is derived from the ground, so at some distance the object is clipped away.</p>
-  <button id="run">run the sweep</button>
+  <p>A 12 m triangle drawn by a <code>custom</code> layer, with the camera walking toward it.
+     On the ground it draws at every distance, down to 2 m. Put the same triangle in orbit and nothing draws at all.</p>
+  <button id="run-ground">sweep, triangle on the ground</button>
+  <button id="run-orbit">sweep, triangle at 500 km</button>
   <table id="out"><thead><tr><th>camera distance</th><th>nearZ</th><th>farZ</th><th>object</th><th>earth</th></tr></thead><tbody></tbody></table>
 </div>
 <div id="map"></div>
@@ -35,7 +36,7 @@
 import * as maplibregl from './dist/maplibre-gl-dev.mjs';
 
 const SITE = [2.3522, 48.8566];
-const OBJ_ALT = 500000;      // the object sits in orbit, earth is 500 km behind it
+let OBJ_ALT = 0;             // 0 = object on the ground, 500000 = object in orbit
 const TRI_COLOUR = [1.0, 0.25, 0.55];          // distinctive, easy to count in a readback
 
 const map = window.__map = new maplibregl.Map({
@@ -53,9 +54,9 @@ const map = window.__map = new maplibregl.Map({
 
 // a triangle standing 12 m tall at SITE, drawn straight through WebGL
 const nearLayer = {
-    id: 'near-object', type: 'custom', renderingMode: '3d',
+    id: 'near-object', type: 'custom', renderingMode: '3d', altitude: 0,
     onAdd(_map, gl) {
-        const base = maplibregl.MercatorCoordinate.fromLngLat(SITE, OBJ_ALT);
+        const base = maplibregl.MercatorCoordinate.fromLngLat(SITE, this.altitude);
         const perMetre = base.meterInMercatorCoordinateUnits();
         const w = 6 * perMetre, h = 12 * perMetre;
         const verts = new Float32Array([
@@ -129,7 +130,13 @@ function earthPixels() {
 }
 
 const DISTANCES = [5000, 1000, 300, 100, 30, 10, 5, 2];
-window.__sweep = async () => {
+/** Rebuild the triangle at a chosen altitude, then walk the camera in. */
+window.__sweep = async (altitude) => {
+    OBJ_ALT = altitude;
+    if (map.getLayer('near-object')) map.removeLayer('near-object');
+    nearLayer.altitude = altitude;
+    map.addLayer(nearLayer);
+    await new Promise(res => map.once('idle', res));
     const tbody = document.querySelector('#out tbody');
     tbody.innerHTML = '';
     const rows = [];
@@ -151,7 +158,8 @@ window.__sweep = async () => {
     }
     return rows;
 };
-document.getElementById('run').addEventListener('click', () => window.__sweep());
+document.getElementById('run-ground').addEventListener('click', () => window.__sweep(0));
+document.getElementById('run-orbit').addEventListener('click', () => window.__sweep(500000));
 </script>
 </body>
 </html>
