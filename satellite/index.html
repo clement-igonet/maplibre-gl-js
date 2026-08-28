@@ -69,10 +69,10 @@ const SAT = (() => {
     let lo = 0, hi = 6;
     for (let i = 0; i < 60; i++) {
         const mid = (lo + hi) / 2;
-        const el = lookAngles(STATION, [STATION[0], STATION[1] + mid]).elevation;
+        const el = lookAngles(STATION, [STATION[0], STATION[1] - mid]).elevation;
         if (el > 60) lo = mid; else hi = mid;
     }
-    return [STATION[0], STATION[1] + (lo + hi) / 2];
+    return [STATION[0], STATION[1] - (lo + hi) / 2];
 })();
 const LOOK = lookAngles(STATION, SAT);
 
@@ -107,7 +107,7 @@ const style = () => ({
 
 const space = new maplibregl.Map({
     container: 'm-space', style: style(),
-    center: [SAT[0], STATION[1] - 3.2], zoom: 4.3, pitch: 70, bearing: 0,
+    center: [SAT[0], STATION[1] + 3.2], zoom: 4.3, pitch: 70, bearing: 180,
     maxPitch: 179, attributionControl: {compact: true}
 });
 
@@ -135,7 +135,7 @@ station.on('load', () => {
 });
 space.on('load', () => {
     document.getElementById('v-space').textContent =
-        `looking north across the station: the point sits well above the surface, not on it`;
+        `looking south across the station: the point sits well above the surface, not on it`;
 });
 
 window.__state = () => ({
