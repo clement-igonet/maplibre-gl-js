@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>getCameraAltitude in globe: before and after #6585</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="dist/maplibre-gl.css">
+<style>
+  body { margin: 0; font: 13px/1.5 system-ui, sans-serif; color: #eaf0f6; background: #070b14; }
+  main { max-width: 860px; margin: 0 auto; padding: 22px 18px 40px; }
+  h1 { margin: 0 0 4px; font-size: 18px; }
+  p { margin: 0 0 12px; color: #93a7bf; font-size: 13px; }
+  code { background: #16233a; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 14px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 5px 9px; border-bottom: 1px solid #1e2b42; text-align: right; font-size: 12.5px; }
+  th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+  thead th { color: #93a7bf; font-weight: 600; border-bottom: 1px solid #33445f; }
+  .nan { color: #ff8f8f; font-weight: 600; }
+  .ok { color: #7ee081; }
+  .maps { position: absolute; left: -9999px; width: 500px; height: 400px; }
+  #status { margin-top: 12px; color: #93a7bf; font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1><code>getCameraAltitude()</code> under globe: before and after #6585</h1>
+  <p>Two builds of MapLibre GL JS on this page.
+     <b>before</b> is current main.
+     <b>after</b> is current main with the one change from
+     <a href="https://github.com/maplibre/maplibre-gl-js/pull/6585" style="color:#7cc4ff">#6585</a>:
+     <code>_pixelPerMeter</code> set in <code>TransformHelper._calcMatrices()</code> so every transform has it,
+     not only <code>MercatorTransform</code>.
+     Each row places the same camera in both builds and reads the altitude back.</p>
+  <table id="out">
+    <thead><tr><th>projection</th><th>zoom</th><th>pitch</th><th>before (main)</th><th>after (#6585)</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p id="status">measuring…</p>
+</main>
+<div class="maps"><div id="m-before" style="width:500px;height:400px"></div><div id="m-after" style="width:500px;height:400px"></div></div>
+
+<script type="module">
+import * as before from '../satellite/dist/maplibre-gl-dev.mjs';
+import * as after from './dist/maplibre-gl-dev.mjs';
+
+const CASES = [
+    ['mercator', 15, 0], ['mercator', 15, 60], ['mercator', 10, 0],
+    ['globe', 15, 0], ['globe', 15, 60], ['globe', 10, 0], ['globe', 4, 0], ['globe', 2, 0]
+];
+const style = {version: 8, sources: {}, layers: [{id: 'bg', type: 'background', paint: {'background-color': '#123'}}]};
+
+const mk = (lib, id) => new lib.Map({
+    container: id, style, center: [2.3522, 48.8566], zoom: 15, pitch: 0, attributionControl: false
+});
+const maps = {before: mk(before, 'm-before'), after: mk(after, 'm-after')};
+
+async function read(map, projection, zoom, pitch) {
+    map.setProjection({type: projection});
+    map.jumpTo({center: [2.3522, 48.8566], zoom, pitch});
+    await new Promise(r => map.once('idle', r));
+    return map._camera.transform.getCameraAltitude();
+}
+
+const fmt = (v) => Number.isFinite(v)
+    ? (v >= 100000 ? `${(v / 1000).toFixed(0)} km` : `${v.toFixed(1)} m`)
+    : String(v);
+
+window.__results = [];
+(async () => {
+    await Promise.all(Object.values(maps).map(m => new Promise(r => m.on('load', r))));
+    const tbody = document.querySelector('#out tbody');
+    for (const [projection, zoom, pitch] of CASES) {
+        const b = await read(maps.before, projection, zoom, pitch);
+        const a = await read(maps.after, projection, zoom, pitch);
+        window.__results.push({projection, zoom, pitch, before: b, after: a});
+        tbody.insertAdjacentHTML('beforeend',
+            `<tr><td>${projection}</td><td>${zoom}</td><td>${pitch}</td>` +
+            `<td class="${Number.isFinite(b) ? '' : 'nan'}">${fmt(b)}</td>` +
+            `<td class="${Number.isFinite(a) ? 'ok' : 'nan'}">${fmt(a)}</td></tr>`);
+    }
+    const fixed = window.__results.filter(r => !Number.isFinite(r.before) && Number.isFinite(r.after)).length;
+    const agree = window.__results.filter(r => Number.isFinite(r.before) && r.before === r.after).length;
+    document.getElementById('status').textContent =
+        `${fixed} rows went from NaN to a number. ${agree} rows already worked and are unchanged.`;
+    window.__done = true;
+})();
+</script>
+</body>
+</html>
