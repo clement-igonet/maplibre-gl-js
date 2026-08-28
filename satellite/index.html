@@ -12,7 +12,8 @@
   h1 { margin: 0 0 2px; font-size: 15px; }
   header p { margin: 0; color: #8fa3bb; font-size: 12px; }
   header code { background: #16233a; padding: 1px 4px; border-radius: 3px; }
-  #panes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; flex: 1; }
+  #panes { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1.1fr 1fr; gap: 2px; flex: 1; }
+  .wide { grid-column: 1 / -1; }
   .pane { position: relative; background: #05070d; overflow: hidden; }
   .map { position: absolute; inset: 0; }
   .tag { position: absolute; z-index: 2; top: 7px; left: 7px; padding: 4px 8px; border-radius: 4px;
@@ -30,9 +31,9 @@
        <code>symbol-height-anchor: absolute</code>, and one ground station placed so the point sits 60° above its horizon.</p>
   </header>
   <div id="panes">
-    <div class="pane"><div class="tag ok">looking down from a distance</div><div id="m-space" class="map"></div><div class="val" id="v-space"></div></div>
-    <div class="pane"><div class="tag ok">from the point, looking down</div><div id="m-sat" class="map"></div><div class="val" id="v-sat"></div></div>
-    <div class="pane"><div class="tag bad">from the station, looking up</div><div id="m-station" class="map"></div><div class="val" id="v-station"></div></div>
+    <div class="pane"><div class="tag ok">1. from the side, the point stands 500 km above the ground</div><div id="m-space" class="map"></div><div class="val" id="v-space"></div></div>
+    <div class="pane"><div class="tag ok">2. from the point, looking down at the station</div><div id="m-sat" class="map"></div><div class="val" id="v-sat"></div></div>
+    <div class="pane wide"><div class="tag bad">3. from the station, looking up at the point</div><div id="m-station" class="map"></div><div class="val" id="v-station"></div></div>
   </div>
 </div>
 
@@ -106,7 +107,7 @@ const style = () => ({
 
 const space = new maplibregl.Map({
     container: 'm-space', style: style(),
-    center: [SAT[0], SAT[1] - 1.6], zoom: 4.2, pitch: 60, bearing: 0,
+    center: [SAT[0], STATION[1] - 3.2], zoom: 4.3, pitch: 70, bearing: 0,
     maxPitch: 179, attributionControl: {compact: true}
 });
 
@@ -118,7 +119,7 @@ const sat = new maplibregl.Map({
 sat.on('load', () => {
     sat.jumpTo(sat.calculateCameraOptionsFromTo(SAT, ALT, STATION, EYE));
     document.getElementById('v-sat').textContent =
-        `camera at ${ALT/1000} km looking down at the station  ·  pitch ${sat.getPitch().toFixed(0)}°`;
+        `the exact reciprocal of view 3: same two places, same ${Math.round(LOOK.rangeKm)} km line of sight, camera and target swapped  ·  pitch ${sat.getPitch().toFixed(0)}°  ·  renders normally`;
 });
 
 const station = new maplibregl.Map({
@@ -129,11 +130,12 @@ station.on('load', () => {
     // camera on the ground at the station, pointed at the fixed point
     station.jumpTo(station.calculateCameraOptionsFromTo(STATION, EYE, SAT, ALT));
     document.getElementById('v-station').textContent =
-        `az ${LOOK.azimuth.toFixed(0)}°  el ${LOOK.elevation.toFixed(1)}°  range ${Math.round(LOOK.rangeKm)} km  pitch ${station.getPitch().toFixed(0)}°  nothing drawn`;
+        `expected: the point ${LOOK.elevation.toFixed(0)}° above the horizon, near the middle of the frame, since the camera is aimed straight at it. ` +
+        `actual: nothing drawn.  az ${LOOK.azimuth.toFixed(0)}°  el ${LOOK.elevation.toFixed(1)}°  range ${Math.round(LOOK.rangeKm)} km  pitch ${station.getPitch().toFixed(0)}°`;
 });
 space.on('load', () => {
     document.getElementById('v-space').textContent =
-        `the same point and station, drawn from above  ·  point at ${SAT[1].toFixed(2)}°N, station at ${STATION[1].toFixed(2)}°N`;
+        `looking north across the station: the point sits well above the surface, not on it`;
 });
 
 window.__state = () => ({
