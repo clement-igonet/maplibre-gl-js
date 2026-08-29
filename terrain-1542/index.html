@@ -40,7 +40,7 @@
      All three builds come from the same commit of main.
      <b>main</b> is unchanged, <b>#4551 only</b> adds that PR's <code>surfacePadding</code>,
      <b>+ lookup fix</b> also floors the zoom when building tile IDs for elevation lookups.
-     Each journey reports the worst distance the camera ends up below the terrain surface.</p>
+     Each journey reports the worst distance the camera ends up below the terrain surface, and runs at a quarter speed so it can be watched.</p>
   <div id="controls">
     <button data-j="pan-into-slope">pan into slope</button>
     <button data-j="zoom-into-slope">zoom into slope</button>
@@ -64,7 +64,10 @@ import * as libMain from './dist-main/maplibre-gl-dev.mjs';
 import * as lib4551 from './dist-4551/maplibre-gl-dev.mjs';
 import * as lib1542 from './dist-1542/maplibre-gl-dev.mjs';
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+// every journey runs at a quarter speed, which is easier to watch and gives the terrain
+// tiles time to stream in, so the readings vary less between runs
+const SLOWDOWN = 4;
+const sleep = (ms) => new Promise(r => setTimeout(r, ms * SLOWDOWN));
 
 function makeProbe(lib, container, hudEl) {
     const map = new lib.Map({
@@ -117,7 +120,7 @@ function makeProbe(lib, container, hudEl) {
         } else if (name === 'zoom-into-slope') {
             map.jumpTo({center: [11.395, 47.286], zoom: 13, pitch: 80, bearing: 180});
             await sleep(2500);
-            map.easeTo({zoom: 17.5, duration: 8000, easing: t => t});
+            map.easeTo({zoom: 17.5, duration: 8000 * SLOWDOWN, easing: t => t});
             await sleep(8800);
         } else if (name === 'walk-into-mountain') {
             map.jumpTo({center: [11.380, 47.303], zoom: 15.5, pitch: 84, bearing: 180});
