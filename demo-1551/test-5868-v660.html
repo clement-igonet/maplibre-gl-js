@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>#5868 check: globe pole drag with terrain, release v6.6.0</title>
+<meta charset="utf-8">
+<link rel="stylesheet" href="dist-660/maplibre-gl.css">
+<style>
+    body, html { margin: 0; height: 100%; }
+    #wrap { display: flex; height: 100%; }
+    .half { position: relative; flex: 1; }
+    .half .map { position: absolute; inset: 0; }
+    .tag { position: absolute; top: 8px; left: 8px; z-index: 2; background: rgba(0,0,0,.8); color: #fff;
+           padding: 6px 10px; border-radius: 4px; font: 600 13px monospace; white-space: pre; }
+</style>
+</head>
+<body>
+<div id="wrap">
+    <div class="half"><div id="map-a" class="map"></div><div class="tag" id="tag-a">globe + terrain (v6.6.0)</div></div>
+    <div class="half"><div id="map-b" class="map"></div><div class="tag" id="tag-b">globe only</div></div>
+</div>
+<script type="module">
+import * as maplibregl from './dist-660/maplibre-gl-dev.mjs';
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+function mk(id, withTerrain) {
+    const style = {
+        version: 8,
+        projection: {type: 'globe'},
+        sources: {
+            osm: {type: 'raster', tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap contributors'}
+        },
+        layers: [{id: 'osm', type: 'raster', source: 'osm'}]
+    };
+    if (withTerrain) {
+        style.sources.terrainSource = {type: 'raster-dem', encoding: 'terrarium', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 15, attribution: 'Mapzen/AWS'};
+        style.terrain = {source: 'terrainSource', exaggeration: 1};
+    }
+    return new maplibregl.Map({container: id, center: [11, 45], zoom: 3.5, style});
+}
+
+const a = mk('map-a', true);
+const b = mk('map-b', false);
+window.maps = {a, b};
+
+async function dragNorth(map) {
+    const canvas = map.getCanvas();
+    const rect = canvas.getBoundingClientRect();
+    const cx = rect.width / 2, cy = rect.height / 2;
+    const fire = (type, x, y) => canvas.dispatchEvent(new MouseEvent(type, {
+        clientX: rect.left + x, clientY: rect.top + y, button: 0,
+        buttons: type === 'mouseup' ? 0 : 1, bubbles: true, cancelable: true, view: window}));
+    fire('mousedown', cx, cy - 100);
+    for (let s = 0; s <= 10; s++) { fire('mousemove', cx, cy - 100 + s * 25); await sleep(30); }
+    fire('mouseup', cx, cy + 150);
+    await sleep(250);
+}
+
+window.test = async () => {
+    const traj = {terrain: [], plain: []};
+    for (let i = 0; i < 8; i++) {
+        await dragNorth(a);
+        await dragNorth(b);
+        traj.terrain.push(+a.getZoom().toFixed(3));
+        traj.plain.push(+b.getZoom().toFixed(3));
+    }
+    const res = {
+        terrainLat: +a.getCenter().lat.toFixed(1), plainLat: +b.getCenter().lat.toFixed(1),
+        terrainZoom: traj.terrain, plainZoom: traj.plain,
+        maxZoomDiff: +Math.max(...traj.terrain.map((z, i) => Math.abs(z - traj.plain[i]))).toFixed(3)
+    };
+    document.getElementById('tag-a').textContent = `globe + terrain\nlat ${res.terrainLat} zoom ${traj.terrain.at(-1)}`;
+    document.getElementById('tag-b').textContent = `globe only\nlat ${res.plainLat} zoom ${traj.plain.at(-1)}`;
+    return res;
+};
+</script>
+</body>
+</html>
