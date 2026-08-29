@@ -40,7 +40,8 @@
      All three builds come from the same commit of main.
      <b>main</b> is unchanged, <b>#4551 only</b> adds that PR's <code>surfacePadding</code>,
      <b>+ lookup fix</b> also floors the zoom when building tile IDs for elevation lookups.
-     Each journey reports the worst distance the camera ends up below the terrain surface, and runs at a quarter speed so it can be watched.</p>
+     Each journey waits for the terrain to finish loading, then runs at a quarter speed.
+     It reports the worst distance the camera ends up below the surface, and how often the collision guard read nothing while the rendered ground was real, which separates a broken lookup from terrain that had not loaded.</p>
   <div id="controls">
     <button data-j="pan-into-slope">pan into slope</button>
     <button data-j="zoom-into-slope">zoom into slope</button>
@@ -67,6 +68,11 @@ import * as lib1542 from './dist-1542/maplibre-gl-dev.mjs';
 // every journey runs at a quarter speed, which is easier to watch and gives the terrain
 // tiles time to stream in, so the readings vary less between runs
 const SLOWDOWN = 4;
+/** Wait until the map has nothing left to load, so terrain is present before a journey starts. */
+const settled = (map) => new Promise(res => {
+    if (map.loaded() && !map.isMoving()) return setTimeout(res, 400);
+    map.once('idle', () => setTimeout(res, 400));
+});
 const sleep = (ms) => new Promise(r => setTimeout(r, ms * SLOWDOWN));
 
 function makeProbe(lib, container, hudEl) {
@@ -89,14 +95,20 @@ function makeProbe(lib, container, hudEl) {
         const cam = tr.getCameraLngLat();
         const alt = tr.getCameraAltitude();
         const ground = map.queryTerrainElevation(cam) ?? 0;
-        return {alt, ground, penetration: ground - alt};
+        // what the collision guard itself sees at the same instant: if the rendered ground is
+        // real and this reads 0, the terrain is loaded and the lookup is what is wrong
+        const guardSees = map.terrain ? map.terrain.getElevationForLngLatZoom(cam, tr.zoom) : 0;
+        return {alt, ground, guardSees, penetration: ground - alt};
     }
 
-    let worst = -Infinity;
+    let worst = -Infinity, blindSamples = 0, totalSamples = 0;
     const track = (name) => {
         const s = sample();
         if (s.penetration > worst) worst = s.penetration;
-        hudEl.textContent = `${name}\ncamera ${s.alt.toFixed(0)} m, ground ${s.ground.toFixed(0)} m\nworst ${worst > 0 ? worst.toFixed(0) + ' m under' : Math.abs(worst).toFixed(0) + ' m clear'}`;
+        totalSamples++;
+        // terrain is loaded here, yet the guard reads nothing
+        if (s.ground > 50 && Math.abs(s.guardSees) < 1) blindSamples++;
+        hudEl.textContent = `${name}\ncamera ${s.alt.toFixed(0)} m, ground ${s.ground.toFixed(0)} m, guard sees ${s.guardSees.toFixed(0)} m\nworst ${worst > 0 ? worst.toFixed(0) + ' m under' : Math.abs(worst).toFixed(0) + ' m clear'}  ·  guard blind ${totalSamples ? Math.round(100 * blindSamples / totalSamples) : 0}%`;
         hudEl.classList.toggle('bad', worst > 0);
     };
 
@@ -105,7 +117,7 @@ function makeProbe(lib, container, hudEl) {
         const timer = setInterval(() => track(name), 60);
         if (name === 'pan-into-slope') {
             map.jumpTo({center: [11.39085, 47.27574], zoom: 15.5, pitch: 80, bearing: 0});
-            await sleep(2500);
+            await settled(map);
             const canvas = map.getCanvas(), rect = canvas.getBoundingClientRect();
             const cx = rect.width / 2, cy = rect.height / 2;
             const fire = (type, x, y) => canvas.dispatchEvent(new MouseEvent(type, {
@@ -113,29 +125,29 @@ function makeProbe(lib, container, hudEl) {
                 buttons: type === 'mouseup' ? 0 : 1, bubbles: true, cancelable: true, view: window}));
             for (let rep = 0; rep < 5; rep++) {
                 fire('mousedown', cx, cy - 100);
-                for (let s = 0; s <= 10; s++) { fire('mousemove', cx, cy - 100 + s * 25); await sleep(30); }
+                for (let s = 0; s <= 20; s++) { fire('mousemove', cx, cy - 100 + s * 12.5); await sleep(45); }
                 fire('mouseup', cx, cy + 150);
                 await sleep(350);
             }
         } else if (name === 'zoom-into-slope') {
             map.jumpTo({center: [11.395, 47.286], zoom: 13, pitch: 80, bearing: 180});
-            await sleep(2500);
+            await settled(map);
             map.easeTo({zoom: 17.5, duration: 8000 * SLOWDOWN, easing: t => t});
             await sleep(8800);
         } else if (name === 'walk-into-mountain') {
             map.jumpTo({center: [11.380, 47.303], zoom: 15.5, pitch: 84, bearing: 180});
-            await sleep(2500);
+            await settled(map);
             let lat = 47.303;
             for (let i = 0; i < 24; i++) { lat -= 0.0005; map.jumpTo({center: [11.380, lat]}); await sleep(120); }
         } else if (name === 'pitch-into-terrain') {
             map.jumpTo({center: [11.380, 47.295], zoom: 15.2, pitch: 20, bearing: 180});
-            await sleep(2500);
+            await settled(map);
             for (let p = 20; p <= 76; p += 2) { map.jumpTo({pitch: p}); await sleep(100); }
         }
         await sleep(500);
         clearInterval(timer);
         track(name);
-        return worst;
+        return {worst, blindPct: totalSamples ? Math.round(100 * blindSamples / totalSamples) : 0};
     }
     return {map, run};
 }
@@ -146,9 +158,9 @@ const probes = {
     p1542: makeProbe(lib1542, 'm-1542', document.getElementById('h-1542'))
 };
 
-const cell = (v) => v > 0
-    ? `<td class="under">${v.toFixed(0)} m under</td>`
-    : `<td class="clear">${Math.abs(v).toFixed(0)} m clear</td>`;
+const cell = (r) => r.worst > 0
+    ? `<td class="under">${r.worst.toFixed(0)} m under<br><small>guard blind ${r.blindPct}%</small></td>`
+    : `<td class="clear">${Math.abs(r.worst).toFixed(0)} m clear<br><small>guard blind ${r.blindPct}%</small></td>`;
 
 window.__run = async (name) => {
     const [a, b, c] = await Promise.all([
