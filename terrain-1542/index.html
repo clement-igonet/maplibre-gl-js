@@ -43,10 +43,6 @@
      Each journey waits for the terrain to finish loading, then runs at a quarter speed.
      It reports the worst distance the camera ends up below the surface, and how often the collision guard read nothing while the rendered ground was real, which separates a broken lookup from terrain that had not loaded.</p>
   <div id="controls">
-    <button data-j="pan-into-slope">pan into slope</button>
-    <button data-j="zoom-into-slope">zoom into slope</button>
-    <button data-j="walk-into-mountain">walk into mountain</button>
-    <button data-j="pitch-into-terrain">pitch into terrain</button>
     <button id="all">run all four</button>
   </div>
 </header>
@@ -172,14 +168,6 @@ window.__run = async (name) => {
 };
 
 const buttons = [...document.querySelectorAll('#controls button')];
-for (const btn of buttons) {
-    if (btn.id === 'all') continue;
-    btn.addEventListener('click', async () => {
-        buttons.forEach(b => b.disabled = true);
-        await window.__run(btn.dataset.j);
-        buttons.forEach(b => b.disabled = false);
-    });
-}
 document.getElementById('all').addEventListener('click', async () => {
     buttons.forEach(b => b.disabled = true);
     document.querySelector('#out tbody').innerHTML = '';
