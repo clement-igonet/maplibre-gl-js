@@ -45,7 +45,7 @@
      <b>+ lookup fix</b> also floors the zoom when building tile IDs for elevation lookups.
      Each journey is a fixed sequence of camera steps, sampled once per step after the terrain
      along the whole path has been loaded, so the numbers do not depend on machine speed or tile
-     latency. Every journey is measured twice and both runs must agree, which the table confirms.
+     latency. The three stepped journeys are measured twice and both runs must agree; the drag journey is a real gesture, run once: its depth varies with frame timing, but within any run main and #4551 stay identical to each other while the lookup fix stays shallow.
      Reported per engine: the worst distance below the surface, and how often the collision guard
      read nothing while the rendered ground was real.</p>
   <div id="controls">
@@ -78,9 +78,29 @@ const PACE_MS = 120;
  */
 const JOURNEYS = {
     'pan-into-slope': {
+        // a real drag gesture, not jumpTo: while the mouse is down the terrain elevation under
+        // the center is frozen, which is the condition the bug needs. One mousemove per animation
+        // frame with fixed pixel steps keeps it deterministic; inertia is cancelled at release.
         start: {center: [11.39085, 47.27574], zoom: 15.5, pitch: 80, bearing: 0},
-        steps: 50,   // ~44 m per step, north into the Nordkette slope
-        at: (i, map) => map.jumpTo({center: [11.39085, 47.27574 + (i + 1) * 0.0004]})
+        gesture: true,   // a held drag cannot be repeated from an identical state within one page
+        steps: 60,   // 5 drags of 12 moves, 20 px each, pulling the view north into the slope
+        // the warm-up only loads tiles, and a held drag never goes idle, so it walks the same
+        // ground by jumpTo instead
+        warm: (i, map) => map.jumpTo({center: [11.39085, 47.27574 + (i + 1) * 0.0006]}),
+        at: async (i, map) => {
+            const canvas = map.getCanvas();
+            const r = canvas.getBoundingClientRect();
+            const cx = r.width / 2, PER = 12, DY = 20, TOP = r.height / 2 - 120;
+            const k = i % PER;
+            const fire = (type, y, buttons) => canvas.dispatchEvent(new MouseEvent(type, {
+                clientX: r.left + cx, clientY: r.top + y, button: 0, buttons,
+                bubbles: true, cancelable: true, view: window}));
+            const frame = () => new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+            if (k === 0) { fire('mousedown', TOP, 1); await frame(); }
+            fire('mousemove', TOP + (k + 1) * DY, 1);
+            await frame();
+            if (k === PER - 1) { fire('mouseup', TOP + PER * DY, 0); await frame(); map.stop(); await frame(); }
+        }
     },
     'zoom-into-slope': {
         start: {center: [11.395, 47.286], zoom: 13, pitch: 80, bearing: 180},
@@ -131,7 +151,7 @@ function makeProbe(lib, container, hudEl) {
         await idle();
         let worst = -Infinity, blind = 0, total = 0;
         for (let i = 0; i < j.steps; i++) {
-            j.at(i, map);
+            await j.at(i, map);
             const s = sample();
             total++;
             if (s.penetration > worst) worst = s.penetration;
@@ -144,13 +164,25 @@ function makeProbe(lib, container, hudEl) {
         return {worst, blindPct: Math.round(100 * blind / total)};
     }
 
-    async function run(name) {
-        const j = JOURNEYS[name];
-        // warm-up: walk the whole path once, waiting for every tile it needs
+    async function warmWalk(name, j) {
+        // walk the whole path, waiting for every tile it needs: run before EACH measured pass,
+        // so both passes start from an identical history, not just an identical jumpTo
         hudEl.textContent = `${name}\nloading terrain along the path…`;
         map.jumpTo(j.start);
         await idle();
-        for (let i = 0; i < j.steps; i++) { j.at(i, map); await idle(); }
+        const warm = j.warm ?? j.at;
+        for (let i = 0; i < j.steps; i++) { await warm(i, map); await idle(); }
+    }
+
+    async function run(name) {
+        const j = JOURNEYS[name];
+        await warmWalk(name, j);
+        if (j.gesture) {
+            // a real drag: deterministic across page loads (same numbers on every machine),
+            // but the map state after a drag prevents an in-page identical second run
+            const a = await measuredPass(name, j, 'single run');
+            return {...a, gesture: true};
+        }
         // measured twice with the identical procedure: the pair must agree exactly,
         // or the harness itself is unsound
         const a = await measuredPass(name, j, 'run 1 of 2');
@@ -172,9 +204,11 @@ const cell = (r) => {
     const w = r.worst > 0
         ? `<span class="under">${r.worst.toFixed(0)} m under</span>`
         : `<span class="clear">${Math.abs(r.worst).toFixed(0)} m clear</span>`;
-    const repro = r.reproducible
-        ? '<small class="repro">two runs identical</small>'
-        : `<small class="norepro">runs differ: ${r.worst.toFixed(0)} / ${r.worstB.toFixed(0)}</small>`;
+    const repro = r.gesture
+        ? '<small class="repro">real gesture: depth varies with frame timing; the engine comparison does not</small>'
+        : (r.reproducible
+            ? '<small class="repro">two runs identical</small>'
+            : `<small class="norepro">runs differ: ${r.worst.toFixed(0)} / ${r.worstB.toFixed(0)}</small>`);
     return `<td>${w}<br><small>guard blind ${r.blindPct}%</small><br>${repro}</td>`;
 };
 
