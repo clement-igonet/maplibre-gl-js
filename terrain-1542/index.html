@@ -11,7 +11,7 @@
   h1 { margin: 0 0 3px; font-size: 16px; }
   header p { margin: 0; color: #93a7bf; font-size: 12.5px; }
   header a { color: #7cc4ff; }
-  #controls { margin-top: 9px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  #controls { margin-top: 9px; display: flex; gap: 8px; align-items: center; }
   button { padding: 6px 11px; font: inherit; font-size: 12.5px; background: #16233a; color: #eaf0f6;
            border: 1px solid #2c3e5c; border-radius: 5px; cursor: pointer; }
   button:hover { background: #1e2f4d; }
@@ -24,12 +24,15 @@
   .hud { position: absolute; z-index: 2; bottom: 6px; left: 6px; right: 6px; padding: 4px 8px; border-radius: 4px;
          background: rgba(6,10,20,.88); font-size: 11px; white-space: pre-line; font-variant-numeric: tabular-nums; }
   .hud.bad { color: #ff8f8f; }
-  table { border-collapse: collapse; width: 100%; margin: 0; font-variant-numeric: tabular-nums; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
   th, td { padding: 5px 10px; border-bottom: 1px solid #1e2b42; text-align: right; font-size: 12.5px; }
   th:first-child, td:first-child { text-align: left; }
   thead th { color: #93a7bf; border-bottom: 1px solid #33445f; }
   .under { color: #ff8f8f; font-weight: 600; }
   .clear { color: #7ee081; }
+  td small { color: #93a7bf; font-weight: 400; }
+  td small.repro { color: #7ee081; }
+  td small.norepro { color: #ffb86b; }
 </style>
 </head>
 <body>
@@ -40,8 +43,11 @@
      All three builds come from the same commit of main.
      <b>main</b> is unchanged, <b>#4551 only</b> adds that PR's <code>surfacePadding</code>,
      <b>+ lookup fix</b> also floors the zoom when building tile IDs for elevation lookups.
-     Each journey waits for the terrain to finish loading, then runs at a quarter speed.
-     It reports the worst distance the camera ends up below the surface, and how often the collision guard read nothing while the rendered ground was real, which separates a broken lookup from terrain that had not loaded.</p>
+     Each journey is a fixed sequence of camera steps, sampled once per step after the terrain
+     along the whole path has been loaded, so the numbers do not depend on machine speed or tile
+     latency. Every journey is measured twice and both runs must agree, which the table confirms.
+     Reported per engine: the worst distance below the surface, and how often the collision guard
+     read nothing while the rendered ground was real.</p>
   <div id="controls">
     <button id="all">run all four</button>
   </div>
@@ -61,19 +67,42 @@ import * as libMain from './dist-main/maplibre-gl-dev.mjs';
 import * as lib4551 from './dist-4551/maplibre-gl-dev.mjs';
 import * as lib1542 from './dist-1542/maplibre-gl-dev.mjs';
 
-// every journey runs at a quarter speed, which is easier to watch and gives the terrain
-// tiles time to stream in, so the readings vary less between runs
-const SLOWDOWN = 4;
-/** Wait until the map has nothing left to load, so terrain is present before a journey starts. */
-const settled = (map) => new Promise(res => {
-    if (map.loaded() && !map.isMoving()) return setTimeout(res, 400);
-    map.once('idle', () => setTimeout(res, 400));
-});
-const sleep = (ms) => new Promise(r => setTimeout(r, ms * SLOWDOWN));
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+// pacing between steps, purely cosmetic: sampling is per step, so this cannot change a number
+const PACE_MS = 120;
+
+/**
+ * Each journey is a fixed camera path: a start state and a step function. No easing, no synthetic
+ * mouse events, no wall-clock timing anywhere in the path, so the sequence of transforms is the
+ * same on every machine and every run.
+ */
+const JOURNEYS = {
+    'pan-into-slope': {
+        start: {center: [11.39085, 47.27574], zoom: 15.5, pitch: 80, bearing: 0},
+        steps: 50,   // ~44 m per step, north into the Nordkette slope
+        at: (i, map) => map.jumpTo({center: [11.39085, 47.27574 + (i + 1) * 0.0004]})
+    },
+    'zoom-into-slope': {
+        start: {center: [11.395, 47.286], zoom: 13, pitch: 80, bearing: 180},
+        steps: 90,   // zoom 13 -> 17.5 in equal increments
+        at: (i, map) => map.jumpTo({zoom: 13 + (i + 1) * (4.5 / 90)})
+    },
+    'walk-into-mountain': {
+        start: {center: [11.380, 47.303], zoom: 15.5, pitch: 84, bearing: 180},
+        steps: 24,   // ~56 m per step, south into the mountain
+        at: (i, map) => map.jumpTo({center: [11.380, 47.303 - (i + 1) * 0.0005]})
+    },
+    'pitch-into-terrain': {
+        start: {center: [11.380, 47.295], zoom: 15.2, pitch: 20, bearing: 180},
+        steps: 28,   // pitch 20 -> 76 in 2 degree increments
+        at: (i, map) => map.jumpTo({pitch: 20 + (i + 1) * 2})
+    }
+};
 
 function makeProbe(lib, container, hudEl) {
     const map = new lib.Map({
         container, zoom: 13.5, center: [11.39085, 47.27574], pitch: 70, bearing: -35, maxPitch: 85,
+        fadeDuration: 0,
         style: {
             version: 8,
             sources: {
@@ -86,65 +115,50 @@ function makeProbe(lib, container, hudEl) {
         canvasContextAttributes: {antialias: true}
     });
 
+    const idle = () => new Promise(res => map.loaded() ? res() : map.once('idle', res));
+
     function sample() {
         const tr = map.transform ?? map._camera.transform;
         const cam = tr.getCameraLngLat();
         const alt = tr.getCameraAltitude();
         const ground = map.queryTerrainElevation(cam) ?? 0;
-        // what the collision guard itself sees at the same instant: if the rendered ground is
-        // real and this reads 0, the terrain is loaded and the lookup is what is wrong
         const guardSees = map.terrain ? map.terrain.getElevationForLngLatZoom(cam, tr.zoom) : 0;
         return {alt, ground, guardSees, penetration: ground - alt};
     }
 
-    let worst = -Infinity, blindSamples = 0, totalSamples = 0;
-    const track = (name) => {
-        const s = sample();
-        if (s.penetration > worst) worst = s.penetration;
-        totalSamples++;
-        // terrain is loaded here, yet the guard reads nothing
-        if (s.ground > 50 && Math.abs(s.guardSees) < 1) blindSamples++;
-        hudEl.textContent = `${name}\ncamera ${s.alt.toFixed(0)} m, ground ${s.ground.toFixed(0)} m, guard sees ${s.guardSees.toFixed(0)} m\nworst ${worst > 0 ? worst.toFixed(0) + ' m under' : Math.abs(worst).toFixed(0) + ' m clear'}  ·  guard blind ${totalSamples ? Math.round(100 * blindSamples / totalSamples) : 0}%`;
-        hudEl.classList.toggle('bad', worst > 0);
-    };
+    async function measuredPass(name, j, label) {
+        map.jumpTo(j.start);
+        await idle();
+        let worst = -Infinity, blind = 0, total = 0;
+        for (let i = 0; i < j.steps; i++) {
+            j.at(i, map);
+            const s = sample();
+            total++;
+            if (s.penetration > worst) worst = s.penetration;
+            if (s.ground > 50 && Math.abs(s.guardSees) < 1) blind++;
+            map.triggerRepaint();
+            hudEl.textContent = `${name}  ${label}  step ${i + 1}/${j.steps}\ncamera ${s.alt.toFixed(0)} m, ground ${s.ground.toFixed(0)} m, guard sees ${s.guardSees.toFixed(0)} m\nworst ${worst > 0 ? worst.toFixed(0) + ' m under' : Math.abs(worst).toFixed(0) + ' m clear'}  ·  guard blind ${Math.round(100 * blind / total)}%`;
+            hudEl.classList.toggle('bad', worst > 0);
+            await sleep(PACE_MS);
+        }
+        return {worst, blindPct: Math.round(100 * blind / total)};
+    }
 
     async function run(name) {
-        worst = -Infinity;
-        const timer = setInterval(() => track(name), 60);
-        if (name === 'pan-into-slope') {
-            map.jumpTo({center: [11.39085, 47.27574], zoom: 15.5, pitch: 80, bearing: 0});
-            await settled(map);
-            const canvas = map.getCanvas(), rect = canvas.getBoundingClientRect();
-            const cx = rect.width / 2, cy = rect.height / 2;
-            const fire = (type, x, y) => canvas.dispatchEvent(new MouseEvent(type, {
-                clientX: rect.left + x, clientY: rect.top + y, button: 0,
-                buttons: type === 'mouseup' ? 0 : 1, bubbles: true, cancelable: true, view: window}));
-            for (let rep = 0; rep < 5; rep++) {
-                fire('mousedown', cx, cy - 100);
-                for (let s = 0; s <= 20; s++) { fire('mousemove', cx, cy - 100 + s * 12.5); await sleep(45); }
-                fire('mouseup', cx, cy + 150);
-                await sleep(350);
-            }
-        } else if (name === 'zoom-into-slope') {
-            map.jumpTo({center: [11.395, 47.286], zoom: 13, pitch: 80, bearing: 180});
-            await settled(map);
-            map.easeTo({zoom: 17.5, duration: 8000 * SLOWDOWN, easing: t => t});
-            await sleep(8800);
-        } else if (name === 'walk-into-mountain') {
-            map.jumpTo({center: [11.380, 47.303], zoom: 15.5, pitch: 84, bearing: 180});
-            await settled(map);
-            let lat = 47.303;
-            for (let i = 0; i < 24; i++) { lat -= 0.0005; map.jumpTo({center: [11.380, lat]}); await sleep(120); }
-        } else if (name === 'pitch-into-terrain') {
-            map.jumpTo({center: [11.380, 47.295], zoom: 15.2, pitch: 20, bearing: 180});
-            await settled(map);
-            for (let p = 20; p <= 76; p += 2) { map.jumpTo({pitch: p}); await sleep(100); }
-        }
-        await sleep(500);
-        clearInterval(timer);
-        track(name);
-        return {worst, blindPct: totalSamples ? Math.round(100 * blindSamples / totalSamples) : 0};
+        const j = JOURNEYS[name];
+        // warm-up: walk the whole path once, waiting for every tile it needs
+        hudEl.textContent = `${name}\nloading terrain along the path…`;
+        map.jumpTo(j.start);
+        await idle();
+        for (let i = 0; i < j.steps; i++) { j.at(i, map); await idle(); }
+        // measured twice with the identical procedure: the pair must agree exactly,
+        // or the harness itself is unsound
+        const a = await measuredPass(name, j, 'run 1 of 2');
+        const b = await measuredPass(name, j, 'run 2 of 2');
+        return {...a, worstB: b.worst, blindPctB: b.blindPct,
+                reproducible: a.worst === b.worst && a.blindPct === b.blindPct};
     }
+
     return {map, run};
 }
 
@@ -154,9 +168,15 @@ const probes = {
     p1542: makeProbe(lib1542, 'm-1542', document.getElementById('h-1542'))
 };
 
-const cell = (r) => r.worst > 0
-    ? `<td class="under">${r.worst.toFixed(0)} m under<br><small>guard blind ${r.blindPct}%</small></td>`
-    : `<td class="clear">${Math.abs(r.worst).toFixed(0)} m clear<br><small>guard blind ${r.blindPct}%</small></td>`;
+const cell = (r) => {
+    const w = r.worst > 0
+        ? `<span class="under">${r.worst.toFixed(0)} m under</span>`
+        : `<span class="clear">${Math.abs(r.worst).toFixed(0)} m clear</span>`;
+    const repro = r.reproducible
+        ? '<small class="repro">two runs identical</small>'
+        : `<small class="norepro">runs differ: ${r.worst.toFixed(0)} / ${r.worstB.toFixed(0)}</small>`;
+    return `<td>${w}<br><small>guard blind ${r.blindPct}%</small><br>${repro}</td>`;
+};
 
 window.__run = async (name) => {
     const [a, b, c] = await Promise.all([
@@ -167,22 +187,19 @@ window.__run = async (name) => {
     return {journey: name, main: a, only4551: b, withFix: c};
 };
 
-const buttons = [...document.querySelectorAll('#controls button')];
-document.getElementById('all').addEventListener('click', async () => {
-    buttons.forEach(b => b.disabled = true);
-    document.querySelector('#out tbody').innerHTML = '';
-    for (const j of ['pan-into-slope', 'zoom-into-slope', 'walk-into-mountain', 'pitch-into-terrain']) {
-        await window.__run(j);
-    }
-    buttons.forEach(b => b.disabled = false);
-});
 window.__runAll = async () => {
+    document.querySelector('#out tbody').innerHTML = '';
     const rows = [];
-    for (const j of ['pan-into-slope', 'zoom-into-slope', 'walk-into-mountain', 'pitch-into-terrain']) {
-        rows.push(await window.__run(j));
-    }
+    for (const j of Object.keys(JOURNEYS)) rows.push(await window.__run(j));
     return rows;
 };
+
+document.getElementById('all').addEventListener('click', async () => {
+    const btn = document.getElementById('all');
+    btn.disabled = true;
+    await window.__runAll();
+    btn.disabled = false;
+});
 </script>
 </body>
 </html>
