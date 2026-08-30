@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>#8253 occlusion harness</title>
+<link rel="stylesheet" href="dist/maplibre-gl.css">
+<style>body,html{margin:0;height:100%}#map{position:absolute;inset:0}
+#tag{position:absolute;top:8px;left:8px;z-index:2;background:rgba(0,0,0,.85);color:#fff;padding:6px 10px;font:600 13px monospace;white-space:pre}</style>
+</head><body>
+<div id="map"></div><div id="tag">loading</div>
+<script type="module">
+import * as maplibregl from './dist/maplibre-gl-dev.mjs';
+
+const ALT = 500000, R = 6371008.8;
+const STATION = [2.3522, 48.8566];
+const ecef = (lngD, latD, h) => {
+    const lng = lngD*Math.PI/180, lat = latD*Math.PI/180, r = R + h;
+    return [r*Math.cos(lat)*Math.cos(lng), r*Math.cos(lat)*Math.sin(lng), r*Math.sin(lat)];
+};
+function lookAngles(site, siteH, target) {
+    const g = ecef(site[0], site[1], siteH), s = ecef(target[0], target[1], ALT);
+    const d = [s[0]-g[0], s[1]-g[1], s[2]-g[2]];
+    const lng = site[0]*Math.PI/180, lat = site[1]*Math.PI/180;
+    const up = [Math.cos(lat)*Math.cos(lng), Math.cos(lat)*Math.sin(lng), Math.sin(lat)];
+    const range = Math.hypot(d[0], d[1], d[2]);
+    return {elevation: Math.asin((d[0]*up[0]+d[1]*up[1]+d[2]*up[2])/range)*180/Math.PI, rangeKm: range/1000};
+}
+const SAT = (() => {
+    let lo = 0, hi = 6;
+    for (let i = 0; i < 60; i++) {
+        const mid = (lo + hi) / 2;
+        if (lookAngles(STATION, 1.7, [STATION[0], STATION[1] - mid]).elevation > 60) lo = mid; else hi = mid;
+    }
+    return [STATION[0], STATION[1] - (lo + hi) / 2];
+})();
+
+const map = new maplibregl.Map({
+    container: 'map',
+    style: {
+        version: 8,
+        projection: {type: 'globe'},
+        glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+        sources: {
+            sat: {type: 'geojson', data: {type: 'Feature', properties: {alt: ALT}, geometry: {type: 'Point', coordinates: SAT}}},
+            osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 18, attribution: '© OpenStreetMap contributors'}
+        },
+        layers: [
+            {id: 'space', type: 'background', paint: {'background-color': '#05070d'}},
+            {id: 'earth', type: 'raster', source: 'osm'},
+            {id: 'sat', type: 'symbol', source: 'sat',
+             layout: {'text-field': '● point at 500 km', 'text-font': ['Noto Sans Regular'], 'text-size': 13,
+                      'text-allow-overlap': true,
+                      'symbol-height-offset': ['get','alt'], 'symbol-height-anchor': 'absolute'},
+             paint: {'text-color': '#7ee0ff', 'text-halo-color': '#04121c', 'text-halo-width': 1.6}}
+        ]
+    },
+    center: STATION, zoom: 4, pitch: 0, maxPitch: 179,
+    canvasContextAttributes: {preserveDrawingBuffer: true},
+    attributionControl: {compact: true}
+});
+window.map = map;
+const idle = () => new Promise(r => map.once('idle', r));
+
+function countSymbolPixels() {
+    const gl = map.getCanvas();
+    const c = document.createElement('canvas');
+    c.width = gl.width; c.height = gl.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(gl, 0, 0);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] < 160 && d[i+1] > 170 && d[i+2] > 200) n++;
+    return n;
+}
+// unit-sphere position of a lngLat, same convention as angularCoordinatesToSurfaceVector
+const sphereOf = (lngD, latD) => {
+    const lng = lngD*Math.PI/180, lat = latD*Math.PI/180;
+    return [Math.cos(lat)*Math.sin(lng), Math.sin(lat), Math.cos(lat)*Math.cos(lng)];
+};
+
+/** opts: {pitch} for the side view, or {eyeH} for the station look-up view. */
+window.probe = async (opts) => {
+    if (opts.eyeH !== undefined) map.jumpTo(map.calculateCameraOptionsFromTo(STATION, opts.eyeH, SAT, ALT));
+    else map.jumpTo({center: [SAT[0], STATION[1] + 3.2], zoom: 4.3, pitch: opts.pitch, bearing: 180});
+    await idle();
+    const t = map._camera.transform;
+    const plane = t.getClippingPlane();
+    const cam = t.cameraPosition;
+    const g = sphereOf(SAT[0], SAT[1]);
+    const m = 1 + ALT / R;
+    const P = [g[0]*m, g[1]*m, g[2]*m];
+    const dot = (v, k) => plane[0]*v[0]*k + plane[1]*v[1]*k + plane[2]*v[2]*k + plane[3];
+    // exact line of sight: closest approach of the camera->point segment to the globe centre
+    const d = [P[0]-cam[0], P[1]-cam[1], P[2]-cam[2]];
+    let tt = -(cam[0]*d[0]+cam[1]*d[1]+cam[2]*d[2]) / (d[0]*d[0]+d[1]*d[1]+d[2]*d[2]);
+    tt = Math.max(0, Math.min(1, tt));
+    const q = Math.hypot(cam[0]+tt*d[0], cam[1]+tt*d[1], cam[2]+tt*d[2]);
+    const res = {
+        view: opts, pitch: +map.getPitch().toFixed(1),
+        dotGround: +dot(g, 1).toFixed(4), dotElevated: +dot(g, m).toFixed(4),
+        camDistFromCenter: +Math.hypot(cam[0], cam[1], cam[2]).toFixed(4),
+        closestApproachR: +q.toFixed(4), lineOfSightClear: q >= 1,
+        pixels: countSymbolPixels(),
+        queried: map.queryRenderedFeatures({layers: ['sat']}).length,
+        srcFeatures: map.querySourceFeatures('sat').length
+    };
+    document.getElementById('tag').textContent =
+        `${opts.eyeH !== undefined ? 'eye ' + opts.eyeH + ' m' : 'pitch ' + opts.pitch}  pixels ${res.pixels}  queried ${res.queried}\nlos clear ${res.lineOfSightClear}  closest ${res.closestApproachR} R`;
+    return res;
+};
+window.ready = new Promise(r => map.once('idle', r));
+</script>
+</body></html>

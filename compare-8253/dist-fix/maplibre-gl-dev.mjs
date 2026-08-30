@@ -2,7 +2,7 @@
 * MapLibre GL JS
 * @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.6.0/LICENSE.txt
 */
-import { $ as projectToWorldCoordinates, $n as createVec4f64, $r as slerp, $t as Properties, A as evaluateSizeForFeature, Ai as ortho, An as getReferrer, Ar as readImageUsingVideoFrame, At as polygonIntersectsPolygon, Bi as determinant, Bn as throwIfAborted, Br as warnOnce, Bt as UniformMatrix4f, C as isCustomStyleLayer, Ci as create$1, Cn as ErrorEvent, Cr as mod, Ct as isHillshadeStyleLayer, D as SymbolBucket, Di as identity, Dn as GLOBAL_DISPATCHER_ID, Dr as pointPlaneSignedDistance, Dt as AlphaImage, E as isSymbolStyleLayer, Ei as fromScaling, En as AJAXError, Er as pick, Et as renderColorRamp, F as ImagePosition, Fi as scale, Fn as getProtocol, Fr as sphericalToCartesian, Ft as Uniform3f, G as isFillExtrusionStyleLayer, Gi as Point, Gn as arrayBufferToImageBitmap, Gr as create$3, Gt as Pos3dArray, H as isLineStyleLayer, Hi as rotate, Hn as MAX_VALID_LATITUDE, Hr as zoomScale, Ht as CollisionBoxArray, I as potpack, Ii as translate, In as removeProtocol, Ir as subscribe, It as Uniform4f, J as cameraDirectionFromPitchBearing, Jn as clone$2, Jr as sqrLen, Jt as RasterBoundsArray, Kn as bezier, Kr as length, Kt as PosArray, L as isStyleImageWebGLData, Li as create$4, Ln as config, Lr as threePlaneIntersection, Lt as UniformColor, Mi as rotateX, Mn as makeRequest, Mr as rollPitchBearingEqual, Mt as Uniform1f, N as getAnchorAlignment, Ni as rotateY, Nn as sameOrigin, Nr as rollPitchBearingToQuat, Nt as Uniform1i, O as addDynamicAttributes, Oi as invert$1, On as getArrayBuffer, Or as radiansToDegrees, Ot as RGBAImage, Pi as rotateZ, Pn as addProtocol, Pr as scaleZoom, Pt as Uniform2f, Q as maxMercatorHorizonAngle, Qn as createVec3f64, Qr as multiply$1, Qt as DataConstantProperty, R as renderStyleImage, Ri as fromRotation, Rn as AbortError, Rr as translatePosition, Rt as UniformColorArray, S as createStyleLayer, Si as copy, Sn as latest, Sr as mapObject, St as Texture, T as isBackgroundStyleLayer, Ti as exactEquals, Tn as Evented, Tr as parseCacheControl, Tt as isHeatmapStyleLayer, Ui as isOffscreenCanvasDistorted, Un as angleToRotateBetweenVectors2D, Ur as pixelsToTileUnits, Ut as CollisionCircleLayoutArray, V as collisionCircleLayout, Vi as invert, Vr as wrap, Vt as SegmentVector, Wi as offscreenCanvasSupported, Wn as arrayBufferToImage, Wr as EXTENT, Wt as LineStripIndexArray, X as cameraMercatorCoordinateFromCenterAndRotation, Xn as createIdentityMat4f64, Xr as fromEuler, Xt as createLayout, Y as cameraMercatorCoordinate, Yn as createIdentityMat4f32, Yr as zero, Yt as TriangleIndexArray, Z as getMercatorHorizon, Zn as createMat4f64, Zr as fromValues, Zt as isRasterStyleLayer, _ as UnwrappedTileID, _i as transformMat3, _n as diff, _r as isSafari, _t as SOUTH_POLE_Y, a as clipLine, ai as cross, an as ZoomHistory, ar as ensureError, at as lngFromMercatorX, b as isInBoundsForZoomLngLat, bi as zero$1, br as isWorker, bt as isColorReliefStyleLayer, ci as length$1, cn as emitValidationErrors, cr as filterObject, ct as mercatorZfromAltitude, di as rotateX$1, dn as validateStyleAndEmit, dr as getAngleDelta, ei as mul, en as TRANSITION_SUFFIX, er as deepEqual, et as tileCoordinatesToMercatorCoordinates, f as GEOJSON_TILE_LAYER_NAME, fi as rotateY$1, fn as Color, fr as getEdgeTiles, ft as EXTENT_BOUNDS, g as OverscaledTileID, gi as sub, gn as derefLayers, gr as isPointableEvent, gt as NORTH_POLE_Y, h as CanonicalTileID, hi as scaleAndAdd, hr as isImageBitmap, ii as clone, in as codePointUsesLocalIdeographFontFamily, ir as distanceOfAnglesRadians, it as latFromMercatorY, j as evaluateSizeForZoom, ji as perspective, jn as getVideo, jr as remapSaturate, jt as toEvaluationFeature, k as getOverlapMode, ki as multiply, kn as getJSON, kr as rayPlaneIntersection, kt as isCircleStyleLayer, li as negate, ln as validateAndEmit, lr as findLineIntersection, lt as LngLat, mi as scale$2, mn as ValidationError, mr as getRollPitchBearing, mt as isFillStyleLayer, ni as transformMat4, nn as EvaluationParameters, nr as degreesToRadians, nt as MercatorCoordinate, oi as dot, or as evaluateZoomSnap, ot as mercatorXfromLng, pi as rotateZ$1, pn as ProjectionDefinition, pt as Bounds, q as calculateTileMatrix, qn as clamp, qr as scale$1, qt as QuadTriangleArray, r as TextAnchorEnum, ri as add, rr as differenceOfAnglesDegrees, rt as altitudeFromMercatorZ, s as TileCache, si as len, sn as SPEC_SOURCE_TYPES, sr as extend, st as mercatorYfromLat, t as getAnchorJustification, ti as scale$3, tn as Transitionable, tr as defaultEasing, tt as unprojectFromWorldCoordinates, u as GeoJSONFeature, ui as normalize, un as validateStyle, ur as getAABB, ut as earthRadius, v as calculateTileKey, vi as transformMat4$1, vn as emptyStyle, vr as isTouchableEvent, vt as SubdivisionGranularityExpression, w as validateCustomStyleLayer, wi as equals, wn as Event, wr as nextPowerOfTwo, wt as HEATMAP_FULL_RENDER_FBO_KEY, x as Actor, xi as clone$1, xn as interpolateFactory, xr as lerp, y as compareTileId, yi as transformQuat, yn as featureFilter, yr as isTouchableOrPointableType, yt as SubdivisionGranularitySetting, z as parseGlyphPbf, zi as create$2, zn as isAbortError, zr as uniqueId, zt as UniformFloatArray } from "./maplibre-gl-shared-dev.mjs";
+import { $ as projectToWorldCoordinates, $n as createVec4f64, $r as slerp, $t as Properties, A as evaluateSizeForFeature, Ai as ortho, An as getReferrer, Ar as readImageUsingVideoFrame, At as polygonIntersectsPolygon, Bi as determinant, Bn as throwIfAborted, Br as warnOnce, Bt as UniformMatrix4f, C as isCustomStyleLayer, Ci as create$1, Cn as ErrorEvent, Cr as mod, Ct as isHillshadeStyleLayer, D as SymbolBucket, Di as identity, Dn as GLOBAL_DISPATCHER_ID, Dr as pointPlaneSignedDistance, Dt as AlphaImage, E as isSymbolStyleLayer, Ei as fromScaling, En as AJAXError, Er as pick, Et as renderColorRamp, F as ImagePosition, Fi as scale, Fn as getProtocol, Fr as sphericalToCartesian, Ft as Uniform3f, G as isFillExtrusionStyleLayer, Gi as Point, Gn as arrayBufferToImageBitmap, Gr as create$3, Gt as Pos3dArray, H as isLineStyleLayer, Hi as rotate, Hn as MAX_VALID_LATITUDE, Hr as zoomScale, Ht as CollisionBoxArray, I as potpack, Ii as translate, In as removeProtocol, Ir as subscribe, It as Uniform4f, J as cameraDirectionFromPitchBearing, Jn as clone$2, Jr as sqrLen, Jt as RasterBoundsArray, Kn as bezier, Kr as length, Kt as PosArray, L as isStyleImageWebGLData, Li as create$4, Ln as config, Lr as threePlaneIntersection, Lt as UniformColor, Mi as rotateX, Mn as makeRequest, Mr as rollPitchBearingEqual, Mt as Uniform1f, N as getAnchorAlignment, Ni as rotateY$1, Nn as sameOrigin, Nr as rollPitchBearingToQuat, Nt as Uniform1i, O as addDynamicAttributes, Oi as invert$1, On as getArrayBuffer, Or as radiansToDegrees, Ot as RGBAImage, Pi as rotateZ, Pn as addProtocol, Pr as scaleZoom, Pt as Uniform2f, Q as maxMercatorHorizonAngle, Qn as createVec3f64, Qr as multiply$1, Qt as DataConstantProperty, R as renderStyleImage, Ri as fromRotation, Rn as AbortError, Rr as translatePosition, Rt as UniformColorArray, S as createStyleLayer, Si as copy, Sn as latest, Sr as mapObject, St as Texture, T as isBackgroundStyleLayer, Ti as exactEquals, Tn as Evented, Tr as parseCacheControl, Tt as isHeatmapStyleLayer, Ui as isOffscreenCanvasDistorted, Un as angleToRotateBetweenVectors2D, Ur as pixelsToTileUnits, Ut as CollisionCircleLayoutArray, V as collisionCircleLayout, Vi as invert, Vr as wrap, Vt as SegmentVector, Wi as offscreenCanvasSupported, Wn as arrayBufferToImage, Wr as EXTENT, Wt as LineStripIndexArray, X as cameraMercatorCoordinateFromCenterAndRotation, Xn as createIdentityMat4f64, Xr as fromEuler, Xt as createLayout, Y as cameraMercatorCoordinate, Yn as createIdentityMat4f32, Yr as zero, Yt as TriangleIndexArray, Z as getMercatorHorizon, Zn as createMat4f64, Zr as fromValues, Zt as isRasterStyleLayer, _ as UnwrappedTileID, _i as transformMat3, _n as diff, _r as isSafari, _t as SOUTH_POLE_Y, a as clipLine, ai as cross, an as ZoomHistory, ar as ensureError, at as lngFromMercatorX, b as isInBoundsForZoomLngLat, bi as zero$1, br as isWorker, bt as isColorReliefStyleLayer, ci as length$1, cn as emitValidationErrors, cr as filterObject, ct as mercatorZfromAltitude, di as rotateX$1, dn as validateStyleAndEmit, dr as getAngleDelta, ei as mul, en as TRANSITION_SUFFIX, er as deepEqual, et as tileCoordinatesToMercatorCoordinates, f as GEOJSON_TILE_LAYER_NAME, fi as rotateY, fn as Color, fr as getEdgeTiles, ft as EXTENT_BOUNDS, g as OverscaledTileID, gi as sub, gn as derefLayers, gr as isPointableEvent, gt as NORTH_POLE_Y, h as CanonicalTileID, hi as scaleAndAdd, hr as isImageBitmap, ii as clone, in as codePointUsesLocalIdeographFontFamily, ir as distanceOfAnglesRadians, it as latFromMercatorY, j as evaluateSizeForZoom, ji as perspective, jn as getVideo, jr as remapSaturate, jt as toEvaluationFeature, k as getOverlapMode, ki as multiply, kn as getJSON, kr as rayPlaneIntersection, kt as isCircleStyleLayer, li as negate, ln as validateAndEmit, lr as findLineIntersection, lt as LngLat, mi as scale$2, mn as ValidationError, mr as getRollPitchBearing, mt as isFillStyleLayer, ni as transformMat4, nn as EvaluationParameters, nr as degreesToRadians, nt as MercatorCoordinate, oi as dot, or as evaluateZoomSnap, ot as mercatorXfromLng, pi as rotateZ$1, pn as ProjectionDefinition, pt as Bounds, q as calculateTileMatrix, qn as clamp, qr as scale$1, qt as QuadTriangleArray, r as TextAnchorEnum, ri as add, rr as differenceOfAnglesDegrees, rt as altitudeFromMercatorZ, s as TileCache, si as len, sn as SPEC_SOURCE_TYPES, sr as extend, st as mercatorYfromLat, t as getAnchorJustification, ti as scale$3, tn as Transitionable, tr as defaultEasing, tt as unprojectFromWorldCoordinates, u as GeoJSONFeature, ui as normalize, un as validateStyle, ur as getAABB, ut as earthRadius, v as calculateTileKey, vi as transformMat4$1, vn as emptyStyle, vr as isTouchableEvent, vt as SubdivisionGranularityExpression, w as validateCustomStyleLayer, wi as equals, wn as Event, wr as nextPowerOfTwo, wt as HEATMAP_FULL_RENDER_FBO_KEY, x as Actor, xi as clone$1, xn as interpolateFactory, xr as lerp, y as compareTileId, yi as transformQuat, yn as featureFilter, yr as isTouchableOrPointableType, yt as SubdivisionGranularitySetting, z as parseGlyphPbf, zi as create$2, zn as isAbortError, zr as uniqueId, zt as UniformFloatArray } from "./maplibre-gl-shared-dev.mjs";
 //#region package.json
 var version$2 = "6.6.0";
 //#endregion
@@ -12822,15 +12822,41 @@ var VerticalPerspectiveTransform = class VerticalPerspectiveTransform {
 			clipAntimeridian: overscaledTileID?.canonical.z === 0
 		};
 	}
-	_computeClippingPlane() {
-		const cameraPos = this._cameraPosition;
-		const scale = 1 / length$1(cameraPos);
-		return [
-			cameraPos[0] * scale,
-			cameraPos[1] * scale,
-			cameraPos[2] * scale,
-			-scale
+	_computeClippingPlane(globeRadiusPixels) {
+		const pitch = this.pitchInRadians;
+		const distanceCameraToB = this.cameraToCenterDistance / globeRadiusPixels;
+		const radius = 1;
+		const distanceCameraToA = Math.sin(pitch) * distanceCameraToB;
+		const distanceAtoC = Math.cos(pitch) * distanceCameraToB + radius;
+		const tangentPlaneDistanceToC = radius / Math.sqrt(distanceCameraToA * distanceCameraToA + distanceAtoC * distanceAtoC) * radius;
+		let vectorCtoCamX = -distanceCameraToA;
+		let vectorCtoCamY = distanceAtoC;
+		const vectorCtoCamLength = Math.sqrt(vectorCtoCamX * vectorCtoCamX + vectorCtoCamY * vectorCtoCamY);
+		vectorCtoCamX /= vectorCtoCamLength;
+		vectorCtoCamY /= vectorCtoCamLength;
+		const planeVector = [
+			0,
+			vectorCtoCamX,
+			vectorCtoCamY
 		];
+		rotateZ$1(planeVector, planeVector, [
+			0,
+			0,
+			0
+		], -this.bearingInRadians);
+		rotateX$1(planeVector, planeVector, [
+			0,
+			0,
+			0
+		], -1 * this.center.lat * Math.PI / 180);
+		rotateY(planeVector, planeVector, [
+			0,
+			0,
+			0
+		], this.center.lng * Math.PI / 180);
+		const scale = 1 / length$1(planeVector);
+		scale$2(planeVector, planeVector, scale);
+		return [...planeVector, -tangentPlaneDistanceToC * scale];
 	}
 	isLocationOccluded(location) {
 		return !this.isSurfacePointVisible(angularCoordinatesToSurfaceVector(location));
@@ -12895,13 +12921,33 @@ var VerticalPerspectiveTransform = class VerticalPerspectiveTransform {
 			1
 		];
 		transformMat4(pos, pos, this._globeViewProjMatrixF64);
-		const plane = this._cachedClippingPlane;
-		const isOccluded = plane[0] * elevatedX + plane[1] * elevatedY + plane[2] * elevatedZ + plane[3] < 0;
+		let isOccluded;
+		if (vectorMultiplier === 1) {
+			const plane = this._cachedClippingPlane;
+			isOccluded = plane[0] * spherePos[0] + plane[1] * spherePos[1] + plane[2] * spherePos[2] + plane[3] < 0;
+		} else isOccluded = this._isLineOfSightBlocked(elevatedX, elevatedY, elevatedZ);
 		return {
 			point: new Point(pos[0] / pos[3], pos[1] / pos[3]),
 			signedDistanceFromCamera: pos[3],
 			isOccluded
 		};
+	}
+	/**
+	* True when the segment from the camera to the given point (unit-globe coordinates)
+	* intersects the globe.
+	*/
+	_isLineOfSightBlocked(x, y, z) {
+		const cam = this._cameraPosition;
+		const dx = x - cam[0];
+		const dy = y - cam[1];
+		const dz = z - cam[2];
+		const lengthSq = dx * dx + dy * dy + dz * dz;
+		if (lengthSq === 0) return false;
+		const t = clamp(-(cam[0] * dx + cam[1] * dy + cam[2] * dz) / lengthSq, 0, 1);
+		const cx = cam[0] + t * dx;
+		const cy = cam[1] + t * dy;
+		const cz = cam[2] + t * dz;
+		return cx * cx + cy * cy + cz * cz < 1;
 	}
 	_calcMatrices() {
 		if (!this._helper._width || !this._helper._height) return;
@@ -12936,7 +12982,7 @@ var VerticalPerspectiveTransform = class VerticalPerspectiveTransform {
 		scaleVec[1] = globeRadiusPixels;
 		scaleVec[2] = globeRadiusPixels;
 		rotateX(globeMatrix, globeMatrix, this.center.lat * Math.PI / 180);
-		rotateY(globeMatrix, globeMatrix, -this.center.lng * Math.PI / 180);
+		rotateY$1(globeMatrix, globeMatrix, -this.center.lng * Math.PI / 180);
 		scale(globeMatrix, globeMatrix, scaleVec);
 		this._globeViewProjMatrixF64 = globeMatrix;
 		this._globeViewProjMatrix32f = new Float32Array(globeMatrix);
@@ -12954,8 +13000,8 @@ var VerticalPerspectiveTransform = class VerticalPerspectiveTransform {
 			1
 		]);
 		rotateX$1(this._cameraPosition, this._cameraPosition, zero, -this.center.lat * Math.PI / 180);
-		rotateY$1(this._cameraPosition, this._cameraPosition, zero, this.center.lng * Math.PI / 180);
-		this._cachedClippingPlane = this._computeClippingPlane();
+		rotateY(this._cameraPosition, this._cameraPosition, zero, this.center.lng * Math.PI / 180);
+		this._cachedClippingPlane = this._computeClippingPlane(globeRadiusPixels);
 		const matrix = clone$1(this._globeViewProjMatrixF64Inverted);
 		scale(matrix, matrix, [
 			1,
@@ -13079,7 +13125,7 @@ var VerticalPerspectiveTransform = class VerticalPerspectiveTransform {
 		const zero = createVec3f64();
 		zero$1(zero);
 		const rotatedPixelVector = createVec3f64();
-		rotateY$1(rotatedPixelVector, vecToPixelCurrent, zero, -this.center.lng * Math.PI / 180);
+		rotateY(rotatedPixelVector, vecToPixelCurrent, zero, -this.center.lng * Math.PI / 180);
 		rotateX$1(rotatedPixelVector, rotatedPixelVector, zero, this.center.lat * Math.PI / 180);
 		const vecToTargetXZLengthSquared = vecToTarget[0] * vecToTarget[0] + vecToTarget[2] * vecToTarget[2];
 		const targetXSquared = rotatedPixelVector[0] * rotatedPixelVector[0];
@@ -13089,10 +13135,10 @@ var VerticalPerspectiveTransform = class VerticalPerspectiveTransform {
 		const lngA = angleToRotateBetweenVectors2D(vecToTarget[0], vecToTarget[2], rotatedPixelVector[0], intersectionA);
 		const lngB = angleToRotateBetweenVectors2D(vecToTarget[0], vecToTarget[2], rotatedPixelVector[0], intersectionB);
 		const vecToTargetLngA = createVec3f64();
-		rotateY$1(vecToTargetLngA, vecToTarget, zero, -lngA);
+		rotateY(vecToTargetLngA, vecToTarget, zero, -lngA);
 		const latA = angleToRotateBetweenVectors2D(vecToTargetLngA[1], vecToTargetLngA[2], rotatedPixelVector[1], rotatedPixelVector[2]);
 		const vecToTargetLngB = createVec3f64();
-		rotateY$1(vecToTargetLngB, vecToTarget, zero, -lngB);
+		rotateY(vecToTargetLngB, vecToTarget, zero, -lngB);
 		const latB = angleToRotateBetweenVectors2D(vecToTargetLngB[1], vecToTargetLngB[2], rotatedPixelVector[1], rotatedPixelVector[2]);
 		const limit = Math.PI * .5;
 		const isValidA = latA >= -limit && latA <= limit;
@@ -18776,7 +18822,7 @@ function getSunPos(light, transform) {
 		rotateX(lightMat, lightMat, -transform.pitchInRadians);
 		rotateZ(lightMat, lightMat, transform.bearingInRadians);
 		rotateX(lightMat, lightMat, transform.center.lat * Math.PI / 180);
-		rotateY(lightMat, lightMat, -transform.center.lng * Math.PI / 180);
+		rotateY$1(lightMat, lightMat, -transform.center.lng * Math.PI / 180);
 	}
 	transformMat4$1(lightPos, lightPos, lightMat);
 	return lightPos;
