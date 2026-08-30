@@ -1,5 +1,6 @@
 ## main
 ### ✨ Features and improvements
+- Add `heightOffset` and `heightAnchor` options to `Marker`, which raise a marker above the ground the way `symbol-height-offset` and `symbol-height-anchor` raise symbols ([#8228](https://github.com/maplibre/maplibre-gl-js/issues/8228)) (by [@clement-igonet](https://github.com/clement-igonet))
 - Throw `GPUInitializationError` from the `Map` constructor when the WebGL2 context cannot be created, instead of firing an `error` event no listener can catch and returning a partially constructed map ([#8066](https://github.com/maplibre/maplibre-gl-js/issues/8066))
 - Allow adding an image source without a `url`. The source starts empty and makes no network request; call `updateImage({image})` or `updateImage({url})` later to show an image ([#8167](https://github.com/maplibre/maplibre-gl-js/pull/8167))
 - Skip symbol re-placement when its inputs are unchanged, so repaints from animated style images or custom layers cost a single frame ([#8208](https://github.com/maplibre/maplibre-gl-js/pull/8208)) (by [@lucaswoj](https://github.com/lucaswoj))

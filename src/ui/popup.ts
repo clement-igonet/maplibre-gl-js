@@ -12,6 +12,7 @@ import type {Map} from './map.ts';
 import type {LngLatLike} from '../geo/lng_lat.ts';
 import type {PointLike} from './camera.ts';
 import type {PaddingOptions} from '../geo/edge_insets.ts';
+import type {HeightAnchor} from './marker.ts';
 
 const defaultOptions = {
     closeButton: true,
@@ -22,6 +23,8 @@ const defaultOptions = {
     subpixelPositioning: false,
     locationOccludedOpacity: undefined,
     padding: undefined,
+    heightOffset: 0,
+    heightAnchor: 'ground',
 };
 
 /**
@@ -104,6 +107,17 @@ export type PopupOptions = {
      * @defaultValue undefined
      */
     padding?: PaddingOptions;
+    /**
+     * The height above the datum given by `heightAnchor`, in meters, at which the popup is anchored.
+     * @defaultValue 0
+     */
+    heightOffset?: number;
+    /**
+     * The datum `heightOffset` is measured from: the terrain surface below the popup
+     * (`ground`) or sea level (`absolute`).
+     * @defaultValue 'ground'
+     */
+    heightAnchor?: HeightAnchor;
 };
 
 const focusQuerySelector = [
@@ -213,6 +227,8 @@ export class Popup extends Evented<PopupEventType> {
     _closeButton: HTMLButtonElement;
     _tip: HTMLElement;
     _lngLat: LngLat;
+    _heightOffset: number;
+    _heightAnchor: HeightAnchor;
     _trackPointer: boolean;
     _pos: Point;
     _flatPos: Point;
@@ -223,6 +239,8 @@ export class Popup extends Evented<PopupEventType> {
     constructor(options?: PopupOptions) {
         super();
         this.options = extend(Object.create(defaultOptions), options);
+        this._heightOffset = this.options.heightOffset || 0;
+        this._heightAnchor = this.options.heightAnchor || 'ground';
     }
 
     /**
@@ -332,6 +350,52 @@ export class Popup extends Evented<PopupEventType> {
 
         return this;
     };
+
+    /**
+     * The height in meters at which the popup is anchored, or `undefined` when it sits on the ground.
+     */
+    _elevation(): number | undefined {
+        if (this._heightAnchor === 'absolute') {
+            return this._heightOffset;
+        }
+        if (!this._heightOffset) {
+            return undefined;
+        }
+        const terrain = this._map.terrain;
+        return this._heightOffset + (terrain ? terrain.getElevationForLngLat(this._lngLat, this._map._camera.transform) : 0);
+    }
+
+    /**
+     * Sets the height at which the popup is anchored above its location, and moves it there.
+     * @param heightOffset - the height in meters
+     * @param heightAnchor - the datum the height is measured from, `ground` (the default) or `absolute`
+     * @example
+     * ```ts
+     * new Popup().setLngLat([0, 0]).setHeightOffset(120).setHTML('on the roof').addTo(map);
+     * ```
+     */
+    setHeightOffset(heightOffset: number, heightAnchor?: HeightAnchor): this {
+        this._heightOffset = heightOffset;
+        if (heightAnchor) this._heightAnchor = heightAnchor;
+        this._update();
+        return this;
+    }
+
+    /**
+     * Returns the height in meters at which the popup is anchored above its location.
+     * @returns the height offset
+     */
+    getHeightOffset(): number {
+        return this._heightOffset;
+    }
+
+    /**
+     * Returns the datum the popup's height offset is measured from.
+     * @returns `ground` or `absolute`
+     */
+    getHeightAnchor(): HeightAnchor {
+        return this._heightAnchor;
+    }
 
     /**
      * Returns the geographical location of the popup's anchor.
@@ -671,7 +735,13 @@ export class Popup extends Evented<PopupEventType> {
         }
         if (this._trackPointer && !cursor) return;
 
-        const pos = this._flatPos = this._pos = this._trackPointer && cursor ? cursor : this._map.project(this._lngLat);
+        const elevation = this._elevation();
+        const anchorPoint = this._trackPointer && cursor ?
+            cursor :
+            elevation === undefined ?
+                this._map.project(this._lngLat) :
+                this._map._camera.transform.locationToScreenPointAtElevation(this._lngLat, elevation);
+        const pos = this._flatPos = this._pos = anchorPoint;
         if (this._map.terrain) {
             // flat position is saved because smartWrap needs non-elevated points
             this._flatPos = this._trackPointer && cursor ? cursor : this._map._camera.transform.locationToScreenPoint(this._lngLat);
