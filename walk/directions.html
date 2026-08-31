@@ -1,0 +1,126 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Indoor in MapLibre: directions</title>
+<style>
+ :root { color-scheme: dark; }
+ html,body{margin:0;background:#0b0e14;color:#dde3ea;font:15px/1.6 system-ui,-apple-system,sans-serif}
+ main{max-width:860px;margin:0 auto;padding:28px 20px 60px}
+ h1{font-size:24px;margin:0 0 6px} h2{font-size:17px;margin:34px 0 8px;color:#7ee0ff}
+ h3{font-size:15px;margin:20px 0 4px}
+ p,li{color:#c2ccd8} .muted{color:#8c97a6;font-size:13.5px}
+ code{color:#7ee0ff;font-size:13px;background:#131b28;padding:1px 5px;border-radius:4px}
+ a{color:#7ee0ff}
+ table{border-collapse:collapse;width:100%;margin:10px 0 4px;font-size:13.5px}
+ th,td{border:1px solid #222e40;padding:6px 9px;text-align:left;vertical-align:top}
+ th{background:#131b28;color:#9fb0c4;font-weight:600}
+ .ok{color:#8fe3a1} .no{color:#ffb27d} .app{color:#7ee0ff}
+ .lead{border-left:3px solid #7ee0ff;padding-left:14px;margin:18px 0}
+ .box{background:#101725;border:1px solid #222e40;border-radius:8px;padding:12px 16px;margin:18px 0}
+ footer{margin-top:40px;border-top:1px solid #222e40;padding-top:14px}
+</style></head>
+<body><main>
+
+<h1>Indoor in MapLibre: directions</h1>
+<p class="muted">A working list, grown from what a first-person walk through a real station actually hits.
+Last change 31 August 2026. It is deliberately incomplete: one line is added when a measurement supports it.</p>
+
+<div class="lead">
+<p>The demo it comes from: <a href="./">walking inside Gare de Lyon</a>, built on unedited OpenStreetMap data
+(216 rooms, 383 walls and columns, 173 stairs, escalators and lifts, 128 doors, levels +2 to −6).</p>
+</div>
+
+<h2>Method</h2>
+<p>Build the thing, walk through it, and write down only what the engine refuses to do. Each direction below
+holds items in one of three states: <span class="ok">already native</span>, <span class="app">correctly outside
+the engine</span>, or <span class="no">missing, with a measurement</span>. A missing item earns its own upstream
+issue with the numbers attached; this page never replaces that conversation, it only keeps the shape of the
+whole visible in one place.</p>
+<p>The headline so far, and it is not what a proposal would assume:
+<b>the style specification is close to sufficient for indoor.</b> What is short is renderer and camera
+correctness, one blend primitive, and a written convention.</p>
+
+<h2>Direction A — the camera has to work at human height</h2>
+<p>Everything indoor happens with the eye 1.7 m above a floor, often below the ground, often looking up.
+That is the least exercised part of the camera.</p>
+<table>
+<tr><th>item</th><th>state</th><th>evidence</th></tr>
+<tr><td>camera cannot go below the datum when there is no terrain</td><td class="no">missing</td>
+    <td>pitch drifts from 84° to 62.9° on its own while the camera stays pinned at 0 m —
+        <a href="datum-test.html">repro</a>. <code>centerClampedToGround: false</code> is needed but not enough.</td></tr>
+<tr><td>geometry below the datum clipped by the far plane at low pitch</td><td class="no">missing</td>
+    <td>at pitch 0, −4 m draws and −20 m does not; overriding the far plane fixes it exactly.</td></tr>
+<tr><td>camera moving inside terrain</td><td class="no">open upstream</td>
+    <td><a href="https://github.com/maplibre/maplibre-gl-js/issues/1542">gl-js#1542</a>,
+        and <a href="https://github.com/maplibre/maplibre-gl-js/issues/5004">#5004</a> asks to switch it off.</td></tr>
+<tr><td>elevated symbols culled by the ground horizon</td><td class="no">fix prototyped</td>
+    <td>drawn to pitch 83, gone at 84; a line-of-sight test reaches 94 —
+        <a href="https://github.com/maplibre/maplibre-gl-js/issues/8253">gl-js#8253</a>,
+        <a href="../compare-8253/">before and after</a>.</td></tr>
+<tr><td>placing the eye and the look direction</td><td class="ok">native</td>
+    <td><code>calculateCameraOptionsFromTo</code>, exact at every angle once the pitch ceiling is high enough.</td></tr>
+</table>
+
+<h2>Direction B — you have to be able to see inside</h2>
+<table>
+<tr><th>item</th><th>state</th><th>evidence</th></tr>
+<tr><td>a floor at its own height, per feature</td><td class="ok">native</td>
+    <td><code>fill-extrusion-base</code> and <code>-height</code>, data driven.</td></tr>
+<tr><td>underground floors</td><td class="no">renderer PR open</td>
+    <td>negative base merged in the spec
+        (<a href="https://github.com/maplibre/maplibre-style-spec/pull/1794">style-spec#1794</a>),
+        renderer still open (<a href="https://github.com/maplibre/maplibre-gl-js/pull/8069">gl-js#8069</a>).</td></tr>
+<tr><td>cutting a roof open from outside</td><td class="no">the one spec gap</td>
+    <td><a href="https://github.com/maplibre/maplibre-style-spec/issues/1661">style-spec#1661</a>,
+        an <code>erase</code> blend. Everything else on this page is renderer work.</td></tr>
+<tr><td>wall shading dies as soon as a floor has a base</td><td class="no">fix prototyped</td>
+    <td>the shader adds a base in metres to a unitless flag, so every stacked floor renders flat —
+        <a href="https://github.com/maplibre/maplibre-gl-js/issues/6482">gl-js#6482</a>.</td></tr>
+<tr><td>height only interpolates between whole zoom levels</td><td class="no">fix prototyped</td>
+    <td><a href="https://github.com/maplibre/maplibre-gl-js/issues/6630">gl-js#6630</a>.</td></tr>
+</table>
+
+<h2>Direction C — things belong at floor height, not on the ground</h2>
+<table>
+<tr><th>item</th><th>state</th><th>evidence</th></tr>
+<tr><td>labels, doors and lifts at the height of their floor</td><td class="ok">native since v6.6.0</td>
+    <td><code>symbol-height-offset</code> with <code>symbol-height-anchor: absolute</code>.</td></tr>
+<tr><td>markers and popups at floor height</td><td class="no">prototype</td>
+    <td><a href="https://github.com/maplibre/maplibre-gl-js/issues/8228">gl-js#8228</a>.</td></tr>
+<tr><td>changing floor without restyling</td><td class="ok">native</td>
+    <td><code>global-state</code>, read from every filter and from the height expressions.</td></tr>
+</table>
+
+<h2>Direction D — an immersive view needs labels that respect distance</h2>
+<p>Symbols are sized in screen pixels, which is right for a map seen from above and wrong from inside a building:
+a shop 60 m down the concourse is drawn as large as the door in front of you, and the view fills with names.</p>
+<table>
+<tr><th>item</th><th>state</th><th>evidence</th></tr>
+<tr><td>no camera-distance input for <code>text-size</code></td><td class="no">missing</td>
+    <td><code>text-size</code> accepts <code>zoom</code> and <code>feature</code> inputs only, and the spec has no
+        camera-distance expression. Worked around here by measuring the distance in the page and writing it onto
+        every feature, then re-uploading the source as the camera moves.</td></tr>
+<tr><td>knowing which point on the floor a label belongs to</td><td class="app">page</td>
+    <td>drawn here as a dot and a stem; nothing in the engine ties an elevated symbol to its anchor visually.</td></tr>
+</table>
+
+<h2>What is not MapLibre's job</h2>
+<p>Named so the list above stays credible. Searching gl-js and the style spec finds no issue and no PR for any of
+these, and that is the right outcome. Upstream, "collision" means label collision, a different subject.</p>
+<ul>
+<li>walls and columns stopping a body, floors you cannot walk off</li>
+<li>routing between two points and across floors through stairs and lifts</li>
+<li>turning OSM <code>level=-4;-3;-2</code> into numeric bounds, which is the conclusion of
+    <a href="https://github.com/maplibre/maplibre-style-spec/issues/1843">style-spec#1843</a></li>
+</ul>
+
+<div class="box">
+<h3>How this list grows</h3>
+<p class="muted">Walk somewhere new in the demo, hit something the engine will not do, measure it, add one row, open one
+issue. No umbrella proposal: the shape lives here, the argument lives in each issue.</p>
+</div>
+
+<footer class="muted">
+Maintained by <a href="https://github.com/clement-igonet">clement-igonet</a>, MapLibre voting member.
+Data © OpenStreetMap contributors.
+</footer>
+</main></body></html>

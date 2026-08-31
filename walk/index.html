@@ -89,8 +89,9 @@
     <li><b>underground geometry needs an unmerged PR.</b> Negative base is in the spec (style-spec#1794) but the renderer PR (gl-js#8069) is open.</li>
     <li><b>no way to cut the roof open</b> from outside, so you can only look in from above. style-spec#1661.</li>
     <li><b>wall shading turns off</b> as soon as a floor has a base, so every stacked floor is flat. gl-js#6482.</li>
+    <li><b>labels ignore distance.</b> <code>text-size</code> takes only zoom and feature inputs, so a shop 60 m away is drawn as large as the door in front of you. Worked around here by measuring the distance per feature every time you move.</li>
   </ul>
-  <p class="n">Nothing here needs a new style spec property except the reveal blend. The rest is renderer and camera correctness, plus writing the level convention down.</p>
+  <p class="n">Nothing here needs a new style spec property except the reveal blend. The rest is renderer and camera correctness, plus writing the level convention down.<br><a href="directions.html" style="color:#7ee0ff">The full list of directions, with the measurements →</a></p>
 </div>
 
 <div class="stick" id="stick-move"><div class="knob"></div></div>
@@ -132,6 +133,12 @@ const distM = (a, b) => {
     return Math.hypot(dx, dy);
 };
 
+// MapLibre sizes text in screen pixels, and text-size only takes zoom or feature
+// inputs, so a label 80 m away is as large as one at arm's length. The distance is
+// therefore measured here and written onto each feature as `dist`.
+const SEE_M = 70;                       // labels further away than this are dropped
+const NEAR_BIG = ['interpolate', ['linear'], ['get', 'dist'], 3, 19, 12, 14, 30, 11, SEE_M, 8.5];
+
 const levelOf = ['global-state', 'level'];
 const shiftOf = ['global-state', 'shift'];     // see DATUM note in the panel
 const atLevel = ['==', ['get', 'level_min'], levelOf];
@@ -155,7 +162,9 @@ const map = new maplibregl.Map({
             walls: {type: 'geojson', data: 'data/walls.geojson'},
             links: {type: 'geojson', data: 'data/links.geojson'},
             pois:  {type: 'geojson', data: 'data/pois.geojson'},
-            doors: {type: 'geojson', data: 'data/doors.geojson'}
+            doors: {type: 'geojson', data: 'data/doors.geojson'},
+            route: {type: 'geojson', data: {type: 'FeatureCollection', features: []}},
+            anchors: {type: 'geojson', data: {type: 'FeatureCollection', features: []}}
         },
         layers: [
             {id: 'sky', type: 'background', paint: {'background-color': '#070b12'}},
@@ -208,17 +217,55 @@ const map = new maplibregl.Map({
              filter: ['all', ['<=', ['get', 'level_min'], levelOf], ['>=', ['get', 'level_max'], levelOf]],
              layout: {
                 'text-field': ['match', ['get', 'kind'], 'elevator', '▲ lift', 'escalator', '▲ escalator', '▲ stairs'],
-                'text-font': ['Noto Sans Regular'], 'text-size': 12, 'text-allow-overlap': true,
+                'text-font': ['Noto Sans Regular'], 'text-size': NEAR_BIG, 'text-allow-overlap': false,
+                'text-padding': 4, 'symbol-sort-key': ['get', 'dist'],
                 'symbol-height-offset': ['+', hereBase, 2.2],
                 'symbol-height-anchor': 'absolute'},
              paint: {'text-color': '#ffd479', 'text-halo-color': '#0a0f18', 'text-halo-width': 1.4}},
+
+            // every label gets a dot on the floor and a thin stem up to it,
+            // otherwise a floating name says nothing about where the thing is
+            {id: 'anchor-stem', type: 'fill-extrusion', source: 'anchors',
+             filter: ['==', ['get', 'part'], 'stem'],
+             paint: {
+                'fill-extrusion-base': ['+', ['*', FLOOR_H, ['get', 'level']], shiftOf, 0.16],
+                'fill-extrusion-height': ['+', ['*', FLOOR_H, ['get', 'level']], shiftOf, ['get', 'top']],
+                'fill-extrusion-color': ['get', 'color'],
+                'fill-extrusion-opacity': 0.5}},
+
+            {id: 'anchor-dot', type: 'fill-extrusion', source: 'anchors',
+             filter: ['==', ['get', 'part'], 'dot'],
+             paint: {
+                'fill-extrusion-base': ['+', ['*', FLOOR_H, ['get', 'level']], shiftOf, 0.16],
+                'fill-extrusion-height': ['+', ['*', FLOOR_H, ['get', 'level']], shiftOf, 0.26],
+                'fill-extrusion-color': ['get', 'color'],
+                'fill-extrusion-opacity': 0.95}},
+
+            // the way to where you asked to go, painted on the floor it runs along
+            {id: 'route-path', type: 'fill-extrusion', source: 'route',
+             filter: ['==', ['geometry-type'], 'Polygon'],
+             paint: {
+                'fill-extrusion-base': ['+', ['*', FLOOR_H, ['get', 'level']], shiftOf, 0.16],
+                'fill-extrusion-height': ['+', ['*', FLOOR_H, ['get', 'level']], shiftOf, 0.22],
+                'fill-extrusion-color': ['case', ['==', ['get', 'level'], levelOf], '#ffd479', '#8a6a2f'],
+                'fill-extrusion-opacity': 0.9}},
+
+            {id: 'route-target', type: 'symbol', source: 'route',
+             filter: ['==', ['geometry-type'], 'Point'],
+             layout: {
+                'text-field': ['get', 'label'], 'text-font': ['Noto Sans Regular'], 'text-size': 13,
+                'text-allow-overlap': true,
+                'symbol-height-offset': ['+', ['*', FLOOR_H, ['get', 'level']], shiftOf, 1.6],
+                'symbol-height-anchor': 'absolute'},
+             paint: {'text-color': '#ffd479', 'text-halo-color': '#1a1206', 'text-halo-width': 1.6}},
 
             // doors and entrances: where you can actually get in
             {id: 'doors', type: 'symbol', source: 'doors',
              filter: ['==', ['get', 'level'], levelOf],
              layout: {
                 'text-field': ['case', ['get', 'entrance'], '▯ way in', '▯'],
-                'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-allow-overlap': true,
+                'text-font': ['Noto Sans Regular'], 'text-size': NEAR_BIG, 'text-allow-overlap': false,
+                'text-padding': 4, 'symbol-sort-key': ['get', 'dist'],
                 'symbol-height-offset': ['+', hereBase, 1.1],
                 'symbol-height-anchor': 'absolute'},
              paint: {'text-color': '#9ff2b8', 'text-halo-color': '#08140d', 'text-halo-width': 1.3}},
@@ -227,8 +274,8 @@ const map = new maplibregl.Map({
             {id: 'pois', type: 'symbol', source: 'pois',
              filter: ['==', ['get', 'level'], levelOf],
              layout: {
-                'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': 11,
-                'text-allow-overlap': false,
+                'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': NEAR_BIG,
+                'text-allow-overlap': false, 'text-padding': 6, 'symbol-sort-key': ['get', 'dist'],
                 'symbol-height-offset': ['+', hereBase, 2.6],
                 'symbol-height-anchor': 'absolute'},
              paint: {'text-color': '#cfe3ef', 'text-halo-color': '#0a0f18', 'text-halo-width': 1.2}}
@@ -393,10 +440,53 @@ function route(from, fromLevel, to, toLevel, budget = 26000) {
     return null;
 }
 
+// ---- drawing the way ------------------------------------------------------
+const RIBBON_W = 1.1;   // metres
+
+/** A quad per segment, so the way can sit on each floor it crosses. */
+function ribbon(path, label) {
+    const feats = [];
+    for (let i = 0; i + 1 < path.length; i++) {
+        const a = path[i], b = path[i + 1];
+        if (a.level !== b.level) continue;            // the step between floors is the link itself
+        const lat = a.pos[1];
+        const mx = mPerDegLat * Math.cos(lat * Math.PI / 180), my = mPerDegLat;
+        const dx = (b.pos[0] - a.pos[0]) * mx, dy = (b.pos[1] - a.pos[1]) * my;
+        const len = Math.hypot(dx, dy);
+        if (len < 0.01) continue;
+        const ux = dx / len, uy = dy / len;           // along
+        const px = -uy, py = ux;                      // across
+        const hw = RIBBON_W / 2, ext = RIBBON_W / 2;  // extend ends so corners join
+        const corner = (s1, s2) => [
+            a.pos[0] + ((ux * s1) + (px * s2)) / mx,
+            a.pos[1] + ((uy * s1) + (py * s2)) / my];
+        const ring = [corner(-ext, hw), corner(len + ext, hw), corner(len + ext, -hw), corner(-ext, -hw)];
+        ring.push(ring[0]);
+        feats.push({type: 'Feature', properties: {level: a.level},
+                    geometry: {type: 'Polygon', coordinates: [ring]}});
+    }
+    const last = path[path.length - 1];
+    if (last) feats.push({type: 'Feature',
+                          properties: {level: last.level, label: `◉ ${label || 'destination'}`},
+                          geometry: {type: 'Point', coordinates: last.pos}});
+    return {type: 'FeatureCollection', features: feats};
+}
+function trimNear(path) {
+    let i = 0;
+    while (i < path.length - 1 && path[i].level === state.level && distM(state.pos, path[i].pos) < 3) i++;
+    return path.slice(i);
+}
+function showWay(path, label) {
+    const data = path ? ribbon(trimNear(path), label) : {type: 'FeatureCollection', features: []};
+    window.__lastRibbon = data.features.length;
+    map.getSource('route').setData(data);
+}
+
 // ---- following a route ----------------------------------------------------
 let following = null;
-function followRoute(path) {
-    following = {path, i: 0};
+function followRoute(path, label) {
+    following = {path, i: 0, label, drawnAt: 0};
+    showWay(path, label);
     say(`walking ${path.length} steps`);
 }
 function stepAlongRoute(dt) {
@@ -416,12 +506,60 @@ function stepAlongRoute(dt) {
         state.pos = offset(state.pos, want, stepLen);
         budget -= stepLen;
     }
-    if (following.i >= path.length) { following = null; say(''); }
+    if (following.i >= path.length) { following = null; showWay(null); say(''); return true; }
+    if (following.i !== following.drawnAt) {
+        following.drawnAt = following.i;
+        showWay([{level: state.level, pos: state.pos}, ...path.slice(following.i)], following.label);
+    }
     return true;
 }
 function say(msg) {
     const el = document.getElementById('says');
     el.textContent = msg; el.style.display = msg ? 'block' : 'none';
+}
+
+const labelData = {pois: [], doors: [], links: []};
+
+/** A square of the given half size, in metres, around a position. */
+function square(pos, half) {
+    const my = mPerDegLat, mx = mPerDegLat * Math.cos(pos[1] * Math.PI / 180);
+    const dx = half / mx, dy = half / my;
+    return [[[pos[0] - dx, pos[1] - dy], [pos[0] + dx, pos[1] - dy],
+             [pos[0] + dx, pos[1] + dy], [pos[0] - dx, pos[1] + dy], [pos[0] - dx, pos[1] - dy]]];
+}
+function anchorsFor(groups) {
+    const feats = [];
+    for (const [fc, top, color] of groups) {
+        for (const f of fc.features) {
+            const lv = f.properties.level ?? state.level;
+            const c = f.geometry.coordinates;
+            feats.push({type: 'Feature', properties: {part: 'stem', level: lv, top: top - 0.2, color},
+                        geometry: {type: 'Polygon', coordinates: square(c, 0.075)}});
+            feats.push({type: 'Feature', properties: {part: 'dot', level: lv, color},
+                        geometry: {type: 'Polygon', coordinates: square(c, 0.32)}});
+        }
+    }
+    return {type: 'FeatureCollection', features: feats};
+}
+let labelsAt = null;
+function refreshLabels(force) {
+    if (!labelsAt || force || distM(labelsAt, state.pos) > 1.5) {
+        labelsAt = state.pos.slice();
+        const near = (coords) => distM(state.pos, coords);
+        const mk = (feats, keep) => ({type: 'FeatureCollection', features: feats.reduce((out, f) => {
+            if (!keep(f)) return out;
+            const d = near(f.geometry.coordinates);
+            if (d <= SEE_M) out.push({...f, properties: {...f.properties, dist: +d.toFixed(1)}});
+            return out;
+        }, [])});
+        const pois = mk(labelData.pois, f => f.properties.level === state.level);
+        const doors = mk(labelData.doors, f => f.properties.level === state.level);
+        const links = mk(labelData.links, f => f.properties.levels.split(';').map(Number).includes(state.level));
+        map.getSource('pois').setData(pois);
+        map.getSource('doors').setData(doors);
+        map.getSource('links').setData(links);
+        map.getSource('anchors').setData(anchorsFor([[pois, 2.6, '#cfe3ef'], [doors, 1.1, '#9ff2b8'], [links, 2.2, '#ffd479']]));
+    }
 }
 
 function camera() {
@@ -515,7 +653,7 @@ canvas.addEventListener('click', e => {
         if (!path) { say(`no walkable route to ${label} (${ms} ms)`); setTimeout(() => say(''), 2500); return; }
         const floors = [...new Set(path.map(n => n.level))];
         say(`${label}: ${path.length} steps${floors.length > 1 ? `, via level ${floors.join(' → ')}` : ''} (${ms} ms)`);
-        followRoute(path);
+        followRoute(path, label);
     }, 10);
 });
 
@@ -549,6 +687,7 @@ function setDatum(shift) {
 
 function setLevel(lv) {
     state.level = lv;
+    labelsAt = null;
     map.setGlobalStateProperty('level', lv);
     for (const b of document.querySelectorAll('#levels button'))
         b.classList.toggle('on', Number(b.dataset.lv) === lv);
@@ -565,7 +704,7 @@ function frame(t) {
     const turn = (k.has('arrowright') ? 1 : 0) - (k.has('arrowleft') ? 1 : 0);
     if (turn) { state.bearing = (state.bearing + turn * 90 * dt + 360) % 360; }
     if (fwd || side) {
-        following = null;
+        if (following) { following = null; showWay(null); say(''); }
         const speed = (k.has('shift') ? RUN : WALK) * dt;
         let next = state.pos;
         if (fwd) next = offset(next, state.bearing, fwd * speed);
@@ -573,6 +712,7 @@ function frame(t) {
         state.pos = tryMove(state.pos, next, state.level);
     }
     const routed = stepAlongRoute(dt);
+    refreshLabels(false);
     if (fwd || side || turn || routed) camera();
 
     state.near = nearestLink();
@@ -597,6 +737,7 @@ map.on('load', async () => {
     const walls = (await (await fetch('data/walls.geojson')).json()).features;
     const doors = (await (await fetch('data/doors.geojson')).json()).features;
     indexWorld(rooms, walls, links, doors);
+    labelData.pois = pois; labelData.doors = doors; labelData.links = links;
     const levels = [...new Set(rooms.map(f => f.properties.level_min))].sort((a, b) => b - a);
     const box = document.getElementById('levels');
     for (const lv of levels) {
@@ -623,6 +764,7 @@ map.on('load', async () => {
     document.getElementById('datum-btn').onclick = () => setDatum(state.shift ? 0 : 30);
     setDatum(30);
     setLevel(0);
+    refreshLabels(true);
     camera();
     requestAnimationFrame(frame);
 });
@@ -630,6 +772,7 @@ window.__walk = state;
 window.__api = {canStand, tryMove, route, world, spawnFor};
 window.__follow = followRoute;
 window.__camera = camera;
+window.__ribbonCount = () => (window.__lastRibbon || 0);
 window.__map = map;
 </script>
 </body>
