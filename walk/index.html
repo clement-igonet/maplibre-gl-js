@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Walking inside Gare de Lyon</title>
+<link rel="stylesheet" href="dist/maplibre-gl.css">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #05070d;
+               font: 14px/1.4 system-ui, -apple-system, sans-serif; color: #e6ecf3; }
+  #map { position: absolute; inset: 0; }
+  .panel { position: absolute; z-index: 5; background: rgba(8,12,20,.86); border: 1px solid #1e2836;
+           border-radius: 8px; padding: 10px 12px; backdrop-filter: blur(6px); }
+  #hud { top: 10px; left: 10px; max-width: 300px; }
+  #hud h1 { font-size: 14px; margin: 0 0 6px; letter-spacing: .2px; }
+  #hud p { margin: 4px 0; color: #93a1b3; font-size: 12px; }
+  #hud b { color: #7ee0ff; font-weight: 600; }
+  #levels { top: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; }
+  #levels button { background: #131b28; color: #cfd8e3; border: 1px solid #26344a; border-radius: 5px;
+                   width: 40px; height: 28px; font: 600 13px ui-monospace, monospace; cursor: pointer; }
+  #levels button.on { background: #7ee0ff; color: #05131b; border-color: #7ee0ff; }
+  #prompt { left: 50%; transform: translateX(-50%); bottom: 96px; display: none; text-align: center;
+            border-color: #7ee0ff; }
+  #prompt b { color: #7ee0ff; }
+  #help { bottom: 10px; left: 10px; color: #7d8a9c; font-size: 12px; }
+  #crosshair { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+               z-index: 4; pointer-events: none; opacity: .5; }
+  #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #fff; }
+  #crosshair::before { left: 6px; top: 0; width: 2px; height: 14px; }
+  #crosshair::after { top: 6px; left: 0; height: 2px; width: 14px; }
+  .stick { position: absolute; z-index: 6; width: 116px; height: 116px; border-radius: 50%;
+           border: 1px solid #26344a; background: rgba(8,12,20,.5); bottom: 18px; display: none; }
+  #stick-move { left: 18px; }
+  #stick-look { right: 18px; }
+  .stick .knob { position: absolute; width: 46px; height: 46px; border-radius: 50%; background: #7ee0ff55;
+                 border: 1px solid #7ee0ff; left: 35px; top: 35px; }
+  @media (pointer: coarse) { .stick { display: block; } #help { display: none; } }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="crosshair"></div>
+
+<div class="panel" id="hud">
+  <h1>Walking inside Gare de Lyon</h1>
+  <p>level <b id="h-level">0</b> · eye 1.7 m · <span id="h-pos"></span></p>
+  <p id="h-counts"></p>
+  <p style="color:#6c7a8d">Everything here comes from OpenStreetMap, unedited: rooms, walls, columns, stairs, escalators, lifts.</p>
+  <p>datum: <button id="datum-btn" style="background:#131b28;color:#cfd8e3;border:1px solid #26344a;border-radius:4px;padding:2px 8px;cursor:pointer;font:600 12px ui-monospace,monospace">lifted</button></p>
+  <p id="datum-note" style="display:none;color:#ffb27d">Real elevations: below level 0 the camera stops at the datum and the view tilts by itself, so you look into the underground levels instead of standing in them.</p>
+</div>
+
+<div class="panel" id="levels"></div>
+<div class="panel" id="prompt"></div>
+<div class="panel" id="help">W A S D or arrows to walk · drag to look · <b>E</b> to take stairs or lift · Shift to run</div>
+
+<div class="stick" id="stick-move"><div class="knob"></div></div>
+<div class="stick" id="stick-look"><div class="knob"></div></div>
+
+<script type="module">
+import * as maplibregl from './dist/maplibre-gl-dev.mjs';
+
+const FLOOR_H = 5;            // metres between two levels
+const EYE = 1.7;              // eye height above the floor
+const WALK = 1.6, RUN = 4.2;  // metres per second
+const REACH = 9;              // metres: how close you must be to use stairs or a lift
+
+const state = {
+    pos: [2.37619, 48.84413],   // inside the level 0 concourse
+    bearing: 20,
+    look: -6,                   // degrees below horizontal
+    level: 0,
+    shift: 30,                  // lifts the whole station so level -6 sits on the datum
+    keys: new Set(),
+    move: {x: 0, y: 0},
+    lastT: performance.now(),
+    near: null
+};
+
+const R_EARTH = 6371008.8;
+const mPerDegLat = Math.PI * R_EARTH / 180;
+const offset = ([lng, lat], bearingDeg, metres) => {
+    const b = bearingDeg * Math.PI / 180;
+    return [lng + metres * Math.sin(b) / (mPerDegLat * Math.cos(lat * Math.PI / 180)),
+            lat + metres * Math.cos(b) / mPerDegLat];
+};
+const distM = (a, b) => {
+    const dy = (b[1] - a[1]) * mPerDegLat;
+    const dx = (b[0] - a[0]) * mPerDegLat * Math.cos(a[1] * Math.PI / 180);
+    return Math.hypot(dx, dy);
+};
+
+const levelOf = ['global-state', 'level'];
+const shiftOf = ['global-state', 'shift'];     // see DATUM note in the panel
+const atLevel = ['==', ['get', 'level_min'], levelOf];
+const baseOf  = ['+', ['*', FLOOR_H, ['get', 'level_min']], shiftOf];
+const wallBase = ['+', ['*', FLOOR_H, ['get', 'level']], shiftOf];
+const hereBase = ['+', ['*', FLOOR_H, levelOf], shiftOf];
+
+const map = new maplibregl.Map({
+    container: 'map',
+    maxPitch: 100,
+    interactive: false,
+    centerClampedToGround: false,   // without this the camera cannot go below the datum
+
+    attributionControl: {compact: true},
+    style: {
+        version: 8,
+        state: {level: {default: 0}, shift: {default: 30}},
+        glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+        sources: {
+            rooms: {type: 'geojson', data: 'data/rooms.geojson'},
+            walls: {type: 'geojson', data: 'data/walls.geojson'},
+            links: {type: 'geojson', data: 'data/links.geojson'},
+            pois:  {type: 'geojson', data: 'data/pois.geojson'}
+        },
+        layers: [
+            {id: 'sky', type: 'background', paint: {'background-color': '#070b12'}},
+
+            // every other level, as a thin slab, so the stack of the station stays readable
+            {id: 'floors-other', type: 'fill-extrusion', source: 'rooms',
+             filter: ['!', atLevel],
+             paint: {
+                'fill-extrusion-base': baseOf,
+                'fill-extrusion-height': ['+', baseOf, 0.12],
+                'fill-extrusion-color': ['case', ['<', ['get', 'level_min'], levelOf], '#16202e', '#1b2536'],
+                'fill-extrusion-opacity': 0.55}},
+
+            // the level you are standing on
+            {id: 'floor-here', type: 'fill-extrusion', source: 'rooms',
+             filter: atLevel,
+             paint: {
+                'fill-extrusion-base': baseOf,
+                'fill-extrusion-height': ['+', baseOf, 0.14],
+                'fill-extrusion-color': ['match', ['get', 'kind'],
+                    'platform', '#2c4a63', 'corridor', '#37485e', 'room', '#3f5570', '#334458'],
+                'fill-extrusion-opacity': 1}},
+
+            // room volumes, translucent, so walls read without hiding the view
+            {id: 'rooms-here', type: 'fill-extrusion', source: 'rooms',
+             filter: ['all', atLevel, ['==', ['get', 'kind'], 'room']],
+             paint: {
+                'fill-extrusion-base': ['+', baseOf, 0.14],
+                'fill-extrusion-height': ['+', baseOf, 3.2],
+                'fill-extrusion-color': '#7ee0ff',
+                'fill-extrusion-opacity': 0.12}},
+
+            // columns: solid, and the reason the place feels like a building
+            {id: 'columns', type: 'fill-extrusion', source: 'walls',
+             filter: ['all', ['==', ['get', 'level'], levelOf], ['==', ['get', 'kind'], 'column']],
+             paint: {
+                'fill-extrusion-base': wallBase,
+                'fill-extrusion-height': ['+', wallBase, 3.6],
+                'fill-extrusion-color': '#4a5a70'}},
+
+            {id: 'walls', type: 'fill-extrusion', source: 'walls',
+             filter: ['all', ['==', ['get', 'level'], levelOf], ['==', ['get', 'kind'], 'wall']],
+             paint: {
+                'fill-extrusion-base': wallBase,
+                'fill-extrusion-height': ['+', wallBase, 3.0],
+                'fill-extrusion-color': '#59697f'}},
+
+            // stairs, escalators and lifts, floating at floor height
+            {id: 'links', type: 'symbol', source: 'links',
+             filter: ['all', ['<=', ['get', 'level_min'], levelOf], ['>=', ['get', 'level_max'], levelOf]],
+             layout: {
+                'text-field': ['match', ['get', 'kind'], 'elevator', '▲ lift', 'escalator', '▲ escalator', '▲ stairs'],
+                'text-font': ['Noto Sans Regular'], 'text-size': 12, 'text-allow-overlap': true,
+                'symbol-height-offset': ['+', hereBase, 2.2],
+                'symbol-height-anchor': 'absolute'},
+             paint: {'text-color': '#ffd479', 'text-halo-color': '#0a0f18', 'text-halo-width': 1.4}},
+
+            // shops and platforms you walk past
+            {id: 'pois', type: 'symbol', source: 'pois',
+             filter: ['==', ['get', 'level'], levelOf],
+             layout: {
+                'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': 11,
+                'text-allow-overlap': false,
+                'symbol-height-offset': ['+', hereBase, 2.6],
+                'symbol-height-anchor': 'absolute'},
+             paint: {'text-color': '#cfe3ef', 'text-halo-color': '#0a0f18', 'text-halo-width': 1.2}}
+        ]
+    }
+});
+
+// A point actually inside a floor of this level. Polygon centroids are often
+// outside these shapes (the station is long and bent), which leaves you standing
+// in the void with the building far away.
+function pointInRing(pt, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [xi, yi] = ring[i], [xj, yj] = ring[j];
+        if ((yi > pt[1]) !== (yj > pt[1]) &&
+            pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+}
+function spawnFor(level, rooms) {
+    const at = rooms.filter(f => f.properties.level_min === level);
+    if (!at.length) return null;
+    const ring = at.reduce((a, b) =>
+        b.geometry.coordinates[0].length > a.geometry.coordinates[0].length ? b : a).geometry.coordinates[0];
+    const xs = ring.map(c => c[0]), ys = ring.map(c => c[1]);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    let best = null;
+    for (let i = 1; i < 40; i++) for (let j = 1; j < 40; j++) {
+        const p = [x0 + (x1 - x0) * i / 40, y0 + (y1 - y0) * j / 40];
+        if (!pointInRing(p, ring)) continue;
+        const near = at.filter(f => {
+            const c = f.geometry.coordinates[0][0];
+            return Math.abs(c[0] - p[0]) < 0.0006 && Math.abs(c[1] - p[1]) < 0.0004;
+        }).length;
+        if (!best || near > best.near) best = {p, near};
+    }
+    return best && best.p;
+}
+
+function camera() {
+    const eyeAlt = state.level * FLOOR_H + state.shift + EYE;
+    const D = 45;
+    const target = offset(state.pos, state.bearing, D);
+    const targetAlt = eyeAlt + D * Math.tan(state.look * Math.PI / 180);
+    map.jumpTo(map.calculateCameraOptionsFromTo(state.pos, eyeAlt, target, targetAlt));
+}
+
+// ---- input ----------------------------------------------------------------
+addEventListener('keydown', e => {
+    state.keys.add(e.key.toLowerCase());
+    if (e.key.toLowerCase() === 'e') useLink();
+    if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) e.preventDefault();
+});
+addEventListener('keyup', e => state.keys.delete(e.key.toLowerCase()));
+
+let dragging = null;
+const canvas = map.getCanvas();
+canvas.style.cursor = 'grab';
+canvas.addEventListener('pointerdown', e => { dragging = {x: e.clientX, y: e.clientY}; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerup', () => { dragging = null; });
+canvas.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    state.bearing = (state.bearing + (e.clientX - dragging.x) * 0.22 + 360) % 360;
+    state.look = Math.max(-60, Math.min(35, state.look - (e.clientY - dragging.y) * 0.16));
+    dragging = {x: e.clientX, y: e.clientY};
+    camera();
+});
+
+function stick(el, onMove) {
+    const knob = el.querySelector('.knob');
+    let id = null, c = null;
+    el.addEventListener('pointerdown', e => {
+        id = e.pointerId; el.setPointerCapture(id);
+        const r = el.getBoundingClientRect(); c = {x: r.left + r.width / 2, y: r.top + r.height / 2};
+    });
+    el.addEventListener('pointermove', e => {
+        if (e.pointerId !== id) return;
+        let dx = (e.clientX - c.x) / 48, dy = (e.clientY - c.y) / 48;
+        const m = Math.hypot(dx, dy); if (m > 1) { dx /= m; dy /= m; }
+        knob.style.transform = `translate(${dx * 34}px, ${dy * 34}px)`;
+        onMove(dx, dy);
+    });
+    const end = e => { if (e.pointerId === id) { id = null; knob.style.transform = ''; onMove(0, 0); } };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+}
+stick(document.getElementById('stick-move'), (x, y) => { state.move.x = x; state.move.y = -y; });
+stick(document.getElementById('stick-look'), (x, y) => {
+    state.bearing = (state.bearing + x * 3.2 + 360) % 360;
+    state.look = Math.max(-60, Math.min(35, state.look - y * 2.2));
+});
+
+// ---- floor links ----------------------------------------------------------
+let links = [];
+function nearestLink() {
+    let best = null;
+    for (const f of links) {
+        const levels = f.properties.levels.split(';').map(Number);
+        if (!levels.includes(state.level)) continue;
+        const d = distM(state.pos, f.geometry.coordinates);
+        if (d < REACH && (!best || d < best.d)) best = {f, d, levels};
+    }
+    return best;
+}
+function useLink() {
+    if (!state.near) return;
+    const {levels} = state.near;
+    const i = levels.indexOf(state.level);
+    const next = levels[(i + 1) % levels.length];
+    setLevel(next);
+    state.pos = state.near.f.geometry.coordinates.slice();
+}
+function setDatum(shift) {
+    state.shift = shift;
+    map.setGlobalStateProperty('shift', shift);
+    document.getElementById('datum-btn').textContent = shift ? 'lifted' : 'real';
+    document.getElementById('datum-note').style.display = shift ? 'none' : 'block';
+    camera();
+}
+
+function setLevel(lv) {
+    state.level = lv;
+    map.setGlobalStateProperty('level', lv);
+    for (const b of document.querySelectorAll('#levels button'))
+        b.classList.toggle('on', Number(b.dataset.lv) === lv);
+    camera();
+}
+
+// ---- loop -----------------------------------------------------------------
+function frame(t) {
+    const dt = Math.min(0.05, (t - state.lastT) / 1000);
+    state.lastT = t;
+    const k = state.keys;
+    const fwd = (k.has('w') || k.has('arrowup') ? 1 : 0) - (k.has('s') || k.has('arrowdown') ? 1 : 0) + state.move.y;
+    const side = (k.has('d') ? 1 : 0) - (k.has('a') ? 1 : 0) + state.move.x;
+    const turn = (k.has('arrowright') ? 1 : 0) - (k.has('arrowleft') ? 1 : 0);
+    if (turn) { state.bearing = (state.bearing + turn * 90 * dt + 360) % 360; }
+    if (fwd || side) {
+        const speed = (k.has('shift') ? RUN : WALK) * dt;
+        if (fwd) state.pos = offset(state.pos, state.bearing, fwd * speed);
+        if (side) state.pos = offset(state.pos, state.bearing + 90, side * speed);
+    }
+    if (fwd || side || turn) camera();
+
+    state.near = nearestLink();
+    const p = document.getElementById('prompt');
+    if (state.near) {
+        const kind = state.near.f.properties.kind;
+        const others = state.near.levels.filter(l => l !== state.level).join(', ');
+        p.style.display = 'block';
+        p.innerHTML = `<b>E</b> — take the ${kind} to level ${others} <span style="color:#6c7a8d">(${state.near.d.toFixed(0)} m)</span>`;
+    } else p.style.display = 'none';
+
+    document.getElementById('h-level').textContent = state.level;
+    document.getElementById('h-pos').textContent =
+        `${state.pos[1].toFixed(5)}, ${state.pos[0].toFixed(5)} · ${Math.round(state.bearing)}°`;
+    requestAnimationFrame(frame);
+}
+
+map.on('load', async () => {
+    links = (await (await fetch('data/links.geojson')).json()).features;
+    const rooms = (await (await fetch('data/rooms.geojson')).json()).features;
+    const pois = (await (await fetch('data/pois.geojson')).json()).features;
+    const levels = [...new Set(rooms.map(f => f.properties.level_min))].sort((a, b) => b - a);
+    const box = document.getElementById('levels');
+    for (const lv of levels) {
+        const b = document.createElement('button');
+        b.textContent = lv; b.dataset.lv = lv;
+        b.onclick = () => {
+            const p = spawnFor(lv, rooms);
+            if (p) state.pos = p;
+            setLevel(lv);
+        };
+        box.appendChild(b);
+    }
+    document.getElementById('h-counts').textContent =
+        `${rooms.length} rooms · ${links.length} stairs, escalators and lifts · ${pois.length} places`;
+    document.getElementById('datum-btn').onclick = () => setDatum(state.shift ? 0 : 30);
+    setDatum(30);
+    setLevel(0);
+    camera();
+    requestAnimationFrame(frame);
+});
+window.__walk = state;
+window.__map = map;
+</script>
+</body>
+</html>
