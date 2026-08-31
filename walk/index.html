@@ -102,6 +102,9 @@ import * as maplibregl from './dist/maplibre-gl-dev.mjs';
 const FLOOR_H = 5;            // metres between two levels
 const EYE = 1.7;              // eye height above the floor
 const WALK = 1.6, RUN = 4.2;  // metres per second
+const ROUTE_SPEED = 2.8;      // 10 km/h when walking a clicked route
+const MAX_PITCH = 120;        // the camera rises off the floor if a look angle needs more
+const LOOK_UP_MAX = MAX_PITCH - 90 - 4;
 const REACH = 9;              // metres: how close you must be to use stairs or a lift
 
 const state = {
@@ -138,7 +141,7 @@ const hereBase = ['+', ['*', FLOOR_H, levelOf], shiftOf];
 
 const map = new maplibregl.Map({
     container: 'map',
-    maxPitch: 100,
+    maxPitch: MAX_PITCH,
     interactive: false,
     centerClampedToGround: false,   // without this the camera cannot go below the datum
 
@@ -399,7 +402,7 @@ function followRoute(path) {
 function stepAlongRoute(dt) {
     if (!following) return false;
     const {path} = following;
-    let budget = WALK * 4.5 * dt;
+    let budget = ROUTE_SPEED * dt;
     while (budget > 0 && following.i < path.length) {
         const node = path[following.i];
         if (node.level !== state.level) { setLevel(node.level); state.pos = node.pos.slice(); following.i++; continue; }
@@ -445,7 +448,7 @@ canvas.addEventListener('pointerup', () => { dragging = null; });
 canvas.addEventListener('pointermove', e => {
     if (!dragging) return;
     state.bearing = (state.bearing + (e.clientX - dragging.x) * 0.22 + 360) % 360;
-    state.look = Math.max(-60, Math.min(35, state.look - (e.clientY - dragging.y) * 0.16));
+    state.look = Math.max(-60, Math.min(LOOK_UP_MAX, state.look - (e.clientY - dragging.y) * 0.16));
     dragging = {x: e.clientX, y: e.clientY};
     camera();
 });
@@ -470,7 +473,7 @@ function stick(el, onMove) {
 stick(document.getElementById('stick-move'), (x, y) => { state.move.x = x; state.move.y = -y; });
 stick(document.getElementById('stick-look'), (x, y) => {
     state.bearing = (state.bearing + x * 3.2 + 360) % 360;
-    state.look = Math.max(-60, Math.min(35, state.look - y * 2.2));
+    state.look = Math.max(-60, Math.min(LOOK_UP_MAX, state.look - y * 2.2));
 });
 
 
@@ -626,6 +629,7 @@ map.on('load', async () => {
 window.__walk = state;
 window.__api = {canStand, tryMove, route, world, spawnFor};
 window.__follow = followRoute;
+window.__camera = camera;
 window.__map = map;
 </script>
 </body>
