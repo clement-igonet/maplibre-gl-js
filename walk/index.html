@@ -23,6 +23,17 @@
             border-color: #7ee0ff; }
   #prompt b { color: #7ee0ff; }
   #help { bottom: 10px; left: 10px; color: #7d8a9c; font-size: 12px; }
+  #verdict { display: none; top: 10px; left: 10px; width: min(430px, calc(100vw - 40px)); max-height: calc(100vh - 40px);
+             overflow: auto; z-index: 7; }
+  #verdict h2 { font-size: 14px; margin: 0 0 8px; }
+  #verdict h2 button { float: right; background: none; border: 0; color: #93a1b3; font-size: 18px; cursor: pointer; line-height: 1; }
+  #verdict p { margin: 10px 0 4px; font-weight: 600; font-size: 12px; letter-spacing: .3px; text-transform: uppercase; }
+  #verdict p.g { color: #8fe3a1 } #verdict p.a { color: #7ee0ff } #verdict p.r { color: #ffb27d }
+  #verdict p.n { color: #93a1b3; text-transform: none; font-weight: 400; font-size: 12px; border-top: 1px solid #1e2836; padding-top: 8px; }
+  #verdict ul { margin: 0; padding-left: 16px; color: #b9c4d2; font-size: 12px; }
+  #verdict li { margin: 3px 0 }
+  #verdict code { color: #7ee0ff; font-size: 11px }
+  #verdict-open { position: absolute; bottom: 10px; right: 10px; z-index: 5; cursor: pointer; }
   #crosshair { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px;
                z-index: 4; pointer-events: none; opacity: .5; }
   #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #fff; }
@@ -52,7 +63,35 @@
 
 <div class="panel" id="levels"></div>
 <div class="panel" id="prompt"></div>
-<div class="panel" id="help">W A S D or arrows to walk · drag to look · <b>E</b> to take stairs or lift · Shift to run</div>
+<div class="panel" id="says" style="left:50%;transform:translateX(-50%);bottom:52px;display:none;color:#9ff2b8"></div>
+<div class="panel" id="verdict-open">what holds this up →</div>
+<div class="panel" id="help">W A S D or arrows to walk · drag to look · <b>click</b> a room, door or shop to walk there · <b>E</b> to take stairs or lift · Shift to run</div>
+
+<div class="panel" id="verdict">
+  <h2>What holds this up<button id="verdict-x">×</button></h2>
+  <p class="g">Native in MapLibre today</p>
+  <ul>
+    <li>one floor per feature at its own height — <code>fill-extrusion-base</code> / <code>-height</code>, data driven</li>
+    <li>changing floor without restyling — <code>global-state</code> read from every filter</li>
+    <li>labels, doors and lifts at floor height — <code>symbol-height-offset: absolute</code> (v6.6.0)</li>
+    <li>eye placed at 1.7 m looking ahead — <code>calculateCameraOptionsFromTo</code></li>
+    <li>knowing what you clicked — <code>queryRenderedFeatures</code></li>
+  </ul>
+  <p class="a">Written in this page, and that is where it belongs</p>
+  <ul>
+    <li>walls and columns stopping you, floors you cannot fall off</li>
+    <li>routing between two points, across floors, through stairs and lifts</li>
+    <li>turning OSM <code>level=-4;-3;-2</code> into numeric min and max (the conclusion of style-spec#1843)</li>
+  </ul>
+  <p class="r">Still missing, measured here</p>
+  <ul>
+    <li><b>the camera stops at the datum.</b> With no terrain it cannot go below 0, so the station is lifted 30 m to be walkable. Switch datum to <code>real</code> to see the pitch drift on its own.</li>
+    <li><b>underground geometry needs an unmerged PR.</b> Negative base is in the spec (style-spec#1794) but the renderer PR (gl-js#8069) is open.</li>
+    <li><b>no way to cut the roof open</b> from outside, so you can only look in from above. style-spec#1661.</li>
+    <li><b>wall shading turns off</b> as soon as a floor has a base, so every stacked floor is flat. gl-js#6482.</li>
+  </ul>
+  <p class="n">Nothing here needs a new style spec property except the reveal blend. The rest is renderer and camera correctness, plus writing the level convention down.</p>
+</div>
 
 <div class="stick" id="stick-move"><div class="knob"></div></div>
 <div class="stick" id="stick-look"><div class="knob"></div></div>
@@ -112,7 +151,8 @@ const map = new maplibregl.Map({
             rooms: {type: 'geojson', data: 'data/rooms.geojson'},
             walls: {type: 'geojson', data: 'data/walls.geojson'},
             links: {type: 'geojson', data: 'data/links.geojson'},
-            pois:  {type: 'geojson', data: 'data/pois.geojson'}
+            pois:  {type: 'geojson', data: 'data/pois.geojson'},
+            doors: {type: 'geojson', data: 'data/doors.geojson'}
         },
         layers: [
             {id: 'sky', type: 'background', paint: {'background-color': '#070b12'}},
@@ -170,6 +210,16 @@ const map = new maplibregl.Map({
                 'symbol-height-anchor': 'absolute'},
              paint: {'text-color': '#ffd479', 'text-halo-color': '#0a0f18', 'text-halo-width': 1.4}},
 
+            // doors and entrances: where you can actually get in
+            {id: 'doors', type: 'symbol', source: 'doors',
+             filter: ['==', ['get', 'level'], levelOf],
+             layout: {
+                'text-field': ['case', ['get', 'entrance'], '▯ way in', '▯'],
+                'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-allow-overlap': true,
+                'symbol-height-offset': ['+', hereBase, 1.1],
+                'symbol-height-anchor': 'absolute'},
+             paint: {'text-color': '#9ff2b8', 'text-halo-color': '#08140d', 'text-halo-width': 1.3}},
+
             // shops and platforms you walk past
             {id: 'pois', type: 'symbol', source: 'pois',
              filter: ['==', ['get', 'level'], levelOf],
@@ -186,15 +236,6 @@ const map = new maplibregl.Map({
 // A point actually inside a floor of this level. Polygon centroids are often
 // outside these shapes (the station is long and bent), which leaves you standing
 // in the void with the building far away.
-function pointInRing(pt, ring) {
-    let inside = false;
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-        const [xi, yi] = ring[i], [xj, yj] = ring[j];
-        if ((yi > pt[1]) !== (yj > pt[1]) &&
-            pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi) inside = !inside;
-    }
-    return inside;
-}
 function spawnFor(level, rooms) {
     const at = rooms.filter(f => f.properties.level_min === level);
     if (!at.length) return null;
@@ -213,6 +254,171 @@ function spawnFor(level, rooms) {
         if (!best || near > best.near) best = {p, near};
     }
     return best && best.p;
+}
+
+// ---------------------------------------------------------------------------
+// Walking rules. None of this is MapLibre's job: the engine draws, the app
+// decides where a body may go. Collision with walls, staying on a floor and
+// routing are all done here against the same OSM polygons that are rendered.
+// ---------------------------------------------------------------------------
+const world = {walkable: new Map(), blocking: new Map(), links: [], doors: []};
+
+function bboxOf(ring) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of ring) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    return [x0, y0, x1, y1];
+}
+function pointInRing(pt, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [xi, yi] = ring[i], [xj, yj] = ring[j];
+        if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+}
+const hit = (pt, shape) => pt[0] >= shape.bbox[0] && pt[0] <= shape.bbox[2] &&
+                           pt[1] >= shape.bbox[1] && pt[1] <= shape.bbox[3] && pointInRing(pt, shape.ring);
+
+function indexWorld(rooms, walls, links, doors) {
+    for (const f of rooms) {
+        const lv = f.properties.level_min;
+        const ring = f.geometry.coordinates[0];
+        if (!world.walkable.has(lv)) world.walkable.set(lv, []);
+        world.walkable.get(lv).push({ring, bbox: bboxOf(ring), props: f.properties});
+    }
+    for (const f of walls) {
+        if (f.geometry.type !== 'Polygon') continue;
+        const lv = f.properties.level;
+        const ring = f.geometry.coordinates[0];
+        if (!world.blocking.has(lv)) world.blocking.set(lv, []);
+        world.blocking.get(lv).push({ring, bbox: bboxOf(ring)});
+    }
+    world.links = links.map(f => ({pos: f.geometry.coordinates,
+                                   levels: f.properties.levels.split(';').map(Number),
+                                   kind: f.properties.kind}));
+    world.doors = doors.map(f => ({pos: f.geometry.coordinates, level: f.properties.level}));
+}
+
+/** A body may stand here: on a floor of this level, and not inside a wall or column. */
+function canStand(pos, level) {
+    const floors = world.walkable.get(level);
+    if (!floors || !floors.some(s => hit(pos, s))) return false;
+    const blocks = world.blocking.get(level);
+    return !(blocks && blocks.some(s => hit(pos, s)));
+}
+
+/** Move with collision response: if blocked, slide along whichever axis is free. */
+function tryMove(from, to, level) {
+    if (canStand(to, level)) return to;
+    const slideX = [to[0], from[1]], slideY = [from[0], to[1]];
+    if (canStand(slideX, level)) return slideX;
+    if (canStand(slideY, level)) return slideY;
+    return from;
+}
+
+// ---- routing --------------------------------------------------------------
+const CELL = 2.5;                                  // metres per grid cell
+const degPerM_lat = 1 / mPerDegLat;
+const degPerM_lng = lat => 1 / (mPerDegLat * Math.cos(lat * Math.PI / 180));
+const ORIGIN = [2.3700, 48.8425];
+const toCell = (pos, level) => {
+    const ix = Math.round((pos[0] - ORIGIN[0]) / (CELL * degPerM_lng(pos[1])));
+    const iy = Math.round((pos[1] - ORIGIN[1]) / (CELL * degPerM_lat));
+    return `${level}|${ix}|${iy}`;
+};
+const fromCell = key => {
+    const [lv, ix, iy] = key.split('|').map(Number);
+    const lat = ORIGIN[1] + iy * CELL * degPerM_lat;
+    return {level: lv, pos: [ORIGIN[0] + ix * CELL * degPerM_lng(lat), lat]};
+};
+const standCache = new Map();
+function cellOk(key) {
+    let v = standCache.get(key);
+    if (v === undefined) { const c = fromCell(key); v = canStand(c.pos, c.level); standCache.set(key, v); }
+    return v;
+}
+/** Links reachable from a cell, keyed by cell, built once. */
+let linkCells = null;
+function buildLinkCells() {
+    linkCells = new Map();
+    for (const l of world.links) for (const lv of l.levels) {
+        const key = toCell(l.pos, lv);
+        if (!linkCells.has(key)) linkCells.set(key, []);
+        linkCells.get(key).push(l);
+    }
+}
+/** A* over an implicit grid, with stairs and lifts as edges between levels. */
+function route(from, fromLevel, to, toLevel, budget = 26000) {
+    if (!linkCells) buildLinkCells();
+    const start = toCell(from, fromLevel), goal = toCell(to, toLevel);
+    const goalC = fromCell(goal);
+    const h = key => {
+        const c = fromCell(key);
+        return distM(c.pos, goalC.pos) + Math.abs(c.level - goalC.level) * 12;
+    };
+    const open = [{key: start, f: h(start)}];
+    const came = new Map(), g = new Map([[start, 0]]);
+    let seen = 0;
+    while (open.length) {
+        open.sort((a, b) => a.f - b.f);
+        const cur = open.shift();
+        if (cur.key === goal) {
+            const path = [cur.key];
+            let k = cur.key;
+            while (came.has(k)) { k = came.get(k); path.push(k); }
+            return path.reverse().map(fromCell);
+        }
+        if (++seen > budget) break;
+        const [lv, ix, iy] = cur.key.split('|').map(Number);
+        const nbrs = [];
+        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+            if (!dx && !dy) continue;
+            nbrs.push([`${lv}|${ix + dx}|${iy + dy}`, CELL * Math.hypot(dx, dy)]);
+        }
+        for (const l of (linkCells.get(cur.key) || []))
+            for (const other of l.levels)
+                if (other !== lv) nbrs.push([toCell(l.pos, other), l.kind === 'elevator' ? 10 : 14]);
+        for (const [nk, cost] of nbrs) {
+            if (!cellOk(nk)) continue;
+            const ng = g.get(cur.key) + cost;
+            if (ng < (g.get(nk) ?? Infinity)) {
+                g.set(nk, ng); came.set(nk, cur.key);
+                open.push({key: nk, f: ng + h(nk)});
+            }
+        }
+    }
+    return null;
+}
+
+// ---- following a route ----------------------------------------------------
+let following = null;
+function followRoute(path) {
+    following = {path, i: 0};
+    say(`walking ${path.length} steps`);
+}
+function stepAlongRoute(dt) {
+    if (!following) return false;
+    const {path} = following;
+    let budget = WALK * 4.5 * dt;
+    while (budget > 0 && following.i < path.length) {
+        const node = path[following.i];
+        if (node.level !== state.level) { setLevel(node.level); state.pos = node.pos.slice(); following.i++; continue; }
+        const d = distM(state.pos, node.pos);
+        if (d < 0.35) { following.i++; continue; }
+        const stepLen = Math.min(budget, d);
+        const b = Math.atan2(node.pos[0] - state.pos[0], node.pos[1] - state.pos[1]) * 180 / Math.PI;
+        const want = (b + 360) % 360;
+        let diff = ((want - state.bearing + 540) % 360) - 180;
+        state.bearing = (state.bearing + diff * Math.min(1, dt * 6) + 360) % 360;
+        state.pos = offset(state.pos, want, stepLen);
+        budget -= stepLen;
+    }
+    if (following.i >= path.length) { following = null; say(''); }
+    return true;
+}
+function say(msg) {
+    const el = document.getElementById('says');
+    el.textContent = msg; el.style.display = msg ? 'block' : 'none';
 }
 
 function camera() {
@@ -267,6 +473,49 @@ stick(document.getElementById('stick-look'), (x, y) => {
     state.look = Math.max(-60, Math.min(35, state.look - y * 2.2));
 });
 
+
+// ---- click to walk --------------------------------------------------------
+canvas.addEventListener('click', e => {
+    const r = canvas.getBoundingClientRect();
+    const pt = [e.clientX - r.left, e.clientY - r.top];
+    const feats = map.queryRenderedFeatures(pt, {layers: ['pois', 'doors', 'links', 'floor-here', 'rooms-here']});
+    if (!feats.length) { say('nothing to walk to there'); setTimeout(() => say(''), 1500); return; }
+    const f = feats[0];
+    let target, targetLevel = state.level, label = 'there';
+    if (f.geometry.type === 'Point') {
+        target = f.geometry.coordinates.slice();
+        const p = f.properties;
+        targetLevel = p.level !== undefined ? p.level :
+            (p.levels ? p.levels.split(';').map(Number).find(l => l !== state.level) : state.level);
+        label = p.name || p.kind || 'there';
+    } else {
+        const ring = f.geometry.coordinates[0];
+        target = [ring.reduce((a, c) => a + c[0], 0) / ring.length, ring.reduce((a, c) => a + c[1], 0) / ring.length];
+        targetLevel = f.properties.level_min ?? state.level;
+        label = f.properties.name || f.properties.kind || 'there';
+    }
+    if (!canStand(target, targetLevel)) {
+        // nudge onto the nearest standable spot
+        let fixed = null;
+        for (let rad = 2; rad <= 12 && !fixed; rad += 2)
+            for (let a = 0; a < 360 && !fixed; a += 30) {
+                const p2 = offset(target, a, rad);
+                if (canStand(p2, targetLevel)) fixed = p2;
+            }
+        if (fixed) target = fixed;
+    }
+    say(`routing to ${label}...`);
+    setTimeout(() => {
+        const t0 = performance.now();
+        const path = route(state.pos, state.level, target, targetLevel);
+        const ms = Math.round(performance.now() - t0);
+        if (!path) { say(`no walkable route to ${label} (${ms} ms)`); setTimeout(() => say(''), 2500); return; }
+        const floors = [...new Set(path.map(n => n.level))];
+        say(`${label}: ${path.length} steps${floors.length > 1 ? `, via level ${floors.join(' → ')}` : ''} (${ms} ms)`);
+        followRoute(path);
+    }, 10);
+});
+
 // ---- floor links ----------------------------------------------------------
 let links = [];
 function nearestLink() {
@@ -313,11 +562,15 @@ function frame(t) {
     const turn = (k.has('arrowright') ? 1 : 0) - (k.has('arrowleft') ? 1 : 0);
     if (turn) { state.bearing = (state.bearing + turn * 90 * dt + 360) % 360; }
     if (fwd || side) {
+        following = null;
         const speed = (k.has('shift') ? RUN : WALK) * dt;
-        if (fwd) state.pos = offset(state.pos, state.bearing, fwd * speed);
-        if (side) state.pos = offset(state.pos, state.bearing + 90, side * speed);
+        let next = state.pos;
+        if (fwd) next = offset(next, state.bearing, fwd * speed);
+        if (side) next = offset(next, state.bearing + 90, side * speed);
+        state.pos = tryMove(state.pos, next, state.level);
     }
-    if (fwd || side || turn) camera();
+    const routed = stepAlongRoute(dt);
+    if (fwd || side || turn || routed) camera();
 
     state.near = nearestLink();
     const p = document.getElementById('prompt');
@@ -338,6 +591,9 @@ map.on('load', async () => {
     links = (await (await fetch('data/links.geojson')).json()).features;
     const rooms = (await (await fetch('data/rooms.geojson')).json()).features;
     const pois = (await (await fetch('data/pois.geojson')).json()).features;
+    const walls = (await (await fetch('data/walls.geojson')).json()).features;
+    const doors = (await (await fetch('data/doors.geojson')).json()).features;
+    indexWorld(rooms, walls, links, doors);
     const levels = [...new Set(rooms.map(f => f.properties.level_min))].sort((a, b) => b - a);
     const box = document.getElementById('levels');
     for (const lv of levels) {
@@ -351,7 +607,16 @@ map.on('load', async () => {
         box.appendChild(b);
     }
     document.getElementById('h-counts').textContent =
-        `${rooms.length} rooms · ${links.length} stairs, escalators and lifts · ${pois.length} places`;
+        `${rooms.length} rooms · ${links.length} stairs, escalators and lifts · ${doors.length} doors · ${pois.length} places`;
+    if (!canStand(state.pos, 0)) { const p = spawnFor(0, rooms); if (p) state.pos = p; }
+    document.getElementById('verdict-open').onclick = () => {
+        document.getElementById('verdict').style.display = 'block';
+        document.getElementById('hud').style.display = 'none';
+    };
+    document.getElementById('verdict-x').onclick = () => {
+        document.getElementById('verdict').style.display = 'none';
+        document.getElementById('hud').style.display = 'block';
+    };
     document.getElementById('datum-btn').onclick = () => setDatum(state.shift ? 0 : 30);
     setDatum(30);
     setLevel(0);
@@ -359,6 +624,8 @@ map.on('load', async () => {
     requestAnimationFrame(frame);
 });
 window.__walk = state;
+window.__api = {canStand, tryMove, route, world, spawnFor};
+window.__follow = followRoute;
 window.__map = map;
 </script>
 </body>
