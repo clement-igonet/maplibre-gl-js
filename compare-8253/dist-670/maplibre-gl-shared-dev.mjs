@@ -2490,6 +2490,7 @@ function isImageBitmap(image) {
 * @returns - A  promise resolved when the conversion is finished
 */
 const arrayBufferToImageBitmap = async (data, options) => {
+	if (data.byteLength === 0) return createImageBitmap(new ImageData(1, 1), options);
 	const blob = new Blob([new Uint8Array(data)], { type: "image/png" });
 	try {
 		return createImageBitmap(blob, options);
@@ -2519,7 +2520,7 @@ const arrayBufferToImage = (data) => {
 		};
 		img.onerror = () => reject(/* @__PURE__ */ new Error("Could not load image. Please make sure to use a supported image type such as PNG or JPEG. Note that SVGs are not supported."));
 		const blob = new Blob([new Uint8Array(data)], { type: "image/png" });
-		img.src = URL.createObjectURL(blob);
+		img.src = data.byteLength ? URL.createObjectURL(blob) : transparentPngUrl;
 	});
 };
 /**

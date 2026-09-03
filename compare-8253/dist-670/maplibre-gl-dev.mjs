@@ -358,13 +358,6 @@ let ImageRequest;
 		if (typeof createImageBitmap === "function") return arrayBufferToImageBitmap(data, imageBitmapOptions);
 		else return arrayBufferToImage(data);
 	};
-	/**
-	* Runs one queued image request.
-	*
-	* An empty response body (e.g. HTTP 204 for a tile without content) resolves with
-	* `data: null`, keeping the expiry headers, so callers can handle the absence
-	* explicitly and re-request when the headers say so.
-	*/
 	const doImageRequest = async (itemInQueue) => {
 		itemInQueue.state = "running";
 		const { requestParameters, supportImageRefresh, imageBitmapOptions, onError, onSuccess, abortController } = itemInQueue;
@@ -376,12 +369,7 @@ let ImageRequest;
 			delete itemInQueue.abortController;
 			itemInQueue.state = "completed";
 			if (response.data instanceof HTMLImageElement || isImageBitmap(response.data)) onSuccess(response);
-			else if (!response.data || response.data.byteLength === 0) onSuccess({
-				data: null,
-				cacheControl: response.cacheControl,
-				expires: response.expires
-			});
-			else onSuccess({
+			else if (response.data) onSuccess({
 				data: await arrayBufferToCanvasImageSource(response.data, imageBitmapOptions),
 				cacheControl: response.cacheControl,
 				expires: response.expires
@@ -743,9 +731,7 @@ async function doOnceCompleted(jsonsMap, imagesMap) {
 	const result = {};
 	for (const spriteName in jsonsMap) {
 		result[spriteName] = {};
-		const image = (await imagesMap[spriteName]).data;
-		if (!image) throw new Error(`Could not load sprite image for ${spriteName}: the response is empty`);
-		const context = browser.getImageCanvasContext(image);
+		const context = browser.getImageCanvasContext((await imagesMap[spriteName]).data);
 		const json = (await jsonsMap[spriteName]).data;
 		for (const id in json) {
 			const { width, height, x, y, sdf, pixelRatio, stretchX, stretchY, content, textFitWidth, textFitHeight } = json[id];
@@ -3176,17 +3162,14 @@ var RasterTileSource = class extends Evented {
 				tile.state = "unloaded";
 				return;
 			}
-			if (response) {
+			if (response?.data) {
 				if (this.map._refreshExpiredTiles && (response.cacheControl || response.expires)) tile.setExpiryData({
 					cacheControl: response.cacheControl,
 					expires: response.expires
 				});
 				const context = this.map.painter.context;
 				const gl = context.gl;
-				const img = response.data ?? new RGBAImage({
-					width: 1,
-					height: 1
-				}, /* @__PURE__ */ new Uint8Array(4));
+				const img = response.data;
 				tile.texture = this.map.painter.getTileTexture(img.width);
 				if (tile.texture) tile.texture.update(img, {
 					useMipmap: true,
@@ -3264,16 +3247,12 @@ var RasterDEMTileSource = class extends RasterTileSource {
 				tile.state = "unloaded";
 				return;
 			}
-			if (response) {
+			if (response?.data) {
+				const img = response.data;
 				if (this.map._refreshExpiredTiles && (response.cacheControl || response.expires)) tile.setExpiryData({
 					cacheControl: response.cacheControl,
 					expires: response.expires
 				});
-				if (!response.data) {
-					tile.state = "loaded";
-					return;
-				}
-				const img = response.data;
 				const rawImageData = isImageBitmap(img) && offscreenCanvasSupported() ? img : await this.readImageNow(img);
 				const params = {
 					type: this.type,
@@ -4400,7 +4379,7 @@ var ImageSource = class extends Evented {
 				this._setImage(image.data);
 				if (newCoordinates) this.coordinates = newCoordinates;
 				this._finishLoading();
-			} else this.fire(new ErrorEvent(/* @__PURE__ */ new Error(`Could not load image ${this.url}: the response is empty`)));
+			}
 		} catch (err) {
 			if (isAbortError(err)) return;
 			this._abortController = null;
@@ -9119,7 +9098,7 @@ const shaders = {
 	terrain: prepare("uniform sampler2D u_texture;uniform vec4 u_fog_color;uniform vec4 u_horizon_color;uniform float u_fog_ground_blend;uniform float u_fog_ground_blend_opacity;uniform float u_horizon_fog_blend;uniform bool u_is_globe_mode;in vec2 v_texture_pos;in float v_fog_depth;const float gamma=2.2;vec4 gammaToLinear(vec4 color) {return pow(color,vec4(gamma));}vec4 linearToGamma(vec4 color) {return pow(color,vec4(1.0/gamma));}void main() {vec4 surface_color=texture(u_texture,vec2(v_texture_pos.x,1.0-v_texture_pos.y));if (!u_is_globe_mode && u_fog_ground_blend_opacity > 0.0 && v_fog_depth > u_fog_ground_blend) {vec4 surface_color_linear=gammaToLinear(surface_color);float blend_color=smoothstep(0.0,1.0,max((v_fog_depth-u_horizon_fog_blend)/(1.0-u_horizon_fog_blend),0.0));vec4 fog_horizon_color_linear=mix(gammaToLinear(u_fog_color),gammaToLinear(u_horizon_color),blend_color);float factor_fog=max(v_fog_depth-u_fog_ground_blend,0.0)/(1.0-u_fog_ground_blend);fragColor=linearToGamma(mix(surface_color_linear,fog_horizon_color_linear,pow(factor_fog,2.0)*u_fog_ground_blend_opacity));} else {fragColor=surface_color;}}", "layout(location=0) in vec3 a_pos3d;uniform mat4 u_fog_matrix;uniform float u_ele_delta;out vec2 v_texture_pos;out float v_fog_depth;void main() {float ele=get_elevation(a_pos3d.xy);float ele_delta=a_pos3d.z==1.0 ? u_ele_delta : 0.0;v_texture_pos=a_pos3d.xy/8192.0;gl_Position=projectTileFor3D(a_pos3d.xy,ele-ele_delta);vec4 pos=u_fog_matrix*vec4(a_pos3d.xy,ele,1.0);v_fog_depth=pos.z/pos.w*0.5+0.5;}"),
 	terrainDepth: prepare("in float v_depth;const highp vec4 bitSh=vec4(256.*256.*256.,256.*256.,256.,1.);const highp vec4 bitMsk=vec4(0.,vec3(1./256.0));highp vec4 pack(highp float value) {highp vec4 comp=fract(value*bitSh);comp-=comp.xxyz*bitMsk;return comp;}void main() {fragColor=pack(v_depth);}", "layout(location=0) in vec3 a_pos3d;uniform float u_ele_delta;out float v_depth;void main() {float ele=get_elevation(a_pos3d.xy);float ele_delta=a_pos3d.z==1.0 ? u_ele_delta : 0.0;gl_Position=projectTileFor3D(a_pos3d.xy,ele-ele_delta);v_depth=gl_Position.z/gl_Position.w;}"),
 	atmosphere: prepare("#ifdef GL_ES\nprecision highp float;\n#endif\nin vec3 view_direction;uniform vec3 u_sun_pos;uniform vec3 u_globe_position;uniform float u_globe_radius;uniform float u_atmosphere_blend;/**Shader use from https:*Made some change to adapt to MapLibre Globe geometry*/const float PI=3.141592653589793;const int iSteps=5;const int jSteps=3;/*radius of the planet*/const float EARTH_RADIUS=6371e3;/*radius of the atmosphere*/const float ATMOS_RADIUS=6471e3;vec2 rsi(vec3 r0,vec3 rd,float sr) {float a=dot(rd,rd);float b=2.0*dot(rd,r0);float c=dot(r0,r0)-(sr*sr);float d=(b*b)-4.0*a*c;if (d < 0.0) return vec2(1e5,-1e5);return vec2((-b-sqrt(d))/(2.0*a),(-b+sqrt(d))/(2.0*a));}vec4 atmosphere(vec3 r,vec3 r0,vec3 pSun,float iSun,float rPlanet,float rAtmos,vec3 kRlh,float kMie,float shRlh,float shMie,float g) {pSun=normalize(pSun);r=normalize(r);vec2 p=rsi(r0,r,rAtmos);if (p.x > p.y) {return vec4(0.0,0.0,0.0,1.0);}if (p.x < 0.0) {p.x=0.0;}vec3 pos=r0+r*p.x;vec2 p2=rsi(r0,r,rPlanet);if (p2.x <=p2.y && p2.x > 0.0) {p.y=min(p.y,p2.x);}float iStepSize=(p.y-p.x)/float(iSteps);float iTime=p.x+iStepSize*0.5;vec3 totalRlh=vec3(0,0,0);vec3 totalMie=vec3(0,0,0);float iOdRlh=0.0;float iOdMie=0.0;float mu=dot(r,pSun);float mumu=mu*mu;float gg=g*g;float pRlh=3.0/(16.0*PI)*(1.0+mumu);float pMie=3.0/(8.0*PI)*((1.0-gg)*(mumu+1.0))/(pow(1.0+gg-2.0*mu*g,1.5)*(2.0+gg));for (int i=0; i < iSteps; i++) {vec3 iPos=r0+r*iTime;float iHeight=length(iPos)-rPlanet;float odStepRlh=exp(-iHeight/shRlh)*iStepSize;float odStepMie=exp(-iHeight/shMie)*iStepSize;iOdRlh+=odStepRlh;iOdMie+=odStepMie;float jStepSize=rsi(iPos,pSun,rAtmos).y/float(jSteps);float jTime=jStepSize*0.5;float jOdRlh=0.0;float jOdMie=0.0;for (int j=0; j < jSteps; j++) {vec3 jPos=iPos+pSun*jTime;float jHeight=length(jPos)-rPlanet;jOdRlh+=exp(-jHeight/shRlh)*jStepSize;jOdMie+=exp(-jHeight/shMie)*jStepSize;jTime+=jStepSize;}vec3 attn=exp(-(kMie*(iOdMie+jOdMie)+kRlh*(iOdRlh+jOdRlh)));totalRlh+=odStepRlh*attn;totalMie+=odStepMie*attn;iTime+=iStepSize;}float opacity=exp(-(length(kRlh)*length(totalRlh)+kMie*length(totalMie)));vec3 color=iSun*(pRlh*kRlh*totalRlh+pMie*kMie*totalMie);return vec4(color,opacity);}void main() {vec3 scale_camera_pos=-u_globe_position*EARTH_RADIUS/u_globe_radius;vec4 color=atmosphere(normalize(view_direction),scale_camera_pos,u_sun_pos,22.0,EARTH_RADIUS,ATMOS_RADIUS,vec3(5.5e-6,13.0e-6,22.4e-6),21e-6,8e3,1.2e3,0.758\n);color.rgb=1.0-exp(-1.0*color.rgb);color=pow(color,vec4(1.0/2.2));fragColor=vec4(color.rgb,1.0-color.a)*u_atmosphere_blend;}", "layout(location=0) in vec2 a_pos;uniform mat4 u_inv_proj_matrix;out vec3 view_direction;void main() {view_direction=(u_inv_proj_matrix*vec4(a_pos,0.0,1.0)).xyz;gl_Position=vec4(a_pos,0.0,1.0);}"),
-	sky: prepare("uniform vec4 u_sky_color;uniform vec4 u_horizon_color;uniform vec2 u_horizon;uniform vec2 u_horizon_normal;uniform float u_sky_horizon_blend;uniform float u_sky_blend;uniform vec3 u_globe_position;uniform float u_globe_radius;uniform float u_camera_to_center_distance;in vec3 v_view_direction;void main() {float x=gl_FragCoord.x;float y=gl_FragCoord.y;float blend=(y-u_horizon.y)*u_horizon_normal.y+(x-u_horizon.x)*u_horizon_normal.x;if (u_sky_blend > 0.0) {vec3 ray=normalize(v_view_direction);float globe_distance=length(u_globe_position);float angle_to_globe_center=acos(clamp(dot(ray,u_globe_position)/globe_distance,-1.0,1.0));float horizon_angle=asin(min(u_globe_radius/globe_distance,1.0));blend=mix(blend,(angle_to_globe_center-horizon_angle)*u_camera_to_center_distance,u_sky_blend);}if (blend > 0.0) {if (blend < u_sky_horizon_blend) {fragColor=mix(u_sky_color,u_horizon_color,pow(1.0-blend/u_sky_horizon_blend,2.0));} else {fragColor=u_sky_color;}}fragColor=mix(fragColor,vec4(vec3(0.0),0.0),u_sky_blend);}", "layout(location=0) in vec2 a_pos;uniform mat4 u_inv_proj_matrix;out vec3 v_view_direction;void main() {v_view_direction=(u_inv_proj_matrix*vec4(a_pos,0.0,1.0)).xyz;gl_Position=vec4(a_pos,1.0,1.0);}")
+	sky: prepare("uniform vec4 u_sky_color;uniform vec4 u_horizon_color;uniform vec2 u_horizon;uniform vec2 u_horizon_normal;uniform float u_sky_horizon_blend;uniform float u_sky_blend;void main() {float x=gl_FragCoord.x;float y=gl_FragCoord.y;float blend=(y-u_horizon.y)*u_horizon_normal.y+(x-u_horizon.x)*u_horizon_normal.x;if (blend > 0.0) {if (blend < u_sky_horizon_blend) {fragColor=mix(u_sky_color,u_horizon_color,pow(1.0-blend/u_sky_horizon_blend,2.0));} else {fragColor=u_sky_color;}}fragColor=mix(fragColor,vec4(vec3(0.0),0.0),u_sky_blend);}", "layout(location=0) in vec2 a_pos;void main() {gl_Position=vec4(a_pos,1.0,1.0);}")
 };
 /** Expand #pragmas to #ifdefs, extract attributes and uniforms */
 function prepare(fragmentSource, vertexSource) {
@@ -12128,23 +12107,6 @@ function getGlobeRadiusPixels(worldSize, latitudeDegrees) {
 	return worldSize / (2 * Math.PI) / Math.cos(latitudeDegrees * Math.PI / 180);
 }
 /**
-* Returns the globe center in view space, in pixels: the camera is at the origin and looks down the negative Z axis.
-*/
-function getGlobeCenterInViewSpace(transform) {
-	const position = transformMat4(createVec4f64(), [
-		0,
-		0,
-		0,
-		1
-	], transform.modelViewProjectionMatrix);
-	transformMat4(position, position, transform.inverseProjectionMatrix);
-	return [
-		position[0] / position[3],
-		position[1] / position[3],
-		position[2] / position[3]
-	];
-}
-/**
 * Given a 3D point on the surface of a unit sphere, returns its angular coordinates in degrees.
 * The input vector must be normalized.
 */
@@ -13210,43 +13172,20 @@ var VerticalPerspectiveTransform = class VerticalPerspectiveTransform {
 		const canonical = unwrappedTileID.canonical;
 		const spherePos = projectTileCoordinatesToSphere(x, y, canonical.x, canonical.y, canonical.z);
 		const vectorMultiplier = 1 + (elevation ?? 0) / earthRadius;
-		const elevatedX = spherePos[0] * vectorMultiplier;
-		const elevatedY = spherePos[1] * vectorMultiplier;
-		const elevatedZ = spherePos[2] * vectorMultiplier;
 		const pos = [
-			elevatedX,
-			elevatedY,
-			elevatedZ,
+			spherePos[0] * vectorMultiplier,
+			spherePos[1] * vectorMultiplier,
+			spherePos[2] * vectorMultiplier,
 			1
 		];
 		transformMat4(pos, pos, this._globeViewProjMatrixF64);
-		let isOccluded;
-		if (vectorMultiplier <= 1) {
-			const plane = this._cachedClippingPlane;
-			isOccluded = plane[0] * spherePos[0] + plane[1] * spherePos[1] + plane[2] * spherePos[2] + plane[3] < 0;
-		} else isOccluded = this._isLineOfSightBlocked(elevatedX, elevatedY, elevatedZ);
+		const plane = this._cachedClippingPlane;
+		const isOccluded = plane[0] * spherePos[0] + plane[1] * spherePos[1] + plane[2] * spherePos[2] + plane[3] < 0;
 		return {
 			point: new Point(pos[0] / pos[3], pos[1] / pos[3]),
 			signedDistanceFromCamera: pos[3],
 			isOccluded
 		};
-	}
-	/**
-	* True when the segment from the camera to the given point (unit-globe coordinates)
-	* intersects the globe.
-	*/
-	_isLineOfSightBlocked(x, y, z) {
-		const cam = this._cameraPosition;
-		const dx = x - cam[0];
-		const dy = y - cam[1];
-		const dz = z - cam[2];
-		const lengthSq = dx * dx + dy * dy + dz * dz;
-		if (lengthSq === 0) return false;
-		const t = clamp(-(cam[0] * dx + cam[1] * dy + cam[2] * dz) / lengthSq, 0, 1);
-		const cx = cam[0] + t * dx;
-		const cy = cam[1] + t * dy;
-		const cz = cam[2] + t * dz;
-		return cx * cx + cy * cy + cz * cz < 1;
 	}
 	_calcMatrices() {
 		if (!this._helper._width || !this._helper._height) return;
@@ -16645,11 +16584,7 @@ const skyUniforms = (context, locations) => ({
 	"u_horizon": new Uniform2f(context, locations.u_horizon),
 	"u_horizon_normal": new Uniform2f(context, locations.u_horizon_normal),
 	"u_sky_horizon_blend": new Uniform1f(context, locations.u_sky_horizon_blend),
-	"u_sky_blend": new Uniform1f(context, locations.u_sky_blend),
-	"u_inv_proj_matrix": new UniformMatrix4f(context, locations.u_inv_proj_matrix),
-	"u_globe_position": new Uniform3f(context, locations.u_globe_position),
-	"u_globe_radius": new Uniform1f(context, locations.u_globe_radius),
-	"u_camera_to_center_distance": new Uniform1f(context, locations.u_camera_to_center_distance)
+	"u_sky_blend": new Uniform1f(context, locations.u_sky_blend)
 });
 const skyUniformValues = (sky, transform, pixelRatio) => {
 	const cosRoll = Math.cos(transform.rollInRadians);
@@ -16666,11 +16601,7 @@ const skyUniformValues = (sky, transform, pixelRatio) => {
 		"u_horizon": [(transform.width / 2 - mercatorHorizon * sinRoll) * pixelRatio, (transform.height / 2 + mercatorHorizon * cosRoll) * pixelRatio],
 		"u_horizon_normal": [-sinRoll, cosRoll],
 		"u_sky_horizon_blend": sky.properties.get("sky-horizon-blend") * transform.height / 2 * pixelRatio,
-		"u_sky_blend": skyBlend,
-		"u_inv_proj_matrix": transform.inverseProjectionMatrix,
-		"u_globe_position": getGlobeCenterInViewSpace(transform),
-		"u_globe_radius": getGlobeRadiusPixels(transform.worldSize, transform.center.lat),
-		"u_camera_to_center_distance": transform.cameraToCenterDistance * pixelRatio
+		"u_sky_blend": skyBlend
 	};
 };
 //#endregion
@@ -18655,12 +18586,6 @@ function drawColorRelief(painter, tileManager, layer, tileIDs, renderOptions) {
 	}
 }
 let textureMaxSize = 0;
-/**
-* Draws the color-relief tiles of one pass.
-*
-* A loaded raster-DEM tile can carry no DEM at all (e.g. an empty 204 response);
-* such tiles are skipped before the first-tile setup reads from them.
-*/
 function renderColorRelief(painter, tileManager, layer, coords, stencilModes, depthMode, colorMode, useBorder, isRenderingToTexture) {
 	const projection = painter.style.projection;
 	const context = painter.context;
@@ -18674,7 +18599,6 @@ function renderColorRelief(painter, tileManager, layer, coords, stencilModes, de
 	for (const coord of coords) {
 		const tile = tileManager.getTile(coord);
 		const dem = tile.dem;
-		if (!dem?.data) continue;
 		if (firstTile) {
 			textureMaxSize ||= gl.getParameter(gl.MAX_TEXTURE_SIZE);
 			const maxLength = textureMaxSize;
@@ -18686,6 +18610,7 @@ function renderColorRelief(painter, tileManager, layer, coords, stencilModes, de
 			firstTile = false;
 			colorRampSize = elevationTexture.size[0];
 		}
+		if (!dem?.data) continue;
 		const textureStride = dem.stride;
 		context.activeTexture.set(gl.TEXTURE0);
 		if (!tile.demTexture || tile.needsColorReliefPrepare) {
@@ -19171,8 +19096,25 @@ function drawAtmosphere(painter, sky, light) {
 	const atmosphereBlend = sky.properties.get("atmosphere-blend") * projectionData.projectionTransition;
 	if (atmosphereBlend === 0) return;
 	const globeRadius = getGlobeRadiusPixels(transform.worldSize, transform.center.lat);
-	const globePosition = getGlobeCenterInViewSpace(transform);
-	const uniformValues = atmosphereUniformValues(sunPos, atmosphereBlend, globePosition, globeRadius, transform.inverseProjectionMatrix);
+	const invProjMatrix = transform.inverseProjectionMatrix;
+	const vec = /* @__PURE__ */ new Float64Array(4);
+	vec[3] = 1;
+	transformMat4(vec, vec, transform.modelViewProjectionMatrix);
+	vec[0] /= vec[3];
+	vec[1] /= vec[3];
+	vec[2] /= vec[3];
+	vec[3] = 1;
+	transformMat4(vec, vec, invProjMatrix);
+	vec[0] /= vec[3];
+	vec[1] /= vec[3];
+	vec[2] /= vec[3];
+	vec[3] = 1;
+	const globePosition = [
+		vec[0],
+		vec[1],
+		vec[2]
+	];
+	const uniformValues = atmosphereUniformValues(sunPos, atmosphereBlend, globePosition, globeRadius, invProjMatrix);
 	const mesh = getMesh(context, sky);
 	program.draw(context, gl.TRIANGLES, depthMode, StencilMode.disabled, ColorMode.alphaBlended, CullFaceMode.disabled, uniformValues, null, null, "atmosphere", mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
 }
@@ -25807,7 +25749,7 @@ var Map$1 = class extends Evented {
 	* domains must support [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS).
 	*
 	* @param url - The URL of the image file. Image file must be in png, webp, or jpg format.
-	* @returns a promise that is resolved when the image is loaded, or rejected when the response has no image data (for example an HTTP 204)
+	* @returns a promise that is resolved when the image is loaded
 	*
 	* @example
 	* Load an image from an external URL.
@@ -25819,9 +25761,7 @@ var Map$1 = class extends Evented {
 	* @see [Add an icon to the map](https://maplibre.org/maplibre-gl-js/docs/examples/add-an-icon-to-the-map/)
 	*/
 	async loadImage(url) {
-		const response = await ImageRequest.getImage(await this._requestManager.transformRequest(url, "Image"), new AbortController());
-		if (!response.data) throw new Error(`Could not load image ${url}: the response is empty`);
-		return response;
+		return ImageRequest.getImage(await this._requestManager.transformRequest(url, "Image"), new AbortController());
 	}
 	/**
 	* Returns an Array of strings containing the IDs of all images currently available in the map.

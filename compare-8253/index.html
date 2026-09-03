@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <title>#8253: elevated symbol occlusion, before / after</title>
-<link rel="stylesheet" href="../satellite-sweep/dist-660/maplibre-gl.css">
+<link rel="stylesheet" href="./dist-670/maplibre-gl.css">
 <style>
     body, html { margin: 0; height: 100%; font: 14px/1.45 system-ui, sans-serif; background: #0b0e14; color: #dde3ea; }
     #head { padding: 10px 14px; }
@@ -20,16 +20,16 @@
 <body>
 <div id="head">
     <h1>gl-js#8253 — a symbol 500 km above the globe, camera pitching up</h1>
-    <p>Same style, same view. Left: release v6.6.0. Right: branch <code>fix/globe-symbol-occlusion-8253</code>, where an elevated symbol is hidden only when the line of sight from the camera passes through the globe.</p>
-    <p>v6.6.0 hides the symbol from pitch 84, the moment the ground under it passes the horizon. The fix keeps it to pitch 94. Beyond that the tile itself is culled (same ground-based test in covering_tiles), and from about 101° the globe camera is placed inside the planet, both out of scope here.</p>
+    <p>Same style, same view. Left: release v6.7.0. Right: branch <code>fix/globe-symbol-occlusion-8253</code>, where an elevated symbol is hidden only when the line of sight from the camera passes through the globe.</p>
+    <p>v6.7.0 hides the symbol from pitch 84, the moment the ground under it passes the horizon. The fix keeps it to pitch 94. Beyond that the tile itself is culled (same ground-based test in covering_tiles), and from about 101° the globe camera is placed inside the planet, both out of scope here.</p>
 </div>
 <div id="ctl"><span>pitch</span><input id="pitch" type="range" min="60" max="120" step="1" value="90"><span id="pv"></span></div>
 <div id="panes">
-    <div class="pane"><div class="tag" id="tag-a">v6.6.0</div><div id="map-a" class="map"></div></div>
+    <div class="pane"><div class="tag" id="tag-a">v6.7.0</div><div id="map-a" class="map"></div></div>
     <div class="pane"><div class="tag" id="tag-b">fix</div><div id="map-b" class="map"></div></div>
 </div>
 <script type="module">
-import * as mlOld from '../satellite-sweep/dist-660/maplibre-gl-dev.mjs';
+import * as mlOld from './dist-670/maplibre-gl-dev.mjs';
 import * as mlFix from './dist-fix/maplibre-gl-dev.mjs';
 
 const ALT = 500000, R = 6371008.8, STATION = [2.3522, 48.8566];
@@ -89,7 +89,7 @@ function drawn(map) {
     return n > 5;
 }
 function refresh() {
-    document.getElementById('tag-a').textContent = `v6.6.0\n${drawn(a) ? 'symbol drawn' : 'symbol NOT drawn'}`;
+    document.getElementById('tag-a').textContent = `v6.7.0\n${drawn(a) ? 'symbol drawn' : 'symbol NOT drawn'}`;
     document.getElementById('tag-b').textContent = `fix\n${drawn(b) ? 'symbol drawn' : 'symbol NOT drawn'}`;
 }
 const slider = document.getElementById('pitch'), pv = document.getElementById('pv');
