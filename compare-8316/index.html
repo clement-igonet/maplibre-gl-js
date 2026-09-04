@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>#8316: elevated symbol tile retention, before / after</title>
+<link rel="stylesheet" href="../compare-8253/dist-670/maplibre-gl.css">
+<style>
+    body, html { margin: 0; height: 100%; font: 14px/1.45 system-ui, sans-serif; background: #0b0e14; color: #dde3ea; }
+    #head { padding: 10px 14px; }
+    #head h1 { font-size: 16px; margin: 0 0 4px; }
+    #head p { margin: 2px 0; color: #9aa4b2; }
+    #head code { color: #7ee0ff; }
+    #panes { display: flex; gap: 8px; padding: 0 8px 8px; height: calc(100% - 150px); }
+    .pane { position: relative; flex: 1; }
+    .pane .map { position: absolute; inset: 0; border-radius: 6px; overflow: hidden; }
+    .tag { position: absolute; top: 8px; left: 8px; z-index: 2; background: rgba(0,0,0,.85); color: #fff;
+           padding: 6px 10px; border-radius: 4px; font: 600 13px ui-monospace, monospace; white-space: pre; }
+    #ctl { display: flex; align-items: center; gap: 12px; padding: 6px 14px 10px; }
+    #ctl input { flex: 1; }
+    #pv { font: 600 14px ui-monospace, monospace; min-width: 90px; }
+</style></head>
+<body>
+<div id="head">
+    <h1>gl-js#8316 — the tile under a symbol 500 km up, camera pitching past the horizon</h1>
+    <p>Same style, same view. Left: current main (line-of-sight occlusion from #8300 included). Right: branch <code>feat/elevated-symbol-tile-culling</code>, where the culling allowance near the horizon accounts for the actual maximum <code>symbol-height-offset</code>.</p>
+    <p>On main the symbol survives to pitch 94, then vanishes: the tile under its anchor is dropped by a culling bound that assumes features are at most 500 m tall. The fix keeps that tile, so the symbol stays until the planet is truly in the way (about pitch 100, where the globe camera itself is placed inside the planet, out of scope here).</p>
+</div>
+<div id="ctl"><span>pitch</span><input id="pitch" type="range" min="60" max="120" step="1" value="90"><span id="pv"></span></div>
+<div id="panes">
+    <div class="pane"><div class="tag" id="tag-a">main</div><div id="map-a" class="map"></div></div>
+    <div class="pane"><div class="tag" id="tag-b">fix</div><div id="map-b" class="map"></div></div>
+</div>
+<script type="module">
+import * as mlOld from './dist-main/maplibre-gl-dev.mjs';
+import * as mlFix from './dist-fix/maplibre-gl-dev.mjs';
+
+const ALT = 500000, R = 6371008.8, STATION = [2.3522, 48.8566];
+const ecef = (lngD, latD, h) => {
+    const lng = lngD*Math.PI/180, lat = latD*Math.PI/180, r = R + h;
+    return [r*Math.cos(lat)*Math.cos(lng), r*Math.cos(lat)*Math.sin(lng), r*Math.sin(lat)];
+};
+function elevationOf(site, siteH, target) {
+    const g = ecef(site[0], site[1], siteH), s = ecef(target[0], target[1], ALT);
+    const d = [s[0]-g[0], s[1]-g[1], s[2]-g[2]];
+    const lng = site[0]*Math.PI/180, lat = site[1]*Math.PI/180;
+    const up = [Math.cos(lat)*Math.cos(lng), Math.cos(lat)*Math.sin(lng), Math.sin(lat)];
+    return Math.asin((d[0]*up[0]+d[1]*up[1]+d[2]*up[2])/Math.hypot(d[0],d[1],d[2]))*180/Math.PI;
+}
+const SAT = (() => {
+    let lo = 0, hi = 6;
+    for (let i = 0; i < 60; i++) {
+        const mid = (lo + hi) / 2;
+        if (elevationOf(STATION, 1.7, [STATION[0], STATION[1] - mid]) > 60) lo = mid; else hi = mid;
+    }
+    return [STATION[0], STATION[1] - (lo + hi) / 2];
+})();
+const style = () => ({
+    version: 8,
+    projection: {type: 'globe'},
+    glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+    sources: {
+        sat: {type: 'geojson', data: {type: 'Feature', properties: {alt: ALT}, geometry: {type: 'Point', coordinates: SAT}}},
+        osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 18, attribution: '© OpenStreetMap contributors'}
+    },
+    layers: [
+        {id: 'space', type: 'background', paint: {'background-color': '#05070d'}},
+        {id: 'earth', type: 'raster', source: 'osm'},
+        {id: 'sat', type: 'symbol', source: 'sat',
+         layout: {'text-field': '● point at 500 km', 'text-font': ['Noto Sans Regular'], 'text-size': 13,
+                  'text-allow-overlap': true,
+                  'symbol-height-offset': ['get','alt'], 'symbol-height-anchor': 'absolute'},
+         paint: {'text-color': '#7ee0ff', 'text-halo-color': '#04121c', 'text-halo-width': 1.6}}
+    ]
+});
+const mk = (ml, id) => new ml.Map({
+    container: id, style: style(),
+    center: [SAT[0], STATION[1] + 3.2], zoom: 4.3, pitch: 90, bearing: 180,
+    maxPitch: 179, canvasContextAttributes: {preserveDrawingBuffer: true},
+    attributionControl: {compact: true}
+});
+const a = mk(mlOld, 'map-a'), b = mk(mlFix, 'map-b');
+function drawn(map) {
+    const gl = map.getCanvas();
+    const c = document.createElement('canvas');
+    c.width = gl.width; c.height = gl.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(gl, 0, 0);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] < 160 && d[i+1] > 170 && d[i+2] > 200) n++;
+    return n > 5;
+}
+function refresh() {
+    document.getElementById('tag-a').textContent = `main\n${drawn(a) ? 'symbol drawn' : 'symbol NOT drawn'}`;
+    document.getElementById('tag-b').textContent = `fix\n${drawn(b) ? 'symbol drawn' : 'symbol NOT drawn'}`;
+}
+const slider = document.getElementById('pitch'), pv = document.getElementById('pv');
+function setPitch(p) { pv.textContent = `${p}°`; a.jumpTo({pitch: p}); b.jumpTo({pitch: p}); }
+slider.addEventListener('input', () => setPitch(+slider.value));
+for (const m of [a, b]) m.on('idle', refresh);
+setPitch(90);
+window.__maps = {a, b};
+</script>
+</body></html>
