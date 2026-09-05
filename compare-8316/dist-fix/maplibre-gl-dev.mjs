@@ -6324,6 +6324,7 @@ var TileManager = class TileManager extends Evented {
 	}
 	constructor(id, options, dispatcher) {
 		super();
+		this._maxContentElevationSeen = 0;
 		this.id = id;
 		this.dispatcher = dispatcher;
 		this.on("data", (e) => {
@@ -6591,10 +6592,13 @@ var TileManager = class TileManager extends Evented {
 	/**
 	* The highest elevation this source's symbols may reach, in meters: `symbol-height-offset`
 	* constants read from the visible symbol layers, data-driven maxima tracked by the loaded
-	* buckets at layout time. Tiles not yet loaded only contribute through the constants.
+	* buckets at layout time. The value is a high-water mark: a maximum seen once is kept even
+	* after its tile unloads, otherwise dropping the tile would also drop the reason to keep it,
+	* and the tile could not come back while its content is still visible. The mark resets with
+	* the tiles in `clearTiles`.
 	*/
 	_getMaxContentElevation() {
-		let maxElevation = 0;
+		let maxElevation = this._maxContentElevationSeen;
 		const layers = this.map?.style?._layers;
 		if (!layers) return maxElevation;
 		for (const layerId in layers) {
@@ -6608,6 +6612,7 @@ var TileManager = class TileManager extends Evented {
 				if (bucket && bucket.maxHeightOffset > maxElevation) maxElevation = bucket.maxHeightOffset;
 			}
 		}
+		this._maxContentElevationSeen = maxElevation;
 		return maxElevation;
 	}
 	/**
@@ -6830,6 +6835,7 @@ var TileManager = class TileManager extends Evented {
 	clearTiles() {
 		this._shouldReloadOnResume = false;
 		this._paused = false;
+		this._maxContentElevationSeen = 0;
 		for (const id of this._inViewTiles.getAllIds()) this._removeTile(id);
 		this._outOfViewCache.reset();
 	}

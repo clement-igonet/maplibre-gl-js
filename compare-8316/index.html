@@ -21,7 +21,7 @@
 <div id="head">
     <h1>gl-js#8316 — the tile under a symbol 500 km up, camera pitching past the horizon</h1>
     <p>Same style, same view. Left: current main (line-of-sight occlusion from #8300 included). Right: branch <code>feat/elevated-symbol-tile-culling</code>, where the culling allowance near the horizon accounts for the actual maximum <code>symbol-height-offset</code>.</p>
-    <p>On main the symbol survives to pitch 94, then vanishes: the tile under its anchor is dropped by a culling bound that assumes features are at most 500 m tall. The fix keeps that tile, so the symbol stays until the planet is truly in the way (about pitch 100, where the globe camera itself is placed inside the planet, out of scope here).</p>
+    <p>On main the symbol survives to pitch 94, then vanishes: the tile under its anchor is dropped by culling that assumes features sit on the surface. The fix keeps that tile, so the symbol stays exactly until the line of sight to it closes, which happens when the globe camera is placed inside the planet (about pitch 100 at this page's default window size; the boundary shifts with the window size, which sets the camera distance; the camera placement itself is out of scope here).</p>
 </div>
 <div id="ctl"><span>pitch</span><input id="pitch" type="range" min="60" max="120" step="1" value="90"><span id="pv"></span></div>
 <div id="panes">
