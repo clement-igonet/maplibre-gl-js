@@ -1,6 +1,7 @@
 ## main
 ### ✨ Features and improvements
 - Add `map.getStyleUrl()`, which returns the URL the style was loaded from, or `null` when the style was given as an object ([#7109](https://github.com/maplibre/maplibre-gl-js/issues/7109))
+- Add `heightOffset` and `heightAnchor` options to `Marker`, which raise a marker above the ground the way `symbol-height-offset` and `symbol-height-anchor` raise symbols ([#8228](https://github.com/maplibre/maplibre-gl-js/issues/8228)) (by [@clement-igonet](https://github.com/clement-igonet))
 
 ### 🐞 Bug fixes
 - Fix a marker's popup jumping to another world copy when the marker is moved across the antimeridian on a zoomed-out map ([#5655](https://github.com/maplibre/maplibre-gl-js/issues/5655), [#8326](https://github.com/maplibre/maplibre-gl-js/pull/8326), continues [#5956](https://github.com/maplibre/maplibre-gl-js/pull/5956)) (by [@yuiseki](https://github.com/yuiseki))
