@@ -44,9 +44,16 @@ export class SubdivisionGranularityExpression {
  */
 export class SubdivisionGranularitySetting {
     /**
-     * Granularity settings used for fill and fill-extrusion layers (for fill, both polygons and their anti-aliasing outlines).
+     * Granularity settings used for the fill layer, both polygons and their anti-aliasing outlines.
      */
     public readonly fill: SubdivisionGranularityExpression;
+
+    /**
+     * Granularity settings used for the fill-extrusion layer. Extrusion roofs are lifted above the
+     * globe's surface, so they need a denser subdivision than plain fills to not sag below it.
+     * Falls back to the `fill` granularity when not set.
+     */
+    public readonly fillExtrusion: SubdivisionGranularityExpression;
 
     /**
      * Granularity used for the line layer.
@@ -71,9 +78,14 @@ export class SubdivisionGranularitySetting {
 
     constructor(options: {
         /**
-         * Granularity settings used for fill and fill-extrusion layers (for fill, both polygons and their anti-aliasing outlines).
+         * Granularity settings used for the fill layer, both polygons and their anti-aliasing outlines.
          */
         fill: SubdivisionGranularityExpression;
+        /**
+         * Granularity settings used for the fill-extrusion layer.
+         * Falls back to the `fill` granularity when not set.
+         */
+        fillExtrusion?: SubdivisionGranularityExpression;
         /**
          * Granularity used for the line layer.
          */
@@ -93,6 +105,7 @@ export class SubdivisionGranularitySetting {
         circle: CircleGranularity;
     }) {
         this.fill = options.fill;
+        this.fillExtrusion = options.fillExtrusion ?? options.fill;
         this.line = options.line;
         this.tile = options.tile;
         this.stencil = options.stencil;

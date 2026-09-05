@@ -232,7 +232,7 @@ export class FillExtrusionBucket implements Bucket {
         const segmentReference = {
             segment: this.segments.prepareSegment(4, this.layoutVertexArray, this.indexArray)
         };
-        const granularity = subdivisionGranularity.fill.getGranularityForZoomLevel(canonical.z);
+        const granularity = subdivisionGranularity.fillExtrusion.getGranularityForZoomLevel(canonical.z);
         const isPolygon = VectorTileFeature.types[feature.type] === 'Polygon';
 
         for (const ring of polygon) {
