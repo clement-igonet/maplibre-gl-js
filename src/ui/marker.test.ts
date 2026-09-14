@@ -14,6 +14,9 @@ type MapOptions = {
     renderWorldCopies?: boolean;
 };
 
+// The pixel translate of a marker element: `translate(-50%, -50%) translate(10px, 20px) ...`
+const translateRegex = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/;
+
 function createMap(options: MapOptions = {}) {
     const container = window.document.createElement('div');
     window.document.body.appendChild(container);
@@ -27,6 +30,14 @@ beforeEach(() => {
 });
 
 describe('marker', () => {
+    test('colors the pin of the default marker and nothing else', () => {
+        const svg = new Marker({color: '#123456'}).getElement().firstElementChild;
+        const colored = svg.querySelectorAll('[fill="#123456"]');
+        expect(colored).toHaveLength(1);
+        expect(colored[0].firstElementChild.tagName).toBe('path');
+        expect(svg.querySelector('[fill="#3FB1CE"]')).toBeNull();
+    });
+
     test('Marker uses a default marker element with an appropriate offset', () => {
         const marker = new Marker();
         expect(marker.getElement()).toBeTruthy();
@@ -1093,6 +1104,25 @@ describe('marker', () => {
         map.remove();
     });
 
+    test('Marker whose location is behind the camera is not positioned inside the viewport', () => {
+        const map = createMap();
+        map.setMaxPitch(85);
+        map.setZoom(10);
+        map.setCenter([0, 0]);
+        map.setPitch(80);
+
+        const marker = new Marker()
+            .setLngLat([0, -2])
+            .addTo(map);
+
+        const [, x, y] = marker.getElement().style.transform.match(translateRegex);
+        expect(parseFloat(x)).toBeGreaterThanOrEqual(0);
+        expect(parseFloat(x)).toBeLessThanOrEqual(map.getContainer().clientWidth);
+        expect(parseFloat(y)).toBeGreaterThan(map.getContainer().clientHeight);
+
+        map.remove();
+    });
+
     test('Marker transforms pitch with the map', () => {
         const map = createMap();
         const marker = new Marker({pitchAlignment: 'map'})
@@ -1333,7 +1363,10 @@ describe('marker', () => {
         await sleep(100); // Give marker change time to load
         expect(marker.getElement().style.opacity).toBe('0.7');
 
+        // On the globe the marker sits at a camera depth of ~0.9998, so a depth-buffer
+        // reading of 1 (far plane) means nothing in front of it, and 0.9 means terrain in front.
         map.terrain = createTerrain(); // Enable terrain
+        map.terrain.depthAtPoint = () => 1;
         await sleep(100); // Give time for the terrain to load
         map.fire('terrain'); // Trigger terrain event for marker
         marker.setLngLat([180, 0]);
@@ -1342,6 +1375,12 @@ describe('marker', () => {
         marker.setLngLat([0, 0]);
         await sleep(100); // Give marker change time to load
         expect(marker.getElement().style.opacity).toBe('0.7');
+
+        await sleep(150); // The marker drops opacity updates within 100 ms of the previous one, let that window pass
+        map.terrain.depthAtPoint = () => .9;
+        marker.setLngLat([0, 0]);
+        await sleep(100); // Give marker change time to load
+        expect(marker.getElement().style.opacity).toBe('0.3');
 
         map.remove();
     });

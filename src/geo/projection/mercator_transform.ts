@@ -1,7 +1,7 @@
 import {LngLat, type LngLatLike} from '../lng_lat.ts';
 import {MercatorCoordinate, mercatorXfromLng, mercatorYfromLat, mercatorZfromAltitude} from '../mercator_coordinate.ts';
 import Point from '@mapbox/point-geometry';
-import {wrap, clamp, createMat4f64, degreesToRadians, createIdentityMat4f32, zoomScale, scaleZoom, type Mat4f32, type Mat4f64} from '../../util/util.ts';
+import {wrap, clamp, createMat4f64, degreesToRadians, radiansToDegrees, createIdentityMat4f32, zoomScale, scaleZoom, type Mat4f32, type Mat4f64} from '../../util/util.ts';
 import {type mat2, mat4, vec3, vec4} from 'gl-matrix';
 import {UnwrappedTileID, OverscaledTileID, type CanonicalTileID, calculateTileKey} from '../../tile/tile_id.ts';
 import {interpolates} from '@maplibre/maplibre-gl-style-spec';
@@ -15,7 +15,7 @@ import {Frustum} from '../../util/primitives/frustum.ts';
 import {fastInvertProjMat4} from '../../util/fast_maths.ts';
 
 import {bisect, sampleAt, isBelowTerrainSample, type Terrain, type TerrainCoverageIndex, type TerrainSample} from '../../render/terrain.ts';
-import type {IReadonlyTransform, ITransform, TransformConstrainFunction} from '../transform_interface.ts';
+import type {CameraOptionsFromTo, IReadonlyTransform, ITransform, TransformConstrainFunction} from '../transform_interface.ts';
 import type {TransformOptions} from '../transform_helper.ts';
 import type {PaddingOptions} from '../edge_insets.ts';
 import type {CustomLayerProjectionData, ProjectionDataParams, RendererProjectionData} from './projection_data.ts';
@@ -479,12 +479,42 @@ export class MercatorTransform implements ITransform {
      * @param coord - the coordinates
      * @param elevation - the elevation
      * @param pixelMatrix - the pixel matrix
-     * @returns screen point
+     * @returns screen point. Point will be outside the viewport if the coordinate is behind the camera.
      */
     coordinatePoint(coord: MercatorCoordinate, elevation: number = 0, pixelMatrix: mat4 = this._pixelMatrix): Point {
         const p = [coord.x * this.worldSize, coord.y * this.worldSize, elevation, 1] as vec4;
         vec4.transformMat4(p, p, pixelMatrix);
-        return new Point(p[0] / p[3], p[1] / p[3]);
+        const w = p[3];
+        if (w > 0) {
+            return new Point(p[0] / w, p[1] / w);
+        }
+        return this._offScreenPointBehindCamera(p[0], p[1], w);
+    }
+
+    /**
+     * Returns a screen point outside the viewport for a coordinate that is behind the camera.
+     * The point lies on the boundary of the viewport enlarged by one viewport size on each side,
+     * on whichever edge the ray from the screen centre in the coordinate's direction reaches first.
+     * A coordinate exactly behind the camera has no direction to leave through, so it is placed straight down.
+     * @param x - the x component of the clip space position, before the division by w
+     * @param y - the y component of the clip space position, before the division by w
+     * @param w - the w component of the clip space position, zero or negative
+     * @returns screen point outside the viewport
+     */
+    private _offScreenPointBehindCamera(x: number, y: number, w: number): Point {
+        const cx = this.width / 2;
+        const cy = this.height / 2;
+        const dx = x - cx * w;
+        let dy = y - cy * w;
+        if (dx === 0 && dy === 0) {
+            dy = 1;
+        }
+        const halfExtentX = cx + this.width;
+        const halfExtentY = cy + this.height;
+        const scale = Math.min(
+            dx !== 0 ? halfExtentX / Math.abs(dx) : Infinity,
+            dy !== 0 ? halfExtentY / Math.abs(dy) : Infinity);
+        return new Point(cx + dx * scale, cy + dy * scale);
     }
 
     getBounds(): LngLatBounds {
@@ -652,6 +682,26 @@ export class MercatorTransform implements ITransform {
         return this._helper.calculateCenterFromCameraLngLatAlt(lnglat, alt, bearing, pitch);
     }
 
+    calculateCameraOptionsFromTo(from: LngLatLike, altitudeFrom: number, to: LngLatLike, altitudeTo: number): CameraOptionsFromTo {
+        const fromMercator = MercatorCoordinate.fromLngLat(from, altitudeFrom);
+        const toMercator = MercatorCoordinate.fromLngLat(to, altitudeTo);
+        const dx = toMercator.x - fromMercator.x;
+        const dy = toMercator.y - fromMercator.y;
+        const dz = toMercator.z - fromMercator.z;
+
+        const distance3D = Math.hypot(dx, dy, dz);
+        if (distance3D === 0) throw new Error('Can\'t calculate camera options with same From and To');
+
+        const groundDistance = Math.hypot(dx, dy);
+
+        const zoom = scaleZoom(this.cameraToCenterDistance / distance3D / this.tileSize);
+        const bearing = radiansToDegrees(Math.atan2(dx, -dy));
+        let pitch = radiansToDegrees(Math.acos(groundDistance / distance3D));
+        pitch = dz < 0 ? 90 - pitch : 90 + pitch;
+
+        return {center: toMercator.toLngLat(), elevation: altitudeTo, zoom, pitch, bearing};
+    }
+
     _calculateNearFarZIfNeeded(cameraToSeaLevelDistance: number, limitedPitchRadians: number, offset: Point): void {
         if (!this._helper.autoCalculateNearFarZ) {
             return;
@@ -695,12 +745,9 @@ export class MercatorTransform implements ITransform {
     }
 
     _calcMatrices(): void {
-        if (!this._helper._height) return;
-
         const offset = this.centerOffset;
         const point = projectToWorldCoordinates(this.worldSize, this.center);
         const x = point.x, y = point.y;
-        this._helper._pixelPerMeter = mercatorZfromAltitude(1, this.center.lat) * this.worldSize;
 
         // Calculate the camera to sea-level distance in pixel in respect of terrain
         const limitedPitchRadians = degreesToRadians(Math.min(this.pitch, maxMercatorHorizonAngle));
@@ -811,7 +858,7 @@ export class MercatorTransform implements ITransform {
     }
 
     getCameraAltitude(): number {
-        return this._helper.getCameraAltitude();
+        return Math.cos(this.pitchInRadians) * this.cameraToCenterDistance / this.pixelsPerMeter + this.elevation;
     }
 
     getCameraLngLat(): LngLat {
