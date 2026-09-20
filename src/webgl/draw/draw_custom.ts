@@ -3,17 +3,17 @@ import {StencilMode} from '../stencil_mode.ts';
 import {OverscaledTileID} from '../../tile/tile_id.ts';
 
 import type {Painter} from '../../render/painter.ts';
-import type {FrameRenderContext} from '../../render/frame_render_context.ts';
+import type {RenderContext} from '../../render/render_context.ts';
 import type {TileManager} from '../../tile/tile_manager.ts';
 import type {CustomLayerProjectionDataParams, CustomRenderMethodInput, CustomStyleLayer} from '../../style/style_layer/custom_style_layer.ts';
 
-export function drawCustom(painter: Painter, tileManager: TileManager, layer: CustomStyleLayer, frameRenderContext: FrameRenderContext): void {
+export function drawCustom(painter: Painter, tileManager: TileManager, layer: CustomStyleLayer, renderContext: RenderContext): void {
 
-    const {isRenderingGlobe} = frameRenderContext.data;
+    const {isRenderingGlobe} = renderContext;
     const context = painter.context;
     const implementation = layer.implementation;
     const projection = painter.style.projection;
-    const transform = frameRenderContext.transform;
+    const transform = painter.transform;
 
     const projectionData = transform.getProjectionDataForCustomLayer(isRenderingGlobe);
 
@@ -47,27 +47,27 @@ export function drawCustom(painter: Painter, tileManager: TileManager, layer: Cu
 
     const renderingMode = implementation.renderingMode ? implementation.renderingMode : '2d';
 
-    if (frameRenderContext.currentPass === 'offscreen') {
+    if (renderContext.currentPass === 'offscreen') {
         const prerender = implementation.prerender;
         if (prerender) {
             painter.setCustomLayerDefaults();
-            context.setColorMode(frameRenderContext.colorModeForRenderPass());
+            context.setColorMode(painter.colorModeForRenderPass());
 
             prerender.call(implementation, context.gl, customLayerArgs);
 
             context.setDirty();
             painter.setBaseState();
         }
-    } else if (frameRenderContext.currentPass === 'translucent') {
+    } else if (renderContext.currentPass === 'translucent') {
 
         painter.setCustomLayerDefaults();
 
-        context.setColorMode(frameRenderContext.colorModeForRenderPass());
+        context.setColorMode(painter.colorModeForRenderPass());
         context.setStencilMode(StencilMode.disabled);
 
         const depthMode = renderingMode === '3d' ?
-            frameRenderContext.getDepthModeFor3D() :
-            frameRenderContext.getDepthModeForSublayer(0, DepthMode.ReadOnly);
+            painter.getDepthModeFor3D() :
+            painter.getDepthModeForSublayer(0, DepthMode.ReadOnly);
 
         context.setDepthMode(depthMode);
 

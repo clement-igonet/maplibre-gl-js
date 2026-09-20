@@ -66,10 +66,7 @@ export class Context {
     pixelStoreUnpack: PixelStoreUnpack;
     pixelStoreUnpackPremultiplyAlpha: PixelStoreUnpackPremultiplyAlpha;
     pixelStoreUnpackFlipY: PixelStoreUnpackFlipY;
-    boundUniformBuffers: WebGLBuffer[];
     projectionUniformBuffer: UniformBuffer;
-    keyedProjectionUniformBuffers: Map<string, UniformBuffer>;
-    freeProjectionUniformBuffers: UniformBuffer[];
     terrainUniformBuffer: UniformBuffer;
     frameUniformBuffer: UniformBuffer;
 
@@ -121,10 +118,7 @@ export class Context {
         gl.getExtension('EXT_color_buffer_half_float');
         gl.getExtension('EXT_color_buffer_float');
 
-        this.boundUniformBuffers = [];
         this.projectionUniformBuffer = createProjectionUniformBuffer(this);
-        this.keyedProjectionUniformBuffers = new Map();
-        this.freeProjectionUniformBuffers = [];
         this.terrainUniformBuffer = createTerrainUniformBuffer(this);
         this.frameUniformBuffer = createFrameUniformBuffer(this);
     }
@@ -191,7 +185,9 @@ export class Context {
         this.pixelStoreUnpack.dirty = true;
         this.pixelStoreUnpackPremultiplyAlpha.dirty = true;
         this.pixelStoreUnpackFlipY.dirty = true;
-        this.boundUniformBuffers = [];
+        this.projectionUniformBuffer.bindingDirty = true;
+        this.terrainUniformBuffer.bindingDirty = true;
+        this.frameUniformBuffer.bindingDirty = true;
     }
 
     /**

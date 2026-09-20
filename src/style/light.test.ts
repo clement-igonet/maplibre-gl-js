@@ -1,6 +1,7 @@
 import {describe, test, expect, vi, afterEach} from 'vitest';
 import {Light} from './light.ts';
 import {Color, latest as styleSpec, type LightSpecification} from '@maplibre/maplibre-gl-style-spec';
+import {sphericalToCartesian} from '../util/util.ts';
 
 import type {EvaluationParameters} from './evaluation_parameters.ts';
 import type {TransitionParameters} from './properties.ts';
@@ -13,6 +14,7 @@ test('Light with defaults', () => {
 
     expect(light.properties.get('anchor')).toEqual(spec.anchor.default);
     expect(light.properties.get('position')).toEqual(spec.position.default);
+    expect(light.getCartesianPosition()).toEqual(sphericalToCartesian(spec.position.default as [number, number, number]));
     expect(light.properties.get('intensity')).toEqual(spec.intensity.default);
     expect(light.properties.get('color')).toEqual(Color.parse(spec.color.default));
 });
@@ -27,6 +29,7 @@ test('Light with options', () => {
 
     expect(light.properties.get('anchor')).toBe('map');
     expect(light.properties.get('position')).toEqual([2, 30, 30]);
+    expect(light.getCartesianPosition()).toEqual(sphericalToCartesian([2, 30, 30]));
     expect(light.properties.get('intensity')).toBe(1);
     expect(light.properties.get('color')).toEqual(Color.parse(spec.color.default));
 });

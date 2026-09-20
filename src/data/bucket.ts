@@ -11,9 +11,8 @@ import type {SubdivisionGranularitySetting} from '../render/subdivision_granular
 import type {DashEntry} from '../render/line_atlas.ts';
 import type {Feature as StyleFeature} from '@maplibre/maplibre-gl-style-spec';
 import type {VectorTileFeatureLike, VectorTileLayerLike} from '@maplibre/vt-pbf';
-import type {GetImagesResponse} from '../util/actor_messages.ts';
+import type {GetGlyphsResponse, GetImagesResponse} from '../util/actor_messages.ts';
 import type {GlyphPositions} from '../render/glyph_atlas.ts';
-import type {GlyphMap} from '../style/style_glyph.ts';
 
 export type BucketParameters<Layer extends TypedStyleLayer> = {
     index: number;
@@ -33,13 +32,12 @@ export type PopulateParameters = {
     /**
      * The glyphs each fontstack is asked for, keyed by grapheme cluster: usually a single character,
      * but sometimes a letter with the marks written on it, which no single codepoint stands for.
-     * Glyphs are requested separately for each variant.
      * @example
      * ```json
-     * {"SomeFontName": {"default": {"a": true, "b": true}}}
+     * {"SomeFontName": {"a": true, " ": true, "\u05e9\u05b0\u05c1": true}}
      * ```
      */
-    glyphDependencies: Record<string, Record<string, Record<string, boolean>>>;
+    glyphDependencies: Record<string, Record<string, boolean>>;
     dashDependencies: Record<string, {round: boolean; dasharray: number[]}>;
     availableImages: string[];
     subdivisionGranularity: SubdivisionGranularitySetting;
@@ -55,7 +53,7 @@ export type PopulateParameters = {
 export type BucketDependencyParameters = {
     options: PopulateParameters;
     canonical: CanonicalTileID;
-    glyphMap: GlyphMap;
+    glyphMap: GetGlyphsResponse;
     glyphPositions: GlyphPositions;
     iconMap: GetImagesResponse;
     iconPositions: Record<string, ImagePosition>;

@@ -2,7 +2,8 @@ import {AlphaImage} from '../util/image.ts';
 import {register} from '../util/web_worker_transfer.ts';
 import potpack from 'potpack';
 
-import type {GlyphMap, GlyphMetrics} from '../style/style_glyph.ts';
+import type {GlyphMetrics} from '../style/style_glyph.ts';
+import type {GetGlyphsResponse} from '../util/actor_messages.ts';
 
 const padding = 1;
 
@@ -25,37 +26,34 @@ export type GlyphPosition = {
 };
 
 /**
- * Glyph positions keyed by font stack, variant, and grapheme cluster.
+ * The glyphs' positions
  */
-export type GlyphPositions = Record<string, Record<string, Record<string, GlyphPosition>>>;
+export type GlyphPositions = Record<string, Record<string, GlyphPosition>>;
 
 export class GlyphAtlas {
     image: AlphaImage;
     positions: GlyphPositions;
 
-    constructor(stacks: GlyphMap) {
-        const positions: GlyphPositions = {};
+    constructor(stacks: GetGlyphsResponse) {
+        const positions = {};
         const bins = [];
 
         for (const stack in stacks) {
+            const glyphs = stacks[stack];
             const stackPositions = positions[stack] = {};
 
-            for (const variant in stacks[stack]) {
-                const glyphs = stacks[stack][variant];
-                stackPositions[variant] = {};
-                for (const id in glyphs) {
-                    const src = glyphs[id];
-                    if (!src || src.bitmap.width === 0 || src.bitmap.height === 0) continue;
+            for (const id in glyphs) {
+                const src = glyphs[id];
+                if (!src || src.bitmap.width === 0 || src.bitmap.height === 0) continue;
 
-                    const bin = {
-                        x: 0,
-                        y: 0,
-                        w: src.bitmap.width + 2 * padding,
-                        h: src.bitmap.height + 2 * padding
-                    };
-                    bins.push(bin);
-                    stackPositions[variant][id] = {rect: bin, metrics: src.metrics};
-                }
+                const bin = {
+                    x: 0,
+                    y: 0,
+                    w: src.bitmap.width + 2 * padding,
+                    h: src.bitmap.height + 2 * padding
+                };
+                bins.push(bin);
+                stackPositions[id] = {rect: bin, metrics: src.metrics};
             }
         }
 
@@ -63,14 +61,13 @@ export class GlyphAtlas {
         const image = new AlphaImage({width: w || 1, height: h || 1});
 
         for (const stack in stacks) {
-            for (const variant in stacks[stack]) {
-                const glyphs = stacks[stack][variant];
-                for (const id in glyphs) {
-                    const src = glyphs[id];
-                    if (!src || src.bitmap.width === 0 || src.bitmap.height === 0) continue;
-                    const bin = positions[stack][variant][id].rect;
-                    AlphaImage.copy(src.bitmap, image, {x: 0, y: 0}, {x: bin.x + padding, y: bin.y + padding}, src.bitmap);
-                }
+            const glyphs = stacks[stack];
+
+            for (const id in glyphs) {
+                const src = glyphs[id];
+                if (!src || src.bitmap.width === 0 || src.bitmap.height === 0) continue;
+                const bin = positions[stack][id].rect;
+                AlphaImage.copy(src.bitmap, image, {x: 0, y: 0}, {x: bin.x + padding, y: bin.y + padding}, src.bitmap);
             }
         }
 

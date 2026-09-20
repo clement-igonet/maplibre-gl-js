@@ -4,8 +4,8 @@ import {CullFaceMode} from '../cull_face_mode.ts';
 import {debugUniformValues} from '../program/debug_program.ts';
 import {Color} from '@maplibre/maplibre-gl-style-spec';
 import {ColorMode} from '../color_mode.ts';
+import {getProjectionDataForTile, getTerrainDataForTile, type RenderContext} from '../../render/render_context.ts';
 
-import type {FrameRenderContext} from '../../render/frame_render_context.ts';
 import type {Style} from '../../style/style.ts';
 import type {Painter} from '../../render/painter.ts';
 import type {TileManager} from '../../tile/tile_manager.ts';
@@ -17,67 +17,66 @@ const leftColor = new Color(0, 0, 1, 1);
 const rightColor = new Color(1, 0, 1, 1);
 const centerColor = new Color(0, 1, 1, 1);
 
-export function drawDebugPadding(frameRenderContext: FrameRenderContext): void {
-    const padding = frameRenderContext.transform.padding;
+export function drawDebugPadding(painter: Painter): void {
+    const padding = painter.transform.padding;
     const lineWidth = 3;
     // Top
-    drawHorizontalLine(frameRenderContext, frameRenderContext.transform.height - (padding.top || 0), lineWidth, topColor);
+    drawHorizontalLine(painter, painter.transform.height - (padding.top || 0), lineWidth, topColor);
     // Bottom
-    drawHorizontalLine(frameRenderContext, padding.bottom || 0, lineWidth, btmColor);
+    drawHorizontalLine(painter, padding.bottom || 0, lineWidth, btmColor);
     // Left
-    drawVerticalLine(frameRenderContext, padding.left || 0, lineWidth, leftColor);
+    drawVerticalLine(painter, padding.left || 0, lineWidth, leftColor);
     // Right
-    drawVerticalLine(frameRenderContext, frameRenderContext.transform.width - (padding.right || 0), lineWidth, rightColor);
+    drawVerticalLine(painter, painter.transform.width - (padding.right || 0), lineWidth, rightColor);
     // Center
-    const center = frameRenderContext.transform.centerPoint;
-    drawCrosshair(frameRenderContext, center.x, frameRenderContext.transform.height - center.y, centerColor);
+    const center = painter.transform.centerPoint;
+    drawCrosshair(painter, center.x, painter.transform.height - center.y, centerColor);
 }
 
-function drawCrosshair(frameRenderContext: FrameRenderContext, x: number, y: number, color: Color) {
+function drawCrosshair(painter: Painter, x: number, y: number, color: Color) {
     const size = 20;
     const lineWidth = 2;
     //Vertical line
-    drawDebugSSRect(frameRenderContext, x - lineWidth / 2, y - size / 2, lineWidth, size, color);
+    drawDebugSSRect(painter, x - lineWidth / 2, y - size / 2, lineWidth, size, color);
     //Horizontal line
-    drawDebugSSRect(frameRenderContext, x - size / 2, y - lineWidth / 2, size, lineWidth, color);
+    drawDebugSSRect(painter, x - size / 2, y - lineWidth / 2, size, lineWidth, color);
 }
 
-function drawHorizontalLine(frameRenderContext: FrameRenderContext, y: number, lineWidth: number, color: Color) {
-    drawDebugSSRect(frameRenderContext, 0, y  + lineWidth / 2, frameRenderContext.transform.width,  lineWidth, color);
+function drawHorizontalLine(painter: Painter, y: number, lineWidth: number, color: Color) {
+    drawDebugSSRect(painter, 0, y  + lineWidth / 2, painter.transform.width,  lineWidth, color);
 }
 
-function drawVerticalLine(frameRenderContext: FrameRenderContext, x: number, lineWidth: number, color: Color) {
-    drawDebugSSRect(frameRenderContext, x - lineWidth / 2, 0, lineWidth,  frameRenderContext.transform.height, color);
+function drawVerticalLine(painter: Painter, x: number, lineWidth: number, color: Color) {
+    drawDebugSSRect(painter, x - lineWidth / 2, 0, lineWidth,  painter.transform.height, color);
 }
 
-function drawDebugSSRect(frameRenderContext: FrameRenderContext, x: number, y: number, width: number, height: number, color: Color) {
-    const context = frameRenderContext.context;
+function drawDebugSSRect(painter: Painter, x: number, y: number, width: number, height: number, color: Color) {
+    const context = painter.context;
     const gl = context.gl;
-    const pixelRatio = frameRenderContext.data.pixelRatio;
 
     gl.enable(gl.SCISSOR_TEST);
-    gl.scissor(x * pixelRatio, y * pixelRatio, width * pixelRatio, height * pixelRatio);
+    gl.scissor(x * painter.pixelRatio, y * painter.pixelRatio, width * painter.pixelRatio, height * painter.pixelRatio);
     context.clear({color});
     gl.disable(gl.SCISSOR_TEST);
 }
 
-export function drawDebug(painter: Painter, tileManager: TileManager, coords: OverscaledTileID[], frameRenderContext: FrameRenderContext): void {
+export function drawDebug(painter: Painter, tileManager: TileManager, coords: OverscaledTileID[], renderContext: RenderContext): void {
     for (const coord of coords) {
-        drawDebugTile(painter, tileManager, coord, frameRenderContext);
+        drawDebugTile(painter, tileManager, coord, renderContext);
     }
 }
 
-function drawDebugTile(painter: Painter, tileManager: TileManager, coord: OverscaledTileID, frameRenderContext: FrameRenderContext) {
+function drawDebugTile(painter: Painter, tileManager: TileManager, coord: OverscaledTileID, renderContext: RenderContext) {
     const context = painter.context;
     const gl = context.gl;
 
-    const program = frameRenderContext.useProgram('debug');
+    const program = painter.useProgram('debug');
 
     const depthMode = DepthMode.disabled;
     const stencilMode = StencilMode.disabled;
-    const colorMode = frameRenderContext.colorModeForRenderPass();
+    const colorMode = painter.colorModeForRenderPass();
     const id = '$debug';
-    const terrainData = frameRenderContext.getTerrainDataForTile(coord);
+    const terrainData = getTerrainDataForTile(renderContext, coord);
 
     context.activeTexture.set(gl.TEXTURE0);
 
@@ -85,7 +84,7 @@ function drawDebugTile(painter: Painter, tileManager: TileManager, coord: Oversc
     const tileByteLength = (tileRawData?.byteLength) || 0;
     const tileSizeKb = Math.floor(tileByteLength / 1024);
     const tileSize = tileManager.getTile(coord).tileSize;
-    const scaleRatio = (512 / Math.min(tileSize, 512) * (coord.overscaledZ / frameRenderContext.transform.zoom)) * 0.5;
+    const scaleRatio = (512 / Math.min(tileSize, 512) * (coord.overscaledZ / painter.transform.zoom)) * 0.5;
     let tileIdText = coord.canonical.toString();
     if (coord.overscaledZ !== coord.canonical.z) {
         tileIdText += ` => ${coord.overscaledZ}`;
@@ -93,7 +92,7 @@ function drawDebugTile(painter: Painter, tileManager: TileManager, coord: Oversc
     const tileLabel = `${tileIdText} ${tileSizeKb}kB`;
     drawTextToOverlay(painter, tileLabel);
 
-    const projectionData = frameRenderContext.getProjectionDataForTile(coord);
+    const projectionData = getProjectionDataForTile(renderContext, coord);
 
     program.draw(context, gl.TRIANGLES, depthMode, stencilMode, ColorMode.alphaBlended, CullFaceMode.disabled,
         debugUniformValues(Color.transparent, scaleRatio), null, projectionData, id,

@@ -1,10 +1,12 @@
+import {sphericalToCartesian} from '../util/util.ts';
 import {Evented} from '../util/evented.ts';
 import {validateStyle, validateAndEmit, type Validator} from './validate_style.ts';
 import {getProperties, type LightProps, type LightPropsPossiblyEvaluated} from './light_properties.g.ts';
 import {Transitionable, type Transitioning, type PossiblyEvaluated} from './properties.ts';
-import {EvaluationParameters} from './evaluation_parameters.ts';
 
+import type {vec3} from 'gl-matrix';
 import type {LightSpecification} from '@maplibre/maplibre-gl-style-spec';
+import type {EvaluationParameters} from './evaluation_parameters.ts';
 import type {StyleSetterOptions} from '../style/style.ts';
 import type {TransitionParameters} from './properties.ts';
 
@@ -21,21 +23,17 @@ export class Light extends Evented {
         this._transitionable = new Transitionable(getProperties(), 'light', globalState);
         this.setLight(lightOptions);
         this._transitioning = this._transitionable.untransitioned();
-        this.recalculate(new EvaluationParameters(0));
     }
 
     getLight(): LightSpecification {
         return this._transitionable.serialize();
     }
 
-    /** The light's values for drawing, as evaluated last. */
-    getEvaluated(): LightPropsPossiblyEvaluated {
-        return {
-            anchor: this.properties.get('anchor'),
-            position: this.properties.get('position'),
-            color: this.properties.get('color'),
-            intensity: this.properties.get('intensity'),
-        };
+    /**
+     * Gets the light position in cartesian coordinates.
+     */
+    getCartesianPosition(): vec3 {
+        return sphericalToCartesian(this.properties.get('position'));
     }
 
     setLight(light: LightSpecification, options: StyleSetterOptions = {}): void {

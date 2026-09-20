@@ -107,14 +107,12 @@ describe('TaggedString', () => {
         };
         const glyphs = {
             'Test': {
-                default: {
-                    'a': {id: 0x61, metrics, rect},
-                    'b': {id: 0x62, metrics, rect},
-                    'c': {id: 0x63, metrics, rect},
-                    '\u9EB5': {id: 0x9EB5, metrics, rect},
-                    '\u{30EDE}': {id: 0x30EDE, metrics, rect},
-                } as unknown as Record<string, StyleGlyph>
-            },
+                'a': {id: 0x61, metrics, rect},
+                'b': {id: 0x62, metrics, rect},
+                'c': {id: 0x63, metrics, rect},
+                '\u9EB5': {id: 0x9EB5, metrics, rect},
+                '\u{30EDE}': {id: 0x30EDE, metrics, rect},
+            } as unknown as Record<string, StyleGlyph>,
         };
         const textSection = {
             scale: 1,
