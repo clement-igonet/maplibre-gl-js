@@ -2037,7 +2037,7 @@ describe('flyTo', () => {
 
     test('check elevation events freezeElevation=false', async () => {
         const terrain = {getElevationForLngLat: () => 0, getElevationForLngLatZoom: () => 0} as any as Terrain;
-        const {camera, queue} = createCamera({terrain});
+        const {camera, queue} = createCamera({terrain, centerClampedToGround: true});
         const stub = vi.spyOn(timeControl, 'now');
 
         const terrainCallbacks = {prepare: 0, update: 0, finalize: 0} as any;
@@ -2061,7 +2061,7 @@ describe('flyTo', () => {
 
     test('check elevation events freezeElevation=true', async() => {
         const terrain = {getElevationForLngLat: () => 0, getElevationForLngLatZoom: () => 0} as any as Terrain;
-        const {camera, queue} = createCamera({terrain});
+        const {camera, queue} = createCamera({terrain, centerClampedToGround: true});
         const stub = vi.spyOn(timeControl, 'now');
 
         const terrainCallbacks = {prepare: 0, update: 0, finalize: 0} as any;
@@ -2110,6 +2110,26 @@ describe('flyTo', () => {
 
         camera._finalizeElevation();
         expect(camera.elevationFreeze).toBeFalsy();
+    });
+
+    test.each(['easeTo', 'flyTo'] as const)('%s keeps the center elevation when it is not clamped to the ground', async (method) => {
+        const terrain = {
+            getElevationForLngLat: () => 300,
+            getElevationForLngLatZoom: () => 300,
+            getMinTileElevationForLngLatZoom: () => 0
+        } as any as Terrain;
+        const {camera, queue} = createCamera({terrain, centerClampedToGround: false});
+        camera.setCenterElevation(1500);
+        const stub = vi.spyOn(timeControl, 'now');
+        const moveEnded = camera.once('moveend');
+
+        stub.mockReturnValue(0);
+        camera[method]({center: [10, 0], duration: 20});
+        stub.mockReturnValue(20);
+        queue.run();
+        await moveEnded;
+
+        expect(camera.transform.elevation).toBe(1500);
     });
 
     test('respects zoomSnap', () => {
