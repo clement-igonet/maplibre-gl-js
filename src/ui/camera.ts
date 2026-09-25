@@ -836,14 +836,14 @@ export class Camera extends Evented<MapEventType> {
         this._easeId = options.easeId;
         this._prepareEase(eventData, options.noMoveStart, currently);
 
-        if (this.terrain) {
+        if (this.terrain && this.getCenterClampedToGround()) {
             this._prepareElevation(easeHandler.elevationCenter, tr);
         }
 
         this._ease((k) => {
             easeHandler.easeFunc(k);
 
-            if (this.terrain && !options.freezeElevation) this._updateElevation(k, tr);
+            if (this.terrain && this.getCenterClampedToGround() && !options.freezeElevation) this._updateElevation(k, tr);
             this.applyUpdatedTransform(tr);
             this._fireMoveEvents(eventData);
 
@@ -1228,7 +1228,7 @@ export class Camera extends Evented<MapEventType> {
         this._padding = !tr.isPaddingEqual(padding);
 
         this._prepareEase(eventData, false);
-        if (this.terrain) this._prepareElevation(flyToHandler.targetCenter, tr);
+        if (this.terrain && this.getCenterClampedToGround()) this._prepareElevation(flyToHandler.targetCenter, tr);
 
         this._ease((k) => {
             // s: The distance traveled along the flight path, measured in ρ-screenfulls.
@@ -1253,7 +1253,7 @@ export class Camera extends Evented<MapEventType> {
 
             flyToHandler.easeFunc(k, scale, centerFactor, pointAtOffset);
 
-            if (this.terrain && !options.freezeElevation) this._updateElevation(k, tr);
+            if (this.terrain && this.getCenterClampedToGround() && !options.freezeElevation) this._updateElevation(k, tr);
             this.applyUpdatedTransform(tr);
             this._fireMoveEvents(eventData);
         }, () => {
