@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MapLibre GL JS work, main vs branch</title>
+<style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: #0b0e14; color: #dde3ea; }
+    main { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    h2 { font-size: 15px; margin: 28px 0 8px; color: #9aa4b2; text-transform: uppercase; letter-spacing: .04em; }
+    p { color: #9aa4b2; margin: 4px 0; }
+    a { color: #7ee0ff; }
+    code { color: #7ee0ff; font-size: 13px; }
+    .card { display: block; text-decoration: none; background: #121823; border: 1px solid #243044; border-radius: 6px; padding: 12px 14px; margin: 8px 0; color: #dde3ea; }
+    .card:hover { border-color: #7ee0ff; }
+    .card b { color: #fff; }
+    .card span { display: block; color: #9aa4b2; font-size: 13px; margin-top: 2px; }
+    ul.other { columns: 3; padding-left: 18px; }
+    @media (max-width: 600px) { ul.other { columns: 1; } }
+</style>
+</head>
+<body>
+<main>
+    <h1>MapLibre GL JS work, main vs branch</h1>
+    <p>Live side-by-side pages: left is <code>main</code> at <code>cae8d60f7</code> (2026-09-27), right is the branch of each open pull request. Cameras are synced.</p>
+
+    <h2>Open upstream pull requests</h2>
+    <a class="card" href="compare-8069/"><b>#8069 Allow negative fill-extrusion-base and fill-extrusion-height</b>
+        <span>branch fix/fill-extrusion-negative-base-8051 at eb61ab3e8 · underground floors, basements from vector tiles, a building on a slope</span></a>
+    <a class="card" href="compare-8534/"><b>#8534 Smooth shading across rounded fill-extrusion corners</b>
+        <span>branch feat/fill-extrusion-smooth-corners-8475 at ccfeeeed3 · large rounded blocks, real buildings</span></a>
+
+    <h2>Open internal pull requests (this fork)</h2>
+    <a class="card" href="compare-fork-3/"><b>#3 Keep attribution credit that the sanitizer drops</b>
+        <span>branch fix/attribution-credit-8532 at de3ce69e9 · follow-up to maplibre-gl-js#8532</span></a>
+
+    <h2>Older pages</h2>
+    <ul class="other">
+        <li><a href="compare-8253/">compare-8253</a></li>
+        <li><a href="compare-8316/">compare-8316</a></li>
+        <li><a href="demo-1551/">demo-1551</a></li>
+        <li><a href="floors/">floors</a></li>
+        <li><a href="gradient-6482/">gradient-6482</a></li>
+        <li><a href="level-1843/">level-1843</a></li>
+        <li><a href="lod-4703/">lod-4703</a></li>
+        <li><a href="lod-6630/">lod-6630</a></li>
+        <li><a href="marker-8228/">marker-8228</a></li>
+        <li><a href="mask/">mask</a></li>
+        <li><a href="nearcam/">nearcam</a></li>
+        <li><a href="perimeter-7328/">perimeter-7328</a></li>
+        <li><a href="satellite/">satellite</a></li>
+        <li><a href="satellite-sweep/">satellite-sweep</a></li>
+        <li><a href="terrain-1542/">terrain-1542</a></li>
+        <li><a href="verify6585/">verify6585</a></li>
+        <li><a href="walk/">walk</a></li>
+    </ul>
+</main>
+</body></html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>#8534: smooth shading on rounded fill-extrusion corners, main vs PR</title>
+<link rel="stylesheet" href="../dist/main-cae8d60f7/maplibre-gl.css">
+<link rel="stylesheet" href="../lib/compare.css">
+</head>
+<body>
+<div id="head">
+    <h1><a href="https://github.com/maplibre/maplibre-gl-js/pull/8534">maplibre-gl-js#8534</a>: smooth shading across rounded fill-extrusion corners (<a href="https://github.com/maplibre/maplibre-gl-js/issues/8475">#8475</a>)</h1>
+    <p>Left: <code>main</code> at <code>cae8d60f7</code>. Right: PR branch <code>feat/fill-extrusion-smooth-corners-8475</code> at <code>ccfeeeed3</code>. Cameras are synced, drag either map.</p>
+</div>
+<div id="bar"><div id="scenes"></div></div>
+<div id="note"></div>
+<div id="panes">
+    <div class="pane"><div class="tag">main</div><div id="map-a" class="map"></div><div id="readout-a" class="readout"></div></div>
+    <div class="pane"><div class="tag">#8534</div><div id="map-b" class="map"></div><div id="readout-b" class="readout"></div></div>
+</div>
+<script type="module">
+import * as mainLib from '../dist/main-cae8d60f7/maplibre-gl-dev.mjs';
+import * as prLib from './dist-pr/maplibre-gl-dev.mjs';
+import {setupCompare} from '../lib/compare.js';
+
+const CENTER = [2.3376, 48.8606];
+const kx = 1 / (111320 * Math.cos(CENTER[1] * Math.PI / 180)), ky = 1 / 110540;
+const at = (dx, dy) => [CENTER[0] + dx * kx, CENTER[1] + dy * ky];
+const ring = (pts) => [[...pts.map(([x, y]) => at(x, y)), at(...pts[0])]];
+const feature = (pts, height) => ({type: 'Feature', properties: {height}, geometry: {type: 'Polygon', coordinates: ring(pts)}});
+
+const BLOCKS = {type: 'FeatureCollection', features: [
+    feature([[-260, -60], [-110, -60], [-110, 60], [-260, 60]], 60),
+    feature([[-60, -80], [120, -80], [120, -10], [30, -10], [30, 90], [-60, 90]], 45),
+    feature([[170, -70], [300, -70], [300, 70], [170, 70]], 80)
+]};
+
+setupCompare({mainLib, prLib, initial: 'blocks', scenes: {
+    blocks: {
+        label: 'Large rounded blocks (GeoJSON)',
+        note: 'Three blocks with fill-extrusion-rounded-corner-distance 24 m. main shades every step of a rounded corner flat, so each arc shows as bands. #8534 blends the wall normals across the arc, so it reads as one curved surface, while the sharp inner corner of the L shape keeps its edge.',
+        style: {
+            version: 8,
+            sources: {blocks: {type: 'geojson', data: BLOCKS}},
+            layers: [
+                {id: 'ground', type: 'background', paint: {'background-color': '#e9e6df'}},
+                {id: 'blocks', type: 'fill-extrusion', source: 'blocks',
+                    layout: {'fill-extrusion-rounded-corner-distance': 24},
+                    paint: {'fill-extrusion-color': '#d4d8de', 'fill-extrusion-height': ['get', 'height']}}
+            ]
+        },
+        camera: {center: at(20, -40), zoom: 16.4, pitch: 60, bearing: 25}
+    },
+    city: {
+        label: 'Real buildings (vector tiles)',
+        note: 'OpenFreeMap buildings in Paris with fill-extrusion-rounded-corner-distance 4 m on the 3D building layer. The difference is most visible on the curved facades and at street corners.',
+        style: 'https://tiles.openfreemap.org/styles/liberty',
+        onStyle(map) {
+            for (const l of map.getStyle().layers) {
+                if (l.type === 'fill-extrusion') {
+                    map.setLayoutProperty(l.id, 'fill-extrusion-rounded-corner-distance', 4);
+                    map.setPaintProperty(l.id, 'fill-extrusion-color', '#d4d8de');
+                }
+                if (l.type === 'symbol') map.setLayoutProperty(l.id, 'visibility', 'none');
+            }
+        },
+        camera: {center: [2.3376, 48.8606], zoom: 17.2, pitch: 60, bearing: 30}
+    }
+}});
+</script>
+</body></html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fork #3: attribution credit kept by the sanitizer, main vs PR</title>
+<link rel="stylesheet" href="../dist/main-cae8d60f7/maplibre-gl.css">
+<link rel="stylesheet" href="../lib/compare.css">
+<style>.maplibregl-ctrl-attrib { font-size: 13px !important; }</style>
+</head>
+<body>
+<div id="head">
+    <h1><a href="https://github.com/clement-igonet/maplibre-gl-js/pull/3">internal PR #3</a>: keep attribution credit that the sanitizer drops (follow-up to <a href="https://github.com/maplibre/maplibre-gl-js/pull/8532">#8532</a>)</h1>
+    <p>Left: <code>main</code> at <code>cae8d60f7</code>. Right: branch <code>fix/attribution-credit-8532</code> at <code>de3ce69e9</code>. Look at the attribution bar at the bottom right of each map; the text it holds is repeated under the map.</p>
+</div>
+<div id="bar"><div id="scenes"></div></div>
+<div id="note"></div>
+<div id="panes">
+    <div class="pane"><div class="tag">main</div><div id="map-a" class="map"></div><div id="readout-a" class="readout"></div></div>
+    <div class="pane"><div class="tag">internal #3</div><div id="map-b" class="map"></div><div id="readout-b" class="readout"></div></div>
+</div>
+<script type="module">
+import * as mainLib from '../dist/main-cae8d60f7/maplibre-gl-dev.mjs';
+import * as prLib from './dist-pr/maplibre-gl-dev.mjs';
+import {setupCompare} from '../lib/compare.js';
+
+const style = {
+    version: 8,
+    sources: {osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19}},
+    layers: [{id: 'osm', type: 'raster', source: 'osm'}]
+};
+const readout = (map) => {
+    const text = map.getContainer().querySelector('.maplibregl-ctrl-attrib-inner')?.textContent?.trim();
+    return `attribution bar: ${text ? JSON.stringify(text) : '(empty)'}`;
+};
+const scene = (label, note, attributions) => ({
+    label, note, style, readout,
+    camera: {center: [6.63, 46.52], zoom: 11},
+    attributionControl: {customAttribution: attributions, compact: false}
+});
+
+setupCompare({mainLib, prLib, initial: 'closed', scenes: {
+    closed: scene('Credit wrapped in <font>',
+        'Three credits, the first one wrapped in <font>, a tag outside the sanitizer allow list. main drops it with its text and leaves a stray separator.',
+        ['<font>&copy; Provider A</font>', '&copy; OpenStreetMap contributors', '&copy; Provider C, aerial imagery']),
+    unclosed: scene('Unclosed <font>',
+        'Same three credits with the tag left unclosed. The credits are joined before sanitizing and sorted by length, so on main the short malformed one swallows the others and the bar is empty.',
+        ['<font>&copy; A', '&copy; OpenStreetMap contributors', '&copy; Provider C, aerial imagery']),
+    plain: scene('Allowed markup only',
+        'Control case: credits using only allowed markup (links, &copy;). Both builds show the same bar.',
+        ['<a href="https://www.openstreetmap.org/copyright">&copy; OpenStreetMap contributors</a>', '<span>&copy; Provider C</span>'])
+}});
+</script>
+</body></html>
