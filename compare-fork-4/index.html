@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fork #4: fill outline drawn over terrain, main vs PR</title>
+<link rel="stylesheet" href="../dist/main-cae8d60f7/maplibre-gl.css">
+<link rel="stylesheet" href="../lib/compare.css">
+</head>
+<body>
+<div id="head">
+    <h1><a href="https://github.com/clement-igonet/maplibre-gl-js/pull/4">internal PR #4</a>: draw <code>fill-outline-color</code> when terrain is on (<a href="https://github.com/maplibre/maplibre-gl-js/issues/4200">#4200</a>)</h1>
+    <p>Left: <code>main</code> at <code>cae8d60f7</code>. Right: branch <code>fix/fill-outline-terrain-4200</code> at <code>9c8cb4934</code>. Cameras are synced, drag either map. Under each map: how many pixels carry the magenta outline colour.</p>
+</div>
+<div id="bar"><div id="scenes"></div></div>
+<div id="note"></div>
+<div id="panes">
+    <div class="pane"><div class="tag">main</div><div id="map-a" class="map"></div><div id="readout-a" class="readout"></div></div>
+    <div class="pane"><div class="tag">internal #4</div><div id="map-b" class="map"></div><div id="readout-b" class="readout"></div></div>
+</div>
+<script type="module">
+import * as mainLib from '../dist/main-cae8d60f7/maplibre-gl-dev.mjs';
+import * as prLib from './dist-pr/maplibre-gl-dev.mjs';
+import {setupCompare} from '../lib/compare.js';
+
+const OUTLINE = '#ff00ff';
+const RING = (w, s, e, n) => [[[w, s], [e, s], [e, n], [w, n], [w, s]]];
+const PARCELS = {type: 'FeatureCollection', features: [
+    {type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: RING(7.735, 45.995, 7.755, 46.012)}},
+    {type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: RING(7.760, 45.998, 7.785, 46.015)}},
+    {type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: RING(7.742, 46.018, 7.772, 46.030)}}
+]};
+
+function style(withTerrain) {
+    const s = {
+        version: 8,
+        sources: {
+            osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap contributors'},
+            dem: {type: 'raster-dem', url: 'https://tiles.mapterhorn.com/tilejson.json'},
+            parcels: {type: 'geojson', data: PARCELS}
+        },
+        layers: [
+            {id: 'osm', type: 'raster', source: 'osm'},
+            {id: 'parcels', type: 'fill', source: 'parcels',
+                paint: {'fill-color': 'rgba(0, 120, 255, 0.25)', 'fill-outline-color': OUTLINE}}
+        ]
+    };
+    if (withTerrain) s.terrain = {source: 'dem', exaggeration: 1};
+    return s;
+}
+
+function outlinePixels(map) {
+    const src = map.getCanvas();
+    const c = document.createElement('canvas');
+    c.width = src.width; c.height = src.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(src, 0, 0);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] - d[i + 1] > 50 && d[i + 2] - d[i + 1] > 50) n++;
+    return n;
+}
+const readout = (map) => `outline-tinted pixels on screen: ${outlinePixels(map)}`;
+const mapOptions = {canvasContextAttributes: {antialias: true, preserveDrawingBuffer: true}};
+
+setupCompare({mainLib, prLib, initial: 'top', scenes: {
+    top: {
+        label: 'Terrain on, seen from above',
+        note: 'Three parcels near Zermatt with fill-outline-color set, terrain on. main draws the fill but not the outline; #4 draws both. Draped over terrain the outline is one texel of the terrain texture wide, so it is thinner and fainter than without terrain.',
+        style: () => style(true), camera: {center: [7.76, 46.012], zoom: 13.4, pitch: 0}, mapOptions, readout
+    },
+    pitched: {
+        label: 'Terrain on, pitched',
+        note: 'Same parcels at pitch 60: the outline follows the slopes, and fades with distance as the terrain texture is minified.',
+        style: () => style(true), camera: {center: [7.76, 46.0], zoom: 13.6, pitch: 60, bearing: -20}, mapOptions, readout
+    },
+    flat: {
+        label: 'Terrain off (control)',
+        note: 'Same style without terrain: both builds draw the outline, the change only touches the terrain pass.',
+        style: () => style(false), camera: {center: [7.76, 46.012], zoom: 13.4, pitch: 0}, mapOptions, readout
+    }
+}});
+</script>
+</body></html>
