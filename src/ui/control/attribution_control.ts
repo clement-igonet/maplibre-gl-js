@@ -174,7 +174,8 @@ export class AttributionControl implements IControl {
         this._attribHTML = attribHTML;
 
         if (attributions.length) {
-            this._innerContainer.replaceChildren(DOM.sanitize(attribHTML));
+            this._innerContainer.replaceChildren(...attributions.flatMap((attribution, i) =>
+                i === 0 ? [DOM.sanitize(attribution)] : [' | ', DOM.sanitize(attribution)]));
             this._container.classList.remove('maplibregl-attrib-empty');
         } else {
             this._container.classList.add('maplibregl-attrib-empty');
