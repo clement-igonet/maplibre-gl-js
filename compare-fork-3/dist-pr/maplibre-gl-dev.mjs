@@ -259,24 +259,6 @@ const ALLOWED_PROTOCOLS = /* @__PURE__ */ new Set([
 	"mailto:"
 ]);
 /**
-* Disallowed elements whose content is markup or script rather than text to display, so unwrapping them would
-* put their content into the document instead of dropping it. Everything else on the deny side is unwrapped,
-* which keeps the credit an attribution carries while still dropping the element itself.
-*/
-const DROPPED_WITH_CONTENT = /* @__PURE__ */ new Set([
-	"script",
-	"style",
-	"iframe",
-	"object",
-	"embed",
-	"noembed",
-	"noframes",
-	"noscript",
-	"template",
-	"title",
-	"xmp"
-]);
-/**
 * Relative URLs have to resolve against something before their protocol can be read. Only the protocol of the
 * result is used, so the base never leaks into the sanitized markup.
 */
@@ -297,8 +279,6 @@ function getElementInternals() {
 		querySelectorAll: Element.prototype.querySelectorAll,
 		remove: Element.prototype.remove,
 		removeAttribute: Element.prototype.removeAttribute,
-		replaceWith: Element.prototype.replaceWith,
-		childNodes: Object.getOwnPropertyDescriptor(Node.prototype, "childNodes").get,
 		localName: Object.getOwnPropertyDescriptor(Element.prototype, "localName").get,
 		namespaceURI: Object.getOwnPropertyDescriptor(Element.prototype, "namespaceURI").get
 	};
@@ -365,14 +345,10 @@ var DOM = class DOM {
 	/**
 	* Sanitize an untrusted HTML string, such as the attribution a remote TileJSON asks the map to display.
 	*
-	* Only the elements in `ALLOWED_TAGS` and the attributes in `ALLOWED_ATTRIBUTES` survive. An allow list is
-	* used rather than a list of known-dangerous markup because the latter silently permits whatever it has not
-	* heard of yet, including markup added to HTML after it was written.
-	*
-	* A disallowed element is replaced by its children rather than dropped with them, so that the credit inside
-	* it survives; an attribution is a licence obligation and one source's markup must not erase another's text,
-	* since they are sanitized as one joined string. Elements whose content is not text to display, and foreign
-	* content, go with their subtree: see `DROPPED_WITH_CONTENT` and {@link DOM.isAllowedElement}.
+	* Only the elements in `ALLOWED_TAGS` and the attributes in `ALLOWED_ATTRIBUTES` survive; anything else is
+	* dropped along with its subtree. An allow list is used rather than a list of known-dangerous markup because
+	* the latter silently permits whatever it has not heard of yet, including markup added to HTML after it was
+	* written.
 	*
 	* The sanitized nodes are returned rather than a string: serializing and re-parsing is not a round trip, so
 	* a string result lets carefully nested markup mutate into a different - and no longer sanitized - tree.
@@ -381,8 +357,7 @@ var DOM = class DOM {
 		const body = new DOMParser().parseFromString(str, "text/html").body;
 		const { querySelectorAll, remove } = getElementInternals();
 		for (const element of Array.from(querySelectorAll.call(body, "*"))) if (DOM.isAllowedElement(element)) DOM.removeDisallowedAttributes(element);
-		else if (DOM.dropsItsContent(element)) remove.call(element);
-		else DOM.unwrap(element);
+		else remove.call(element);
 		const fragment = document.createDocumentFragment();
 		fragment.append(...body.childNodes);
 		return fragment;
@@ -395,20 +370,6 @@ var DOM = class DOM {
 	static isAllowedElement(element) {
 		const { namespaceURI, localName } = getElementInternals();
 		return namespaceURI.call(element) === HTML_NAMESPACE && ALLOWED_TAGS.has(localName.call(element));
-	}
-	/**
-	* Whether a disallowed element takes its subtree with it. Foreign content is included: promoting the children
-	* of an SVG or MathML element into HTML is what makes mutation attacks possible, and such an element carries
-	* no attribution text of its own.
-	*/
-	static dropsItsContent(element) {
-		const { namespaceURI, localName } = getElementInternals();
-		return namespaceURI.call(element) !== HTML_NAMESPACE || DROPPED_WITH_CONTENT.has(localName.call(element));
-	}
-	/** Replaces an element with its children, which the walk visits afterwards, since it walks in document order. */
-	static unwrap(element) {
-		const { replaceWith, childNodes } = getElementInternals();
-		replaceWith.call(element, ...Array.from(childNodes.call(element)));
 	}
 	static removeDisallowedAttributes(element) {
 		const { getAttributeNames, getAttribute, removeAttribute } = getElementInternals();

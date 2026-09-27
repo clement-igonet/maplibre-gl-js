@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>fork #3: attribution credit kept by the sanitizer, main vs PR</title>
+<title>fork #3: sanitize each attribution on its own, main vs PR</title>
 <link rel="stylesheet" href="../dist/main-cae8d60f7/maplibre-gl.css">
 <link rel="stylesheet" href="../lib/compare.css">
 <style>.maplibregl-ctrl-attrib { font-size: 13px !important; }</style>
 </head>
 <body>
 <div id="head">
-    <h1><a href="https://github.com/clement-igonet/maplibre-gl-js/pull/3">internal PR #3</a>: keep attribution credit that the sanitizer drops (follow-up to <a href="https://github.com/maplibre/maplibre-gl-js/pull/8532">#8532</a>)</h1>
-    <p>Left: <code>main</code> at <code>cae8d60f7</code>. Right: branch <code>fix/attribution-credit-8532</code> at <code>de3ce69e9</code>. Look at the attribution bar at the bottom right of each map; the text it holds is repeated under the map.</p>
+    <h1><a href="https://github.com/clement-igonet/maplibre-gl-js/pull/3">internal PR #3</a>: sanitize each attribution on its own (<a href="https://github.com/maplibre/maplibre-gl-js/issues/8569">#8569</a>, follow-up to <a href="https://github.com/maplibre/maplibre-gl-js/pull/8532">#8532</a>)</h1>
+    <p>Left: <code>main</code> at <code>cae8d60f7</code>. Right: branch <code>fix/attribution-credit-8532</code> at <code>2e501bd9b</code>. Look at the attribution bar at the bottom right of each map; the text it holds is repeated under the map.</p>
 </div>
 <div id="bar"><div id="scenes"></div></div>
 <div id="note"></div>
@@ -39,10 +39,10 @@ const scene = (label, note, attributions) => ({
 
 setupCompare({mainLib, prLib, initial: 'closed', scenes: {
     closed: scene('Credit wrapped in <font>',
-        'Three credits, the first one wrapped in <font>, a tag outside the sanitizer allow list. main drops it with its text and leaves a stray separator.',
+        'Three credits, the first one wrapped in <font>, a tag outside the sanitizer allow list. Both builds drop that credit with its text, as #8532 intends; the other two stay.',
         ['<font>&copy; Provider A</font>', '&copy; OpenStreetMap contributors', '&copy; Provider C, aerial imagery']),
     unclosed: scene('Unclosed <font>',
-        'Same three credits with the tag left unclosed. The credits are joined before sanitizing and sorted by length, so on main the short malformed one swallows the others and the bar is empty.',
+        'Same three credits with the tag left unclosed. On main the credits are sanitized as one joined string, sorted by length, so the short malformed one swallows the others and the bar is empty. With #3 each credit is sanitized on its own and only the malformed one is lost.',
         ['<font>&copy; A', '&copy; OpenStreetMap contributors', '&copy; Provider C, aerial imagery']),
     plain: scene('Allowed markup only',
         'Control case: credits using only allowed markup (links, &copy;). Both builds show the same bar.',
