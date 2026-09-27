@@ -364,6 +364,17 @@ describe('AttributionControl', () => {
         expect(attribution._innerContainer.innerHTML).toBe('Used');
     });
 
+    test('keeps the other credits when one attribution has markup outside the allow list', async () => {
+        const attributionControl = new AttributionControl({
+            customAttribution: ['<font>A', '&copy; Provider B, a longer credit', '&copy; Provider C, a longer credit too']
+        });
+        map.addControl(attributionControl);
+        await map.once('load');
+
+        expect(attributionControl._innerContainer.textContent).toContain('Provider B');
+        expect(attributionControl._innerContainer.textContent).toContain('Provider C');
+    });
+
     test('sanitizes html content in attributions', async () => {
         const attributionControl = new AttributionControl({
             customAttribution: 'MapLibre<script>alert("xss")</script>'
