@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fill-extrusion vertical gradient skips walls facing east or west</title>
+<link rel="stylesheet" href="../dist/main-cae8d60f7/maplibre-gl.css">
+<link rel="stylesheet" href="../lib/compare.css">
+</head>
+<body>
+<div id="head">
+    <h1>fill-extrusion: the vertical gradient skips walls that face exactly east or west</h1>
+    <p>Left: <code>main</code> at <code>cae8d60f7</code>. Right: the same build with the gradient gate in <code>fill_extrusion.vertex.glsl</code> changed from <code>normal.y != 0.0</code> to <code>normal.z == 0.0</code>. Cameras are synced, drag either map.</p>
+</div>
+<div id="bar"><div id="scenes"></div></div>
+<div id="note"></div>
+<div id="panes">
+    <div class="pane"><div class="tag">main</div><div id="map-a" class="map"></div><div id="readout-a" class="readout"></div></div>
+    <div class="pane"><div class="tag">normal.z == 0.0</div><div id="map-b" class="map"></div><div id="readout-b" class="readout"></div></div>
+</div>
+<script type="module">
+import * as mainLib from '../dist/main-cae8d60f7/maplibre-gl-dev.mjs';
+import * as prLib from './dist-fix/maplibre-gl-dev.mjs';
+import {setupCompare} from '../lib/compare.js';
+
+const CENTER = [2.3376, 48.8606];
+const kx = 1 / (111320 * Math.cos(CENTER[1] * Math.PI / 180)), ky = 1 / 110540;
+function box(cx, cy, w, h, bearingDeg) {
+    const r = bearingDeg * Math.PI / 180;
+    const pt = (x, y) => [CENTER[0] + (cx + x * Math.cos(r) - y * Math.sin(r)) * kx, CENTER[1] + (cy + x * Math.sin(r) + y * Math.cos(r)) * ky];
+    return [[pt(-w / 2, -h / 2), pt(w / 2, -h / 2), pt(w / 2, h / 2), pt(-w / 2, h / 2), pt(-w / 2, -h / 2)]];
+}
+const BOXES = {type: 'FeatureCollection', features: [
+    {type: 'Feature', properties: {label: 'aligned north-south'}, geometry: {type: 'Polygon', coordinates: box(-70, 0, 60, 60, 0)}},
+    {type: 'Feature', properties: {label: 'turned 20 degrees'}, geometry: {type: 'Polygon', coordinates: box(70, 0, 60, 60, 20)}}
+]};
+
+setupCompare({mainLib, prLib, initial: 'boxes', scenes: {
+    boxes: {
+        label: 'Two boxes, one aligned north-south',
+        note: 'Same height, same colour. The left box has its walls facing exactly north, south, east and west; the right one is turned 20 degrees. On main the east wall of the aligned box is one flat shade, while every other wall darkens towards the ground. With the gate on normal.z all walls darken.',
+        style: {
+            version: 8,
+            sources: {boxes: {type: 'geojson', data: BOXES}},
+            layers: [
+                {id: 'ground', type: 'background', paint: {'background-color': '#e9e6df'}},
+                {id: 'boxes', type: 'fill-extrusion', source: 'boxes',
+                    paint: {'fill-extrusion-color': '#7f9fcf', 'fill-extrusion-height': 200, 'fill-extrusion-vertical-gradient': true}}
+            ]
+        },
+        camera: {center: CENTER, zoom: 16.6, pitch: 62, bearing: -40}
+    },
+    city: {
+        label: 'Phoenix, grid-aligned towers',
+        note: 'OpenFreeMap buildings in downtown Phoenix, where the street grid follows true north. Walls facing east or west are flat on main; their north and south neighbours have the gradient.',
+        style: 'https://tiles.openfreemap.org/styles/liberty',
+        onStyle(map) {
+            for (const l of map.getStyle().layers) {
+                if (l.type === 'fill-extrusion') map.setPaintProperty(l.id, 'fill-extrusion-color', '#7f9fcf');
+                if (l.type === 'symbol') map.setLayoutProperty(l.id, 'visibility', 'none');
+            }
+        },
+        camera: {center: [-112.0725, 33.4495], zoom: 16.6, pitch: 62, bearing: -35}
+    }
+}});
+</script>
+</body></html>
