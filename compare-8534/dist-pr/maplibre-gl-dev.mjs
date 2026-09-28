@@ -2,7 +2,7 @@
 * MapLibre GL JS
 * @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2/LICENSE.txt
 */
-import { $ as projectToWorldCoordinates, $n as differenceOfAnglesDegrees, $r as add, $t as Transitionable, A as evaluateSizeForZoom, Ai as rotateX, An as addProtocol, Ar as scaleZoom, At as toEvaluationFeature, B as isCluster, Bi as rotate, Bn as arrayBufferToImage, Br as EXTENT, Bt as SegmentVector, C as addDynamicAttributes, Ci as exactEquals, Cn as GLOBAL_DISPATCHER_ID, Cr as pointPlaneSignedDistance, Ct as HEATMAP_FULL_RENDER_FBO_KEY, Di as multiply, Dn as getVideo, Dr as remapSaturate, Dt as RGBAImage, E as TextAnchorEnum, Ei as invert$1, En as getReferrer, Er as readImageUsingVideoFrame, Et as AlphaImage, F as potpack, Fi as create$4, Fn as isAbortError, Fr as uniqueId, Ft as Uniform4f, Gn as createIdentityMat4f32, Gr as zero, Gt as PosArray, Hi as offscreenCanvasSupported, Hn as bezier, Hr as length$1, Ht as CollisionCircleLayoutArray, I as isStyleImageWebGLData, Ii as fromRotation, In as throwIfAborted, Ir as warnOnce, It as UniformColor, J as cameraDirectionFromPitchBearing, Jn as createVec3f64, Jr as multiply$1, Jt as TriangleIndexArray, K as isFillExtrusionStyleLayer, Kn as createIdentityMat4f64, Kr as fromEuler, Kt as QuadTriangleArray, L as renderStyleImage, Li as create$2, Lr as wrap, Lt as UniformColorArray, M as getAnchorAlignment, Mi as rotateZ, Mn as removeProtocol, Mr as subscribe, Mt as Uniform1i, Ni as scale, Nn as config, Nr as threePlaneIntersection, Nt as Uniform2f, O as clipLine, Oi as ortho, On as makeRequest, Or as rollPitchBearingEqual, Ot as isCircleStyleLayer, P as ImagePosition, Pi as translate, Pn as AbortError, Pr as translatePosition, Pt as Uniform3f, Q as maxMercatorHorizonAngle, Qn as degreesToRadians, Qr as transformMat4, Qt as Properties, R as parseGlyphPbf, Ri as determinant, Rn as MAX_VALID_LATITUDE, Rr as zoomScale, Rt as UniformFloatArray, S as SymbolBucket, Si as equals, Sn as AJAXError, Sr as pick, St as isHillshadeStyleLayer, T as getAnchorJustification, Ti as identity, Tn as getJSON, Tr as rayPlaneIntersection, Tt as renderColorRamp, U as collisionCircleLayout, Ui as Point, Un as clamp, Ur as scale$3, Ut as LineStripIndexArray, V as codePointUsesLocalIdeographFontFamily, Vi as isOffscreenCanvasDistorted, Vn as arrayBufferToImageBitmap, Vr as create$3, Vt as CollisionBoxArray, W as isLineStyleLayer, Wn as clone$2, Wr as sqrLen, Wt as Pos3dArray, X as cameraMercatorCoordinateFromCenterAndRotation, Xn as deepEqual, Xr as mul, Xt as isRasterStyleLayer, Y as cameraMercatorCoordinate, Yn as createVec4f64, Yr as slerp, Yt as createLayout, Z as getMercatorHorizon, Zn as defaultEasing, Zr as scale$2, Zt as DataConstantProperty, _ as createStyleLayer, _i as transformQuat, _n as derefLayers, _r as lerp, _t as SubdivisionGranularityExpression, a as GeoJSONFeature, ai as length, an as validateAndEmit, ar as findLineIntersection, at as lngFromMercatorX, b as isBackgroundStyleLayer, bi as copy, bn as Event, br as nextPowerOfTwo, ci as rotateX$1, cn as emptyStyle, cr as getEdgeTiles, ct as mercatorZfromAltitude, d as OverscaledTileID, di as scale$1, dr as isImageBitmap, ei as clone, en as EvaluationParameters, er as distanceOfAnglesRadians, et as tileCoordinatesToMercatorCoordinates, f as UnwrappedTileID, fi as scaleAndAdd, fn as interpolateFactory, fr as isPointableEvent, ft as EXTENT_BOUNDS, g as Actor, gi as transformMat4$1, gn as diff, gr as isWorker, gt as SOUTH_POLE_Y, h as isInBoundsForZoomLngLat, hi as transformMat3, hn as ValidationError, hr as isTouchableOrPointableType, ht as NORTH_POLE_Y, ii as len, in as emitValidationErrors, ir as filterObject, it as latFromMercatorY, ji as rotateY$1, jn as getProtocol, jr as sphericalToCartesian, jt as Uniform1f, k as evaluateSizeForFeature, ki as perspective, kn as sameOrigin, kr as rollPitchBearingToQuat, kt as polygonIntersectsPolygon, li as rotateY, lt as LngLat, m as compareTileId, mi as subtract, mn as Color, mr as isTouchableEvent, mt as isFillStyleLayer, n as TileCache, ni as distance, nr as evaluateZoomSnap, nt as MercatorCoordinate, oi as negate, on as validateStyle, or as getAABB, ot as mercatorXfromLng, p as calculateTileKey, pi as sub, pn as ProjectionDefinition, pr as isSafari, pt as Bounds, q as calculateTileMatrix, qn as createMat4f64, qr as fromValues, qt as RasterBoundsArray, ri as dot, rn as SPEC_SOURCE_TYPES, rr as extend, rt as altitudeFromMercatorZ, s as GEOJSON_TILE_LAYER_NAME, si as normalize, sn as validateStyleAndEmit, sr as getAngleDelta, st as mercatorYfromLat, ti as cross, tn as ZoomHistory, tr as ensureError, tt as unprojectFromWorldCoordinates, u as CanonicalTileID, ui as rotateZ$1, un as featureFilter, ur as getRollPitchBearing, ut as earthRadius, v as isCustomStyleLayer, vi as zero$1, vn as latest, vr as mapObject, vt as SubdivisionGranularitySetting, w as getOverlapMode, wi as fromScaling, wn as getArrayBuffer, wr as radiansToDegrees, wt as isHeatmapStyleLayer, x as isSymbolStyleLayer, xi as create$1, xn as Evented, xr as parseCacheControl, xt as Texture, y as validateCustomStyleLayer, yi as clone$1, yn as ErrorEvent, yr as mod, yt as isColorReliefStyleLayer, zi as invert, zn as angleToRotateBetweenVectors2D, zr as pixelsToTileUnits, zt as UniformMatrix4f } from "./maplibre-gl-shared-dev.mjs";
+import { $ as maxMercatorHorizonAngle, $n as degreesToRadians, $r as transformMat4, $t as Properties, A as evaluateSizeForZoom, Ai as perspective, An as sameOrigin, Ar as rollPitchBearingToQuat, At as polygonIntersectsPolygon, B as isCluster, Bi as invert, Bn as angleToRotateBetweenVectors2D, Br as pixelsToTileUnits, Bt as UniformMatrix4f, C as addDynamicAttributes, Ci as equals, Cn as AJAXError, Cr as pick, Ct as isHillshadeStyleLayer, Di as invert$1, Dn as getReferrer, Dr as readImageUsingVideoFrame, Dt as AlphaImage, E as TextAnchorEnum, Ei as identity, En as getJSON, Er as rayPlaneIntersection, Et as renderColorRamp, F as potpack, Fi as translate, Fn as AbortError, Fr as translatePosition, Ft as Uniform3f, G as isLineStyleLayer, Gn as clone$2, Gr as sqrLen, Gt as Pos3dArray, Hi as isOffscreenCanvasDistorted, Hn as arrayBufferToImageBitmap, Hr as create$3, Ht as CollisionBoxArray, I as isStyleImageWebGLData, Ii as create$4, In as isAbortError, Ir as uniqueId, It as Uniform4f, J as calculateTileMatrix, Jn as createMat4f64, Jr as fromValues, Jt as RasterBoundsArray, Kn as createIdentityMat4f32, Kr as zero, Kt as PosArray, L as renderStyleImage, Li as fromRotation, Ln as throwIfAborted, Lr as warnOnce, Lt as UniformColor, M as getAnchorAlignment, Mi as rotateY$1, Mn as getProtocol, Mr as sphericalToCartesian, Mt as Uniform1f, Ni as rotateZ, Nn as removeProtocol, Nr as subscribe, Nt as Uniform1i, O as clipLine, Oi as multiply, On as getVideo, Or as remapSaturate, Ot as RGBAImage, P as ImagePosition, Pi as scale, Pn as config, Pr as threePlaneIntersection, Pt as Uniform2f, Q as getMercatorHorizon, Qn as defaultEasing, Qr as scale$2, Qt as DataConstantProperty, R as parseGlyphPbf, Ri as create$2, Rr as wrap, Rt as UniformColorArray, S as SymbolBucket, Si as create$1, Sn as Evented, Sr as parseCacheControl, St as Texture, T as getAnchorJustification, Ti as fromScaling, Tn as getArrayBuffer, Tr as radiansToDegrees, Tt as isHeatmapStyleLayer, U as collisionCircleLayout, Ui as offscreenCanvasSupported, Un as bezier, Ur as length$1, Ut as CollisionCircleLayoutArray, V as codePointUsesLocalIdeographFontFamily, Vi as rotate, Vn as arrayBufferToImage, Vr as EXTENT, Vt as SegmentVector, W as symbolInstance, Wi as Point, Wn as clamp, Wr as scale$3, Wt as LineStripIndexArray, X as cameraMercatorCoordinate, Xn as createVec4f64, Xr as slerp, Xt as createLayout, Y as cameraDirectionFromPitchBearing, Yn as createVec3f64, Yr as multiply$1, Yt as TriangleIndexArray, Z as cameraMercatorCoordinateFromCenterAndRotation, Zn as deepEqual, Zr as mul, Zt as isRasterStyleLayer, _ as createStyleLayer, _i as transformMat4$1, _n as diff, _r as isWorker, _t as SOUTH_POLE_Y, a as GeoJSONFeature, ai as len, an as emitValidationErrors, ar as filterObject, at as latFromMercatorY, b as isBackgroundStyleLayer, bi as clone$1, bn as ErrorEvent, br as mod, bt as isColorReliefStyleLayer, ci as normalize, cn as validateStyleAndEmit, cr as getAngleDelta, ct as mercatorYfromLat, d as OverscaledTileID, di as rotateZ$1, dn as featureFilter, dr as getRollPitchBearing, dt as earthRadius, ei as add, en as Transitionable, er as differenceOfAnglesDegrees, et as projectToWorldCoordinates, f as UnwrappedTileID, fi as scale$1, fr as isImageBitmap, g as Actor, gi as transformMat3, gn as ValidationError, gr as isTouchableOrPointableType, gt as NORTH_POLE_Y, h as isInBoundsForZoomLngLat, hi as subtract, hn as Color, hr as isTouchableEvent, ht as isFillStyleLayer, ii as dot, in as SPEC_SOURCE_TYPES, ir as extend, it as altitudeFromMercatorZ, ji as rotateX, jn as addProtocol, jr as scaleZoom, jt as toEvaluationFeature, k as evaluateSizeForFeature, ki as ortho, kn as makeRequest, kr as rollPitchBearingEqual, kt as isCircleStyleLayer, li as rotateX$1, ln as emptyStyle, lr as getEdgeTiles, lt as mercatorZfromAltitude, m as compareTileId, mi as sub, mn as ProjectionDefinition, mr as isSafari, mt as Bounds, n as TileCache, ni as cross, nn as ZoomHistory, nr as ensureError, nt as unprojectFromWorldCoordinates, oi as length, on as validateAndEmit, or as findLineIntersection, ot as lngFromMercatorX, p as calculateTileKey, pi as scaleAndAdd, pn as interpolateFactory, pr as isPointableEvent, pt as EXTENT_BOUNDS, q as isFillExtrusionStyleLayer, qn as createIdentityMat4f64, qr as fromEuler, qt as QuadTriangleArray, ri as distance, rr as evaluateZoomSnap, rt as MercatorCoordinate, s as GEOJSON_TILE_LAYER_NAME, si as negate, sn as validateStyle, sr as getAABB, st as mercatorXfromLng, ti as clone, tn as EvaluationParameters, tr as distanceOfAnglesRadians, tt as tileCoordinatesToMercatorCoordinates, u as CanonicalTileID, ui as rotateY, ut as LngLat, v as isCustomStyleLayer, vi as transformQuat, vn as derefLayers, vr as lerp, vt as SubdivisionGranularityExpression, w as getOverlapMode, wi as exactEquals, wn as GLOBAL_DISPATCHER_ID, wr as pointPlaneSignedDistance, wt as HEATMAP_FULL_RENDER_FBO_KEY, x as isSymbolStyleLayer, xi as copy, xn as Event, xr as nextPowerOfTwo, y as validateCustomStyleLayer, yi as zero$1, yn as latest, yr as mapObject, yt as SubdivisionGranularitySetting, zi as determinant, zn as MAX_VALID_LATITUDE, zr as zoomScale, zt as UniformFloatArray } from "./maplibre-gl-shared-dev.mjs";
 //#region package.json
 var version$2 = "6.11.2";
 //#endregion
@@ -8417,6 +8417,8 @@ function calculateVariableLayoutShift(anchor, width, height, textOffset, textBox
 	const shiftY = -(verticalAlign - .5) * height;
 	return new Point(shiftX + textOffset[0] * textBoxScale, shiftY + textOffset[1] * textBoxScale);
 }
+/** Where `crossTileID` sits within one `SymbolInstanceArray` element, counted in uint32s. */
+const CROSS_TILE_ID_UINT32_OFFSET = symbolInstance.members.find((member) => member.name === "crossTileID").offset / 4;
 var Placement = class {
 	constructor(transform, terrain, fadeDuration, crossSourceCollisions, prevPlacement) {
 		this.transform = transform.clone();
@@ -8432,6 +8434,7 @@ var Placement = class {
 		this.collisionGroups = new CollisionGroups(crossSourceCollisions);
 		this.collisionCircleArrays = {};
 		this.collisionBoxArrays = /* @__PURE__ */ new Map();
+		this.lastOpacityInputs = /* @__PURE__ */ new WeakMap();
 		this.prevPlacement = prevPlacement;
 		if (prevPlacement) prevPlacement.prevPlacement = void 0;
 		this.placedOrientations = {};
@@ -8840,14 +8843,54 @@ var Placement = class {
 		if (placementChanged) this.lastPlacementChangeTime = now;
 		else if (typeof this.lastPlacementChangeTime !== "number") this.lastPlacementChangeTime = prevPlacement ? prevPlacement.lastPlacementChangeTime : now;
 	}
+	/** Writes the opacity buffers of `styleLayer`, skipping buckets a rewrite would leave as they are. */
 	updateLayerOpacities(styleLayer, tiles) {
 		const seenCrossTileIDs = {};
 		for (const tile of tiles) {
 			const symbolBucket = tile.getBucket(styleLayer);
-			if (symbolBucket && tile.latestFeatureIndex && styleLayer.id === symbolBucket.layerIds[0]) this.updateBucketOpacities(symbolBucket, tile.tileID, seenCrossTileIDs, tile.collisionBoxArray);
+			if (!symbolBucket || !tile.latestFeatureIndex || styleLayer.id !== symbolBucket.layerIds[0]) continue;
+			const { duplicates, changed } = this._markDuplicates(symbolBucket, seenCrossTileIDs);
+			const hasDebugOutput = Boolean(symbolBucket.hasDebugData()) || symbolBucket.bucketInstanceId in this.collisionCircleArrays;
+			if (changed || hasDebugOutput) this.updateBucketOpacities(symbolBucket, tile.tileID, duplicates, tile.collisionBoxArray);
+			symbolBucket.sortFeatures(-this.transform.bearingInRadians);
+			if (this.retainedQueryData[symbolBucket.bucketInstanceId]) this.retainedQueryData[symbolBucket.bucketInstanceId].featureSortOrder = symbolBucket.featureSortOrder;
 		}
 	}
-	updateBucketOpacities(bucket, tileID, seenCrossTileIDs, collisionBoxArray) {
+	/**
+	* Marks the bucket's symbols whose label an earlier bucket already draws, and claims the rest in `seenCrossTileIDs`.
+	* `changed` is false when the marks match the last call, which means the buffers are already up to date.
+	*/
+	_markDuplicates(bucket, seenCrossTileIDs) {
+		const length = bucket.symbolInstances.length;
+		let inputs = this.lastOpacityInputs.get(bucket);
+		let changed = false;
+		if (!inputs) {
+			inputs = {
+				crossTileIDs: new Array(length).fill(0),
+				duplicates: new Array(length).fill(false)
+			};
+			this.lastOpacityInputs.set(bucket, inputs);
+			changed = true;
+		}
+		const { crossTileIDs, duplicates } = inputs;
+		const uint32 = bucket.symbolInstances.uint32;
+		const stride = bucket.symbolInstances.bytesPerElement / 4;
+		for (let s = 0; s < length; s++) {
+			const crossTileID = uint32[s * stride + CROSS_TILE_ID_UINT32_OFFSET];
+			const duplicate = Boolean(seenCrossTileIDs[crossTileID]);
+			seenCrossTileIDs[crossTileID] = true;
+			if (crossTileIDs[s] !== crossTileID || duplicates[s] !== duplicate) {
+				crossTileIDs[s] = crossTileID;
+				duplicates[s] = duplicate;
+				changed = true;
+			}
+		}
+		return {
+			duplicates,
+			changed
+		};
+	}
+	updateBucketOpacities(bucket, tileID, duplicates, collisionBoxArray) {
 		if (bucket.hasTextData()) {
 			bucket.text.opacityVertexArray.clear();
 			bucket.text.hasVisibleVertices = false;
@@ -8871,20 +8914,19 @@ var Placement = class {
 		if (!bucket.collisionArrays && collisionBoxArray && (bucket.hasIconCollisionBoxData() || bucket.hasTextCollisionBoxData())) bucket.deserializeCollisionBoxes(collisionBoxArray);
 		const addOpacities = (iconOrText, numVertices, opacity) => {
 			for (let i = 0; i < numVertices / 4; i++) iconOrText.opacityVertexArray.emplaceBack(opacity);
-			iconOrText.hasVisibleVertices ||= opacity !== PACKED_HIDDEN_OPACITY;
+			iconOrText.hasVisibleVertices ||= opacity !== 0;
 		};
 		const boxArrays = this.collisionBoxArrays.get(bucket.bucketInstanceId);
 		for (let s = 0; s < bucket.symbolInstances.length; s++) {
 			const symbolInstance = bucket.symbolInstances.get(s);
 			const { numHorizontalGlyphVertices, numVerticalGlyphVertices, crossTileID } = symbolInstance;
-			const isDuplicate = seenCrossTileIDs[crossTileID];
+			const isDuplicate = duplicates[s];
 			let opacityState = this.opacities[crossTileID];
 			if (isDuplicate) opacityState = duplicateOpacityState;
 			else if (!opacityState) {
 				opacityState = defaultOpacityState;
 				this.opacities[crossTileID] = opacityState;
 			}
-			seenCrossTileIDs[crossTileID] = true;
 			const hasText = numHorizontalGlyphVertices > 0 || numVerticalGlyphVertices > 0;
 			const hasIcon = symbolInstance.numIconVertices > 0;
 			const placedOrientation = this.placedOrientations[symbolInstance.crossTileID];
@@ -8892,9 +8934,9 @@ var Placement = class {
 			const verticalHidden = placedOrientation === 1 || placedOrientation === 3;
 			if (hasText) {
 				const packedOpacity = packOpacity(opacityState.text);
-				const horizontalOpacity = horizontalHidden ? PACKED_HIDDEN_OPACITY : packedOpacity;
+				const horizontalOpacity = horizontalHidden ? 0 : packedOpacity;
 				addOpacities(bucket.text, numHorizontalGlyphVertices, horizontalOpacity);
-				const verticalOpacity = verticalHidden ? PACKED_HIDDEN_OPACITY : packedOpacity;
+				const verticalOpacity = verticalHidden ? 0 : packedOpacity;
 				addOpacities(bucket.text, numVerticalGlyphVertices, verticalOpacity);
 				const symbolHidden = opacityState.text.isHidden();
 				const textSymbolIndexes = [
@@ -8916,12 +8958,12 @@ var Placement = class {
 				const packedOpacity = packOpacity(opacityState.icon);
 				const useHorizontal = !(hasIconTextFit && symbolInstance.verticalPlacedIconSymbolIndex && horizontalHidden);
 				if (symbolInstance.placedIconSymbolIndex >= 0) {
-					const horizontalOpacity = useHorizontal ? packedOpacity : PACKED_HIDDEN_OPACITY;
+					const horizontalOpacity = useHorizontal ? packedOpacity : 0;
 					addOpacities(bucket.icon, symbolInstance.numIconVertices, horizontalOpacity);
 					bucket.icon.placedSymbolArray.get(symbolInstance.placedIconSymbolIndex).hidden = opacityState.icon.isHidden();
 				}
 				if (symbolInstance.verticalPlacedIconSymbolIndex >= 0) {
-					const verticalOpacity = !useHorizontal ? packedOpacity : PACKED_HIDDEN_OPACITY;
+					const verticalOpacity = !useHorizontal ? packedOpacity : 0;
 					addOpacities(bucket.icon, symbolInstance.numVerticalIconVertices, verticalOpacity);
 					bucket.icon.placedSymbolArray.get(symbolInstance.verticalPlacedIconSymbolIndex).hidden = opacityState.icon.isHidden();
 				}
@@ -8960,8 +9002,6 @@ var Placement = class {
 				}
 			}
 		}
-		bucket.sortFeatures(-this.transform.bearingInRadians);
-		if (this.retainedQueryData[bucket.bucketInstanceId]) this.retainedQueryData[bucket.bucketInstanceId].featureSortOrder = bucket.featureSortOrder;
 		if (bucket.hasTextData() && bucket.text.opacityVertexBuffer) bucket.text.opacityVertexBuffer.updateData(bucket.text.opacityVertexArray);
 		if (bucket.hasIconData() && bucket.icon.opacityVertexBuffer) bucket.icon.opacityVertexBuffer.updateData(bucket.icon.opacityVertexArray);
 		if (bucket.hasIconCollisionBoxData() && bucket.iconCollisionBox.collisionVertexBuffer) bucket.iconCollisionBox.collisionVertexBuffer.updateData(bucket.iconCollisionBox.collisionVertexArray);
@@ -9016,12 +9056,12 @@ const shift8 = Math.pow(2, 8);
 const shift1 = Math.pow(2, 1);
 function packOpacity(opacityState) {
 	if (opacityState.opacity === 0 && !opacityState.placed) return 0;
-	else if (opacityState.opacity === 1 && opacityState.placed) return 4294967295;
+	else if (opacityState.opacity === 1 && opacityState.placed) return PACKED_VISIBLE_OPACITY;
 	const targetBit = opacityState.placed ? 1 : 0;
 	const opacityBits = Math.floor(opacityState.opacity * 127);
 	return opacityBits * shift25 + targetBit * shift24 + opacityBits * shift17 + targetBit * shift16 + opacityBits * shift9 + targetBit * shift8 + opacityBits * shift1 + targetBit;
 }
-const PACKED_HIDDEN_OPACITY = 0;
+const PACKED_VISIBLE_OPACITY = 4294967295;
 //#endregion
 //#region src/style/pauseable_placement.ts
 var LayerPlacement = class {
@@ -10158,6 +10198,7 @@ var TransformHelper = class {
 		if (this._edgeInsets.equals(padding)) return;
 		this._unmodified = false;
 		this._edgeInsets.interpolate(this._edgeInsets, padding, 1);
+		this.constrainInternal();
 		this._calcMatrices();
 	}
 	/**
@@ -11418,7 +11459,9 @@ var MercatorTransform = class MercatorTransform {
 			let maxX = worldSize;
 			let scaleY = 0;
 			let scaleX = 0;
-			const { x: screenWidth, y: screenHeight } = this.size;
+			const { top = 0, bottom = 0, left = 0, right = 0 } = this.padding;
+			const screenWidth = this.width - left - right;
+			const screenHeight = this.height - top - bottom;
 			if (this._helper._latRange) {
 				const latRange = this._helper._latRange;
 				minY = mercatorYfromLat(latRange[1]) * worldSize;

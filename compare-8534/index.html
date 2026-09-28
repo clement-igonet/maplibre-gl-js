@@ -8,7 +8,7 @@
 <body>
 <div id="head">
     <h1><a href="https://github.com/maplibre/maplibre-gl-js/pull/8534">maplibre-gl-js#8534</a>: smooth shading across rounded fill-extrusion corners (<a href="https://github.com/maplibre/maplibre-gl-js/issues/8475">#8475</a>)</h1>
-    <p>Left: <code>main</code> at <code>cae8d60f7</code>. Right: PR branch <code>feat/fill-extrusion-smooth-corners-8475</code> at <code>ccfeeeed3</code>. Cameras are synced, drag either map.</p>
+    <p>Left: <code>main</code> at <code>cae8d60f7</code>. Right: PR branch <code>feat/fill-extrusion-smooth-corners-8475</code> at <code>11ec2f6e7</code>. Cameras are synced, drag either map.</p>
 </div>
 <div id="bar"><div id="scenes"></div></div>
 <div id="note"></div>
@@ -36,7 +36,7 @@ const BLOCKS = {type: 'FeatureCollection', features: [
 setupCompare({mainLib, prLib, initial: 'blocks', scenes: {
     blocks: {
         label: 'Large rounded blocks (GeoJSON)',
-        note: 'Three blocks with fill-extrusion-rounded-corner-distance 24 m. main shades every step of a rounded corner flat, so each arc shows as bands. #8534 blends the wall normals across the arc, so it reads as one curved surface, while the sharp inner corner of the L shape keeps its edge.',
+        note: 'Three blocks with fill-extrusion-rounded-corner-distance 24 m. main shades every step of a rounded corner flat, so each arc shows as bands. #8534 blends the wall normals across the arc, so it reads as one curved surface, while straight walls stay evenly lit and the sharp inner corner of the L shape keeps its edge.',
         style: {
             version: 8,
             sources: {blocks: {type: 'geojson', data: BLOCKS}},
