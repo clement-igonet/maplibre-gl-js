@@ -1457,7 +1457,7 @@ var FontFaceManager = class {
 	}
 };
 //#endregion
-//#region node_modules/@mapbox/tiny-sdf/index.js
+//#region ../maplibre-wt-main-probe/node_modules/@mapbox/tiny-sdf/index.js
 const INF = 0x56bc75e2d63100000;
 const alphaTable = /* @__PURE__ */ new Float64Array(256);
 for (let i = 0; i < 256; i++) {
@@ -9155,7 +9155,7 @@ var PauseablePlacement = class {
 	}
 };
 //#endregion
-//#region node_modules/kdbush/index.js
+//#region ../maplibre-wt-main-probe/node_modules/kdbush/index.js
 const ARRAY_TYPES = [
 	Int8Array,
 	Uint8Array,
@@ -17114,17 +17114,6 @@ function updateFrameUniformBuffer(buffer, transform, data) {
 	f32[offsets$1.u_pitch] = transform.pitch / 360 * 2 * Math.PI;
 	buffer.upload();
 }
-/**
-* @internal
-* Sets `u_world_size` to the size of the render target about to be drawn into. It is the canvas size,
-* except while layers are drawn into a terrain texture; the fill outline shaders compare it with `gl_FragCoord`.
-*/
-function setFrameUniformWorldSize(buffer, width, height) {
-	const f32 = buffer.pending;
-	f32[offsets$1.u_world_size] = width;
-	f32[offsets$1.u_world_size + 1] = height;
-	buffer.upload();
-}
 //#endregion
 //#region src/webgl/terrain_uniform_buffer.ts
 const layout = std140Layout([
@@ -24401,7 +24390,6 @@ var RenderToTexture = class {
 			this._prevType = type;
 			const stack = this._stacks.length - 1, layers = this._stacks[stack] || [];
 			frameRenderContext.isRenderingToTexture = true;
-			setFrameUniformWorldSize(painter.context.frameUniformBuffer, this.rttSize, this.rttSize);
 			for (const tile of this._renderableTiles) {
 				this._rttTiles.push(tile);
 				if (tile.getRTT(stack)) continue;
@@ -24428,7 +24416,6 @@ var RenderToTexture = class {
 				obj.texture.generateMipmap();
 			}
 			frameRenderContext.isRenderingToTexture = false;
-			setFrameUniformWorldSize(painter.context.frameUniformBuffer, painter.context.gl.drawingBufferWidth, painter.context.gl.drawingBufferHeight);
 			drawTerrain(this.painter, this.terrain, this._rttTiles, frameRenderContext);
 			this._rttTiles = [];
 			return LAYERS_TO_TEXTURES[type];

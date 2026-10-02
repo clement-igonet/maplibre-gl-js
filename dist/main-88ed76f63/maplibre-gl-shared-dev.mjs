@@ -25,7 +25,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 	enumerable: true
 }) : target, mod));
 //#endregion
-//#region node_modules/@mapbox/point-geometry/index.js
+//#region ../maplibre-wt-main-probe/node_modules/@mapbox/point-geometry/index.js
 /**
 * A standalone point geometry with useful accessor, comparison, and
 * modification methods.
@@ -324,7 +324,7 @@ Point.convert = function(p) {
 	throw new Error("Expected [x, y] or {x, y} point format");
 };
 //#endregion
-//#region node_modules/@mapbox/unitbezier/index.js
+//#region ../maplibre-wt-main-probe/node_modules/@mapbox/unitbezier/index.js
 function unitBezier$1(p1x, p1y, p2x, p2y) {
 	const cx = 3 * p1x;
 	const bx = 3 * (p2x - p1x) - cx;
@@ -3188,7 +3188,7 @@ var Evented = class {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/reference/v8.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/reference/v8.mjs
 var v8_default = {
 	$version: 8,
 	$root: {
@@ -5853,10 +5853,10 @@ var v8_default = {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/reference/latest.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/reference/latest.mjs
 const latest = v8_default;
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/util/ref_properties.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/util/ref_properties.mjs
 const refProperties = [
 	"type",
 	"source",
@@ -5867,7 +5867,7 @@ const refProperties = [
 	"layout"
 ];
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/deref.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/deref.mjs
 function deref(layer, parent) {
 	const result = {};
 	for (const k in layer) if (k !== "ref") result[k] = layer[k];
@@ -5894,7 +5894,7 @@ function derefLayers(layers) {
 	return layers;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/util/deep_equal.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/util/deep_equal.mjs
 /**
 * Deeply compares two object literals.
 *
@@ -5915,7 +5915,7 @@ function deepEqual(a, b) {
 	return a === b;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/diff.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/diff.mjs
 /**
 * The main reason for this method is to allow type check when adding a command to the array.
 * @param commands - The commands array to add to
@@ -6238,7 +6238,7 @@ function diff(before, after) {
 	return commands;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/error/validation_error.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/error/validation_error.mjs
 var ValidationError = class {
 	constructor(key, value, message, identifier, severity = "error") {
 		this.message = (key ? `${key}: ` : "") + message;
@@ -6248,7 +6248,7 @@ var ValidationError = class {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types.mjs
 const NullType = { kind: "null" };
 const NumberType = { kind: "number" };
 const StringType = { kind: "string" };
@@ -6344,7 +6344,7 @@ function verifyType(provided, sample) {
 	return provided.kind === sample.kind;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/color_spaces.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/color_spaces.mjs
 const Xn = .96422;
 const Yn = 1;
 const Zn = .82521;
@@ -6439,7 +6439,7 @@ function hslToRgb([h, s, l, alpha]) {
 	];
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/util/get_own.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/util/get_own.mjs
 const hasOwnProperty = Object.hasOwn || function hasOwnProperty(object, key) {
 	return Object.prototype.hasOwnProperty.call(object, key);
 };
@@ -6447,7 +6447,7 @@ function getOwn(object, key) {
 	return hasOwnProperty(object, key) ? object[key] : void 0;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/parse_css_color.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/parse_css_color.mjs
 /**
 * CSS color parser compliant with CSS Color 4 Specification.
 * Supports: named colors, `transparent` keyword, all rgb hex notations,
@@ -7325,7 +7325,7 @@ const namedColors = {
 	]
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/util/interpolate-primitives.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/util/interpolate-primitives.mjs
 function interpolateNumber(from, to, t) {
 	return from + t * (to - from);
 }
@@ -7335,7 +7335,7 @@ function interpolateArray(from, to, t) {
 	});
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/color.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/color.mjs
 /**
 * Checks whether the specified color space is one of the supported interpolation color spaces.
 *
@@ -7519,7 +7519,7 @@ var Color = class Color {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/formatted.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/formatted.mjs
 const VERTICAL_ALIGN_OPTIONS = [
 	"bottom",
 	"center",
@@ -7556,7 +7556,7 @@ var Formatted = class Formatted {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/padding.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/padding.mjs
 /**
 * A set of four numbers representing padding around a box. Create instances from
 * bare arrays or numeric values using the static method `Padding.parse`.
@@ -7616,7 +7616,7 @@ var Padding = class Padding {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/number_array.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/number_array.mjs
 /**
 * An array of numbers. Create instances from
 * bare arrays or numeric values using the static method `NumberArray.parse`.
@@ -7646,7 +7646,7 @@ var NumberArray = class NumberArray {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/color_array.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/color_array.mjs
 /**
 * An array of colors. Create instances from
 * bare arrays or strings using the static method `ColorArray.parse`.
@@ -7689,7 +7689,7 @@ var ColorArray = class ColorArray {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/runtime_error.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/runtime_error.mjs
 var RuntimeError = class extends Error {
 	constructor(message, path) {
 		super(message);
@@ -7701,7 +7701,7 @@ var RuntimeError = class extends Error {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/variable_anchor_offset_collection.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/variable_anchor_offset_collection.mjs
 /** Set of valid anchor positions, as a set for validation */
 const anchors = /* @__PURE__ */ new Set([
 	"center",
@@ -7753,7 +7753,7 @@ var VariableAnchorOffsetCollection = class VariableAnchorOffsetCollection {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/resolved_image.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/resolved_image.mjs
 var ResolvedImage = class ResolvedImage {
 	constructor(options) {
 		this.name = options.name;
@@ -7771,7 +7771,7 @@ var ResolvedImage = class ResolvedImage {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/projection_definition.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/projection_definition.mjs
 var ProjectionDefinition = class ProjectionDefinition {
 	constructor(from, to, transition) {
 		this.from = from;
@@ -7797,7 +7797,7 @@ var ProjectionDefinition = class ProjectionDefinition {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/collator.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/types/collator.mjs
 var Collator = class {
 	constructor(caseSensitive, diacriticSensitive, locale) {
 		if (caseSensitive) this.sensitivity = diacriticSensitive ? "variant" : "case";
@@ -7816,7 +7816,7 @@ var Collator = class {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/values.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/values.mjs
 function validateRGBA(r, g, b, a) {
 	if (!(typeof r === "number" && r >= 0 && r <= 255 && typeof g === "number" && g >= 0 && g <= 255 && typeof b === "number" && b >= 0 && b <= 255)) return `Invalid rgba value [${(typeof a === "number" ? [
 		r,
@@ -7883,7 +7883,7 @@ function valueToString(value) {
 	else return JSON.stringify(value);
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/literal.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/literal.mjs
 var Literal = class Literal {
 	constructor(type, value) {
 		this.type = type;
@@ -7907,7 +7907,7 @@ var Literal = class Literal {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/evaluation_context.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/evaluation_context.mjs
 const geometryTypes = [
 	"Unknown",
 	"Point",
@@ -7949,7 +7949,7 @@ var EvaluationContext = class {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/stops.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/stops.mjs
 /**
 * Returns the index of the last stop <= input, or 0 if it doesn't exist.
 * @private
@@ -7973,7 +7973,7 @@ function findStopLessThanOrEqualTo(stops, input, key) {
 	return 0;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/step.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/step.mjs
 var Step = class Step {
 	constructor(type, input, stops, key) {
 		this.type = type;
@@ -8027,7 +8027,7 @@ var Step = class Step {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/node_modules/@mapbox/unitbezier/index.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/node_modules/@mapbox/unitbezier/index.mjs
 function unitBezier(p1x, p1y, p2x, p2y) {
 	const cx = 3 * p1x;
 	const bx = 3 * (p2x - p1x) - cx;
@@ -8060,7 +8060,7 @@ function unitBezier(p1x, p1y, p2x, p2y) {
 	};
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/interpolate.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/interpolate.mjs
 var Interpolate = class Interpolate {
 	constructor(type, operator, interpolation, input, stops, key) {
 		this.type = type;
@@ -8222,7 +8222,7 @@ const interpolateFactory = {
 	array: interpolateArray
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/format.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/format.mjs
 var FormatExpression = class FormatExpression {
 	constructor(sections) {
 		this.type = FormattedType;
@@ -8303,7 +8303,7 @@ var FormatExpression = class FormatExpression {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/node_modules/quickselect/index.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/node_modules/quickselect/index.mjs
 /**
 * Rearranges items so that all items in the [left, k] are the smallest.
 * The k-th element will have the (k - left + 1)-th smallest value in [left, right].
@@ -8368,7 +8368,7 @@ function defaultCompare(a, b) {
 	return a < b ? -1 : a > b ? 1 : 0;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/util/classify_rings.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/util/classify_rings.mjs
 /**
 * Classifies an array of rings into polygons with outer rings and holes
 * @param rings - the rings to classify
@@ -8419,7 +8419,7 @@ function calculateSignedArea(ring) {
 	return sum;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/assertion.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/assertion.mjs
 const types$1 = {
 	string: StringType,
 	number: NumberType,
@@ -8480,7 +8480,7 @@ var Assertion = class Assertion {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/coercion.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/coercion.mjs
 const types = {
 	"to-boolean": BooleanType,
 	"to-color": ColorType,
@@ -8600,7 +8600,7 @@ var Coercion = class Coercion {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/let.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/let.mjs
 var Let = class Let {
 	constructor(bindings, result) {
 		this.type = result.type;
@@ -8634,7 +8634,7 @@ var Let = class Let {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/var.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/var.mjs
 var Var = class Var {
 	constructor(name, boundExpression) {
 		this.type = boundExpression.type;
@@ -8656,7 +8656,7 @@ var Var = class Var {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/at.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/at.mjs
 var At = class At {
 	constructor(type, index, input, key) {
 		this.type = type;
@@ -8689,7 +8689,7 @@ var At = class At {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/in.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/in.mjs
 var In = class In {
 	constructor(needle, haystack, key) {
 		this.needle = needle;
@@ -8733,7 +8733,7 @@ var In = class In {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/index_of.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/index_of.mjs
 var IndexOf = class IndexOf {
 	constructor(needle, haystack, key, fromIndex) {
 		this.needle = needle;
@@ -8788,7 +8788,7 @@ var IndexOf = class IndexOf {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/match.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/match.mjs
 var Match = class Match {
 	constructor(inputType, outputType, input, cases, outputs, otherwise) {
 		this.inputType = inputType;
@@ -8847,7 +8847,7 @@ var Match = class Match {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/case.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/case.mjs
 var Case = class Case {
 	constructor(type, branches, otherwise) {
 		this.type = type;
@@ -8889,7 +8889,7 @@ var Case = class Case {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/slice.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/slice.mjs
 var Slice = class Slice {
 	constructor(type, input, beginIndex, key, endIndex) {
 		this.type = type;
@@ -8933,7 +8933,7 @@ var Slice = class Slice {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/coalesce.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/coalesce.mjs
 var Coalesce = class Coalesce {
 	constructor(type, args) {
 		this.type = type;
@@ -8978,7 +8978,7 @@ var Coalesce = class Coalesce {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/comparison.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/comparison.mjs
 function isComparableType(op, type) {
 	if (op === "==" || op === "!=") return type.kind === "boolean" || type.kind === "string" || type.kind === "number" || type.kind === "null" || type.kind === "value";
 	else return type.kind === "string" || type.kind === "number" || type.kind === "value";
@@ -9101,7 +9101,7 @@ const GreaterThan = makeComparison(">", gt, gtCollate);
 const LessThanOrEqual = makeComparison("<=", lteq, lteqCollate);
 const GreaterThanOrEqual = makeComparison(">=", gteq, gteqCollate);
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/collator.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/collator.mjs
 var CollatorExpression = class CollatorExpression {
 	constructor(caseSensitive, diacriticSensitive, locale) {
 		this.type = CollatorType;
@@ -9137,7 +9137,7 @@ var CollatorExpression = class CollatorExpression {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/number_format.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/number_format.mjs
 var NumberFormat = class NumberFormat {
 	constructor(number, locale, currency, unit, minFractionDigits, maxFractionDigits) {
 		this.type = StringType;
@@ -9204,7 +9204,7 @@ var NumberFormat = class NumberFormat {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/image.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/image.mjs
 var ImageExpression = class ImageExpression {
 	constructor(input) {
 		this.type = ResolvedImageType;
@@ -9230,7 +9230,7 @@ var ImageExpression = class ImageExpression {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/length.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/length.mjs
 var Length = class Length {
 	constructor(input, key) {
 		this.input = input;
@@ -9258,7 +9258,7 @@ var Length = class Length {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/util/geometry_util.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/util/geometry_util.mjs
 const EXTENT = 8192;
 function getTileCoordinates(p, canonical) {
 	const x = mercatorXfromLng$1(p[0]);
@@ -9354,7 +9354,7 @@ function twoSided(p1, p2, q1, q2) {
 	return false;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/within.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/within.mjs
 function getTilePolygon(coordinates, bbox, canonical) {
 	const polygon = [];
 	for (let i = 0; i < coordinates.length; i++) {
@@ -9516,7 +9516,7 @@ var Within = class Within {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/node_modules/tinyqueue/index.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/node_modules/tinyqueue/index.mjs
 var TinyQueue$1 = class {
 	constructor(data = [], compare = (a, b) => a < b ? -1 : a > b ? 1 : 0) {
 		this.data = data;
@@ -9569,7 +9569,7 @@ var TinyQueue$1 = class {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/util/cheap_ruler.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/util/cheap_ruler.mjs
 const RE = 6378.137;
 const E2 = .0066943799901413165;
 const RAD = Math.PI / 180;
@@ -9652,7 +9652,7 @@ var CheapRuler = class {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/distance.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/distance.mjs
 const MinPointsSize = 100;
 const MinLinePointsSize = 50;
 function compareDistPair(a, b) {
@@ -10020,7 +10020,7 @@ var Distance = class Distance {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/semiliteral.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/semiliteral.mjs
 var Semiliteral = class Semiliteral {
 	constructor(arr) {
 		let elementType = null;
@@ -10061,7 +10061,7 @@ var Semiliteral = class Semiliteral {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/global_state.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/global_state.mjs
 var GlobalState = class GlobalState {
 	constructor(key) {
 		this.key = key;
@@ -10085,7 +10085,7 @@ var GlobalState = class GlobalState {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/index.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/index.mjs
 const expressions$1 = {
 	"==": Equals,
 	"!=": NotEquals,
@@ -10127,7 +10127,7 @@ const expressions$1 = {
 	"global-state": GlobalState
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/parsing_error.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/parsing_error.mjs
 var ExpressionParsingError = class extends Error {
 	constructor(key, message) {
 		super(message);
@@ -10136,7 +10136,7 @@ var ExpressionParsingError = class extends Error {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/scope.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/scope.mjs
 /**
 * Tracks `let` bindings during expression parsing.
 * @private
@@ -10161,7 +10161,7 @@ var Scope = class Scope {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/parsing_context.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/parsing_context.mjs
 /**
 * State associated parsing at a given point in an expression tree.
 * @private
@@ -10283,7 +10283,7 @@ var ParsingContext = class ParsingContext {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/compound_expression.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/compound_expression.mjs
 var CompoundExpression = class CompoundExpression {
 	constructor(name, type, evaluate, args, key) {
 		this.name = name;
@@ -10858,7 +10858,7 @@ function isGlobalPropertyConstant(e, properties) {
 	return result;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/util/properties.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/util/properties.mjs
 function supportsPropertyExpression(spec) {
 	return spec["property-type"] === "data-driven" || spec["property-type"] === "cross-faded-data-driven";
 }
@@ -10873,13 +10873,13 @@ function supportsInterpolation(spec) {
 */
 const transitionPropertyRegExp = /^(.*)-transition$/;
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/util/extend.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/util/extend.mjs
 function extendBy(output, ...inputs) {
 	for (const input of inputs) for (const k in input) output[k] = input[k];
 	return output;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/util/get_type.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/util/get_type.mjs
 function getType(val) {
 	if (val instanceof Number) return "number";
 	else if (val instanceof String) return "string";
@@ -10889,7 +10889,7 @@ function getType(val) {
 	else return typeof val;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/function/index.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/function/index.mjs
 function isFunction$1(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value) && typeOf(value) === ObjectType;
 }
@@ -11098,7 +11098,7 @@ function interpolationFactor(input, base, lowerValue, upperValue) {
 	else return (Math.pow(base, progress) - 1) / (Math.pow(base, difference) - 1);
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/util/result.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/util/result.mjs
 function success(value) {
 	return {
 		result: "success",
@@ -11112,7 +11112,7 @@ function error(value) {
 	};
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/index.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/index.mjs
 var StyleExpression = class {
 	constructor(expression, rootKey, propertySpec, globalState) {
 		this.expression = expression;
@@ -11397,7 +11397,7 @@ function addGlobalState(globals, globalState) {
 	};
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/feature_filter/index.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/feature_filter/index.mjs
 function classifyChildren(children) {
 	let sawLegacy = false;
 	for (const child of children) {
@@ -11610,7 +11610,7 @@ function convertNegation(filter) {
 	return ["!", filter];
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/group_by_layout.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/group_by_layout.mjs
 function stringify$1(obj) {
 	const type = typeof obj;
 	if (type === "number" || type === "boolean" || type === "string" || obj === void 0 || obj === null) return JSON.stringify(obj);
@@ -11657,7 +11657,7 @@ function groupByLayout(layers, cachedKeys) {
 	return result;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/empty.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/empty.mjs
 function emptyStyle() {
 	const style = {};
 	const version = latest["$version"];
@@ -11674,7 +11674,7 @@ function emptyStyle() {
 	return style;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_constants.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_constants.mjs
 function validateConstants(options) {
 	const key = options.key;
 	const constants = options.value;
@@ -11682,7 +11682,7 @@ function validateConstants(options) {
 	else return [];
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/util/unbundle_jsonlint.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/util/unbundle_jsonlint.mjs
 function unbundle(value) {
 	if (value instanceof Number || value instanceof String || value instanceof Boolean) return value.valueOf();
 	else return value;
@@ -11697,7 +11697,7 @@ function deepUnbundle(value) {
 	return unbundle(value);
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_object.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_object.mjs
 function validateObject(options) {
 	const key = options.key;
 	const object = options.value;
@@ -11741,7 +11741,7 @@ function validateObject(options) {
 	return errors;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_array.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_array.mjs
 function validateArray(options) {
 	const array = options.value;
 	const arraySpec = options.valueSpec;
@@ -11772,7 +11772,7 @@ function validateArray(options) {
 	return errors;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_number.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_number.mjs
 function validateNumber(options) {
 	const key = options.key;
 	const value = options.value;
@@ -11785,7 +11785,7 @@ function validateNumber(options) {
 	return [];
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_function.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_function.mjs
 function validateFunction(options) {
 	const functionValueSpec = options.valueSpec;
 	const functionType = unbundle(options.value.type);
@@ -11910,7 +11910,7 @@ function validateFunction(options) {
 	}
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_expression.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_expression.mjs
 function validateExpression(options) {
 	const expression = (options.expressionContext === "property" ? createPropertyExpression : createExpression)(deepUnbundle(options.value), options.key, options.valueSpec);
 	if (expression.result === "error") return expression.value.map((error) => {
@@ -11927,7 +11927,7 @@ function validateExpression(options) {
 	return [];
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_boolean.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_boolean.mjs
 function validateBoolean(options) {
 	const value = options.value;
 	const key = options.key;
@@ -11936,7 +11936,7 @@ function validateBoolean(options) {
 	return [];
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_color.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_color.mjs
 function validateColor(options) {
 	const key = options.key;
 	const value = options.value;
@@ -11946,7 +11946,7 @@ function validateColor(options) {
 	return [];
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_enum.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_enum.mjs
 function validateEnum(options) {
 	const key = options.key;
 	const value = options.value;
@@ -11958,7 +11958,7 @@ function validateEnum(options) {
 	return errors;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_filter.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_filter.mjs
 function getValueAtPath(value, path) {
 	let current = value;
 	for (const index of path) current = current[index];
@@ -12042,7 +12042,7 @@ function validateNonExpressionFilter(options) {
 	return errors;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_property.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_property.mjs
 function validateProperty(options, propertyType) {
 	const key = options.key;
 	const validateSpec = options.validateSpec;
@@ -12080,17 +12080,17 @@ function validateProperty(options, propertyType) {
 	}));
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_paint_property.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_paint_property.mjs
 function validatePaintProperty(options) {
 	return validateProperty(options, "paint");
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_layout_property.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_layout_property.mjs
 function validateLayoutProperty(options) {
 	return validateProperty(options, "layout");
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_layer.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_layer.mjs
 function validateLayer(options) {
 	let errors = [];
 	const layer = options.value;
@@ -12196,7 +12196,7 @@ function validateLayer(options) {
 	return errors;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_string.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_string.mjs
 function validateString(options) {
 	const value = options.value;
 	const key = options.key;
@@ -12205,7 +12205,7 @@ function validateString(options) {
 	return [];
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_raster_dem_source.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_raster_dem_source.mjs
 function validateRasterDEMSource(options) {
 	const sourceName = options.sourceName ?? "";
 	const rasterDEM = options.value;
@@ -12240,7 +12240,7 @@ function validateRasterDEMSource(options) {
 	return errors;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_source.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_source.mjs
 const objectElementValidators = { promoteId: validatePromoteId };
 function validateSource(options) {
 	const value = options.value;
@@ -12353,7 +12353,7 @@ function validatePromoteId({ key, value }) {
 	}
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_light.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_light.mjs
 function validateLight(options) {
 	const light = options.value;
 	const styleSpec = options.styleSpec;
@@ -12389,7 +12389,7 @@ function validateLight(options) {
 	return errors;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_sky.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_sky.mjs
 function validateSky(options) {
 	const sky = options.value;
 	const styleSpec = options.styleSpec;
@@ -12420,7 +12420,7 @@ function validateSky(options) {
 	return errors;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_terrain.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_terrain.mjs
 function validateTerrain(options) {
 	const terrain = options.value;
 	const styleSpec = options.styleSpec;
@@ -12445,19 +12445,19 @@ function validateTerrain(options) {
 	return errors;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_formatted.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_formatted.mjs
 function validateFormatted(options) {
 	if (validateString(options).length === 0) return [];
 	return validateExpression(options);
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_image.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_image.mjs
 function validateImage(options) {
 	if (validateString(options).length === 0) return [];
 	return validateExpression(options);
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_padding.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_padding.mjs
 function validatePadding(options) {
 	const key = options.key;
 	const value = options.value;
@@ -12479,7 +12479,7 @@ function validatePadding(options) {
 	});
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_number_array.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_number_array.mjs
 function validateNumberArray(options) {
 	const key = options.key;
 	const value = options.value;
@@ -12501,7 +12501,7 @@ function validateNumberArray(options) {
 	});
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_color_array.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_color_array.mjs
 function validateColorArray(options) {
 	const key = options.key;
 	const value = options.value;
@@ -12521,7 +12521,7 @@ function validateColorArray(options) {
 	});
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_variable_anchor_offset_collection.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_variable_anchor_offset_collection.mjs
 function validateVariableAnchorOffsetCollection(options) {
 	const key = options.key;
 	const value = options.value;
@@ -12550,7 +12550,7 @@ function validateVariableAnchorOffsetCollection(options) {
 	return errors;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_sprite.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_sprite.mjs
 function validateSprite(options) {
 	let errors = [];
 	const sprite = options.value;
@@ -12587,7 +12587,7 @@ function validateSprite(options) {
 	}
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_projection.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_projection.mjs
 function validateProjection(options) {
 	const projection = options.value;
 	const styleSpec = options.styleSpec;
@@ -12608,7 +12608,7 @@ function validateProjection(options) {
 	return errors;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_projectiondefinition.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_projectiondefinition.mjs
 function validateProjectionDefinition(options) {
 	const key = options.key;
 	let value = options.value;
@@ -12630,18 +12630,18 @@ function isProjectionDefinitionValue(value) {
 	return Array.isArray(value) && value.length === 3 && typeof value[0] === "string" && typeof value[1] === "string" && typeof value[2] === "number";
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/util/is_object_literal.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/util/is_object_literal.mjs
 function isObjectLiteral(anything) {
 	return Boolean(anything) && anything.constructor === Object;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_state.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_state.mjs
 function validateState(options) {
 	if (!isObjectLiteral(options.value)) return [new ValidationError(options.key, options.value, `object expected, ${getType(options.value)} found`)];
 	return [];
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_font_faces.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_font_faces.mjs
 const MAX_CODE_POINT = 1114111;
 /**
 * A single unicode range, as described by the [CSS descriptor with the same name](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/unicode-range):
@@ -12708,7 +12708,7 @@ function validateFontFaces(options) {
 	return errors;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate.mjs
 const VALIDATORS = {
 	"*"() {
 		return [];
@@ -12767,7 +12767,7 @@ function validate(options) {
 	else return validateObject(extendBy({}, options, { valueSpec: valueSpec.type ? styleSpec[valueSpec.type] : valueSpec }));
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_glyphs_url.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_glyphs_url.mjs
 function validateGlyphsUrl(options) {
 	const value = options.value;
 	const key = options.key;
@@ -12778,7 +12778,7 @@ function validateGlyphsUrl(options) {
 	return errors;
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/validate_style.min.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/validate_style.min.mjs
 /**
 * Validate a MapLibre style against the style specification.
 * Use this when running in the browser.
@@ -12844,7 +12844,7 @@ function wrapCleanErrors(inner) {
 	};
 }
 //#endregion
-//#region node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/visibility.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/visibility.mjs
 const visibilitySpec = {
 	type: "enum",
 	"property-type": "data-constant",
@@ -15404,7 +15404,7 @@ const dashAttributes = createLayout([{
 	type: "Uint16"
 }]);
 //#endregion
-//#region node_modules/murmurhash-js/murmurhash3_gc.js
+//#region ../maplibre-wt-main-probe/node_modules/murmurhash-js/murmurhash3_gc.js
 var require_murmurhash3_gc = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/**
 	* JS Implementation of MurmurHash3 (r136) (as of May 20, 2011)
@@ -15453,7 +15453,7 @@ var require_murmurhash3_gc = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 	if (typeof module !== "undefined") module.exports = murmurhash3_32_gc;
 }));
 //#endregion
-//#region node_modules/murmurhash-js/murmurhash2_gc.js
+//#region ../maplibre-wt-main-probe/node_modules/murmurhash-js/murmurhash2_gc.js
 var require_murmurhash2_gc = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/**
 	* JS Implementation of MurmurHash2
@@ -17412,7 +17412,7 @@ function addPatternDependencies(type, layers, patternFeature, parameters, option
 	return patternFeature;
 }
 //#endregion
-//#region node_modules/earcut/src/earcut.js
+//#region ../maplibre-wt-main-probe/node_modules/earcut/src/earcut.js
 /**
 * A vertex in a circular doubly linked list representing a polygon ring.
 * `prev`/`next` are always linked (set immediately after {@link createNode}), so they're typed
@@ -19090,7 +19090,7 @@ function isEntirelyOutside(ring) {
 	return ring.every((p) => p.x < 0) || ring.every((p) => p.x > 8192) || ring.every((p) => p.y < 0) || ring.every((p) => p.y > 8192);
 }
 //#endregion
-//#region node_modules/@mapbox/vector-tile/index.js
+//#region ../maplibre-wt-main-probe/node_modules/@mapbox/vector-tile/index.js
 /** @import {PbfReader} from 'pbf' */
 /** @import {Feature} from 'geojson' */
 var VectorTileFeature = class {
@@ -20209,7 +20209,7 @@ function projectQueryGeometry(queryGeometry, pixelPosMatrix, z) {
 	return projectedQueryGeometry;
 }
 //#endregion
-//#region node_modules/@maplibre/geojson-vt/dist/geojson-vt.mjs
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/geojson-vt/dist/geojson-vt.mjs
 /**
 * calculate simplification data using optimized Douglas-Peucker algorithm
 * @param coords - flat array of coordinates
@@ -24379,7 +24379,7 @@ var TaggedString = class TaggedString {
 	}
 };
 //#endregion
-//#region node_modules/bidi-js/dist/bidi.mjs
+//#region ../maplibre-wt-main-probe/node_modules/bidi-js/dist/bidi.mjs
 function bidiFactory() {
 	return (function(exports) {
 		var DATA = {
@@ -25252,7 +25252,7 @@ function processStyledBidirectionalText(text, styleIndices, lineBreakPoints) {
 	return processLines(text, lineBreakPoints).map((line) => [line.text, line.sourceIndices.map((index) => styleIndices[index] ?? 0)]);
 }
 //#endregion
-//#region node_modules/pbf/index.js
+//#region ../maplibre-wt-main-probe/node_modules/pbf/index.js
 const SHIFT_LEFT_32 = 4294967296;
 const SHIFT_RIGHT_32 = 1 / SHIFT_LEFT_32;
 const TEXT_DECODER_MIN_LENGTH$1 = 12;
@@ -26075,7 +26075,7 @@ function renderStyleImage(image) {
 	return true;
 }
 //#endregion
-//#region node_modules/potpack/index.js
+//#region ../maplibre-wt-main-probe/node_modules/potpack/index.js
 /**
 * @typedef {Object} PotpackBox
 * @property {number} w Box width.
@@ -27574,7 +27574,7 @@ var CollisionFeature = class {
 	}
 };
 //#endregion
-//#region node_modules/tinyqueue/index.js
+//#region ../maplibre-wt-main-probe/node_modules/tinyqueue/index.js
 var TinyQueue = class {
 	constructor(data = [], compare = (a, b) => a < b ? -1 : a > b ? 1 : 0) {
 		this.data = data;
@@ -29367,7 +29367,7 @@ function compareTileId(a, b) {
 register("CanonicalTileID", CanonicalTileID);
 register("OverscaledTileID", OverscaledTileID, { omit: ["terrainRttPosMatrix32f"] });
 //#endregion
-//#region node_modules/@maplibre/vt-pbf/dist/index.es.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/vt-pbf/dist/index.es.js
 var FeatureWrapper = class {
 	constructor(feature, extent) {
 		this.feature = feature;
@@ -29612,7 +29612,7 @@ var GeoJSONFeature = class {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/vector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/vector.js
 var Vector = class {
 	constructor(_name, dataBuffer, sizeOrNullabilityBuffer) {
 		this._name = _name;
@@ -29637,24 +29637,24 @@ var Vector = class {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/fixedSizeVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/fixedSizeVector.js
 var FixedSizeVector = class extends Vector {};
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/flat/int32FlatVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/flat/int32FlatVector.js
 var Int32FlatVector = class extends FixedSizeVector {
 	getValueFromBuffer(index) {
 		return this.dataBuffer[index];
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/flat/doubleFlatVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/flat/doubleFlatVector.js
 var DoubleFlatVector = class extends FixedSizeVector {
 	getValueFromBuffer(index) {
 		return this.dataBuffer[index];
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/sequence/sequenceVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/sequence/sequenceVector.js
 var SequenceVector = class extends Vector {
 	constructor(name, baseValueBuffer, delta, size) {
 		super(name, baseValueBuffer, size);
@@ -29662,7 +29662,7 @@ var SequenceVector = class extends Vector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/sequence/int32SequenceVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/sequence/int32SequenceVector.js
 var Int32SequenceVector = class extends SequenceVector {
 	constructor(name, baseValue, delta, size, isSigned) {
 		super(name, isSigned ? Int32Array.of(baseValue) : Uint32Array.of(baseValue), delta, size);
@@ -29672,7 +29672,7 @@ var Int32SequenceVector = class extends SequenceVector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/constant/int32ConstVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/constant/int32ConstVector.js
 var Int32ConstVector = class extends Vector {
 	constructor(name, value, sizeOrNullabilityBuffer, isSigned) {
 		super(name, isSigned ? Int32Array.of(value) : Uint32Array.of(value), sizeOrNullabilityBuffer);
@@ -29682,7 +29682,7 @@ var Int32ConstVector = class extends Vector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/featureTable.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/featureTable.js
 var FeatureTable = class {
 	constructor(_name, _geometryVector, _idVector, _propertyVectors, _extent = 4096) {
 		this._name = _name;
@@ -29750,7 +29750,7 @@ var FeatureTable = class {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/metadata/tileset/tilesetMetadata.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/metadata/tileset/tilesetMetadata.js
 const ColumnScope = {
 	FEATURE: 0,
 	VERTEX: 1
@@ -29774,7 +29774,7 @@ const ComplexType = {
 };
 const LogicalScalarType = { ID: 0 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/decoding/intWrapper.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/decoding/intWrapper.js
 var IntWrapper = class {
 	constructor(value) {
 		this.value = value;
@@ -29793,7 +29793,7 @@ var IntWrapper = class {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/metadata/tile/logicalLevelTechnique.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/metadata/tile/logicalLevelTechnique.js
 var LogicalLevelTechnique;
 (function(LogicalLevelTechnique) {
 	LogicalLevelTechnique["NONE"] = "NONE";
@@ -29803,7 +29803,7 @@ var LogicalLevelTechnique;
 	LogicalLevelTechnique["MORTON"] = "MORTON";
 })(LogicalLevelTechnique || (LogicalLevelTechnique = {}));
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/metadata/tile/physicalLevelTechnique.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/metadata/tile/physicalLevelTechnique.js
 var PhysicalLevelTechnique;
 (function(PhysicalLevelTechnique) {
 	PhysicalLevelTechnique["NONE"] = "NONE";
@@ -29819,7 +29819,7 @@ var PhysicalLevelTechnique;
 	PhysicalLevelTechnique["VARINT"] = "VARINT";
 })(PhysicalLevelTechnique || (PhysicalLevelTechnique = {}));
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/decoding/fastPforShared.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/decoding/fastPforShared.js
 /**
 * Bit masks for each bitwidth 0-32.
 * DO NOT MUTATE - this is a shared constant.
@@ -30739,7 +30739,7 @@ function fastUnpack256_Generic(inValues, inPos, out, outPos, bitWidth) {
 	}
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/decoding/fastPforDecoder.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/decoding/fastPforDecoder.js
 const MAX_BIT_WIDTH$1 = 32;
 const BIT_WIDTH_SLOTS$1 = 33;
 const PAGE_SIZE$1 = normalizePageSize(DEFAULT_PAGE_SIZE);
@@ -31152,7 +31152,7 @@ function fastUnpack32(inValues, inPos, out, outPos, bitWidth) {
 	}
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/decoding/bigEndianDecode.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/decoding/bigEndianDecode.js
 /**
 * Decodes big-endian bytes into `out` without allocating the output buffer.
 *
@@ -31191,7 +31191,7 @@ function decodeBigEndianInt32sInto(bytes, offset, byteLength, out) {
 	return numInts;
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/decoding/integerDecodingUtils.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/decoding/integerDecodingUtils.js
 function decodeVarintInt32(buf, bufferOffset, numValues) {
 	const dst = new Uint32Array(numValues);
 	let dstOffset = 0;
@@ -31695,7 +31695,7 @@ function decodeZigZagSequenceRleInt64(data) {
 	return [decodeZigZagInt64Value(data[2]), decodeZigZagInt64Value(data[3])];
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/metadata/tile/physicalStreamType.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/metadata/tile/physicalStreamType.js
 var PhysicalStreamType;
 (function(PhysicalStreamType) {
 	PhysicalStreamType["PRESENT"] = "PRESENT";
@@ -31704,7 +31704,7 @@ var PhysicalStreamType;
 	PhysicalStreamType["LENGTH"] = "LENGTH";
 })(PhysicalStreamType || (PhysicalStreamType = {}));
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/metadata/tile/dictionaryType.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/metadata/tile/dictionaryType.js
 var DictionaryType;
 (function(DictionaryType) {
 	DictionaryType["NONE"] = "NONE";
@@ -31715,7 +31715,7 @@ var DictionaryType;
 	DictionaryType["FSST"] = "FSST";
 })(DictionaryType || (DictionaryType = {}));
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/metadata/tile/offsetType.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/metadata/tile/offsetType.js
 var OffsetType;
 (function(OffsetType) {
 	OffsetType["VERTEX"] = "VERTEX";
@@ -31724,7 +31724,7 @@ var OffsetType;
 	OffsetType["KEY"] = "KEY";
 })(OffsetType || (OffsetType = {}));
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/metadata/tile/lengthType.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/metadata/tile/lengthType.js
 var LengthType;
 (function(LengthType) {
 	LengthType["VAR_BINARY"] = "VAR_BINARY";
@@ -31736,7 +31736,7 @@ var LengthType;
 	LengthType["DICTIONARY"] = "DICTIONARY";
 })(LengthType || (LengthType = {}));
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/metadata/tile/streamMetadataDecoder.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/metadata/tile/streamMetadataDecoder.js
 const PHYSICAL_STREAM_TYPE_BY_ID = [
 	PhysicalStreamType.PRESENT,
 	PhysicalStreamType.DATA,
@@ -31848,7 +31848,7 @@ function decodeStreamMetadataInternal(tile, offset) {
 	};
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/vectorType.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/vectorType.js
 var VectorType;
 (function(VectorType) {
 	VectorType[VectorType["FLAT"] = 0] = "FLAT";
@@ -31858,7 +31858,7 @@ var VectorType;
 	VectorType[VectorType["FSST_DICTIONARY"] = 4] = "FSST_DICTIONARY";
 })(VectorType || (VectorType = {}));
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/flat/bitVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/flat/bitVector.js
 var BitVector = class {
 	/**
 	* @param values The byte buffer containing the bit values in least-significant bit (LSB)
@@ -31891,7 +31891,7 @@ var BitVector = class {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/decoding/unpackNullableUtils.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/decoding/unpackNullableUtils.js
 /**
 * Generic unpacking function.
 * Reconstructs the full array by inserting default values at null positions.
@@ -31931,7 +31931,7 @@ function unpackNullableBoolean(dataStream, dataStreamSize, presentBits) {
 	return result.getBuffer();
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/decoding/decodingUtils.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/decoding/decodingUtils.js
 function skipColumn(numStreams, tile, offset) {
 	for (let i = 0; i < numStreams; i++) {
 		const streamMetadata = decodeStreamMetadata(tile, offset);
@@ -32055,7 +32055,7 @@ function readUtf8(buf, pos, end) {
 	return str;
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/decoding/integerStreamDecoder.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/decoding/integerStreamDecoder.js
 function decodeSignedInt32Stream(data, offset, streamMetadata, scalingData, nullabilityBuffer) {
 	return decodeSignedInt32(decodePhysicalLevelTechnique(data, offset, streamMetadata), streamMetadata, scalingData, nullabilityBuffer);
 }
@@ -32312,14 +32312,14 @@ function decodeRleFloat64(data, streamMetadata, isSigned) {
 	return isSigned ? decodeZigZagRleFloat64(data, streamMetadata.runs, streamMetadata.numRleValues) : decodeUnsignedRleFloat64(data, streamMetadata.runs, streamMetadata.numRleValues);
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/flat/int64FlatVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/flat/int64FlatVector.js
 var Int64FlatVector = class extends FixedSizeVector {
 	getValueFromBuffer(index) {
 		return this.dataBuffer[index];
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/sequence/int64SequenceVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/sequence/int64SequenceVector.js
 var Int64SequenceVector = class extends SequenceVector {
 	constructor(name, baseValue, delta, size, isSigned) {
 		super(name, isSigned ? BigInt64Array.of(baseValue) : BigUint64Array.of(baseValue), delta, size);
@@ -32329,7 +32329,7 @@ var Int64SequenceVector = class extends SequenceVector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/geometry/zOrderCurve.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/geometry/zOrderCurve.js
 function decodeZOrderCurve(mortonCode, numBits, coordinateShift) {
 	return {
 		x: decodeMorton(mortonCode, numBits) - coordinateShift,
@@ -32342,7 +32342,7 @@ function decodeMorton(code, numBits) {
 	return coordinate;
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/geometry/geometryType.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/geometry/geometryType.js
 var GEOMETRY_TYPE;
 (function(GEOMETRY_TYPE) {
 	GEOMETRY_TYPE[GEOMETRY_TYPE["POINT"] = 0] = "POINT";
@@ -32359,7 +32359,7 @@ var SINGLE_PART_GEOMETRY_TYPE;
 	SINGLE_PART_GEOMETRY_TYPE[SINGLE_PART_GEOMETRY_TYPE["POLYGON"] = 2] = "POLYGON";
 })(SINGLE_PART_GEOMETRY_TYPE || (SINGLE_PART_GEOMETRY_TYPE = {}));
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/geometry/vertexBufferType.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/geometry/vertexBufferType.js
 var VertexBufferType;
 (function(VertexBufferType) {
 	VertexBufferType[VertexBufferType["MORTON"] = 0] = "MORTON";
@@ -32367,7 +32367,7 @@ var VertexBufferType;
 	VertexBufferType[VertexBufferType["VEC_3"] = 2] = "VEC_3";
 })(VertexBufferType || (VertexBufferType = {}));
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/geometry/geometryVectorConverter.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/geometry/geometryVectorConverter.js
 function convertGeometryVector(geometryVector) {
 	const geometries = new Array(geometryVector.numGeometries);
 	let partOffsetCounter = 1;
@@ -32583,7 +32583,7 @@ function decodeMortonDictionaryEncodedVertices(vertexBuffer, vertexOffsets, vert
 	return vertices;
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/geometry/geometryVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/geometry/geometryVector.js
 var GeometryVector = class {
 	constructor(_vertexBufferType, _topologyVector, _vertexOffsets, _vertexBuffer, _mortonSettings) {
 		this._vertexBufferType = _vertexBufferType;
@@ -32626,7 +32626,7 @@ var GeometryVector = class {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/geometry/constGeometryVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/geometry/constGeometryVector.js
 function createConstGeometryVector(numGeometries, geometryType, topologyVector, vertexOffsets, vertexBuffer) {
 	return new ConstGeometryVector(numGeometries, geometryType, VertexBufferType.VEC_2, topologyVector, vertexOffsets, vertexBuffer);
 }
@@ -32653,7 +32653,7 @@ var ConstGeometryVector = class extends GeometryVector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/geometry/flatGeometryVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/geometry/flatGeometryVector.js
 function createFlatGeometryVector(geometryTypes, topologyVector, vertexOffsets, vertexBuffer) {
 	return new FlatGeometryVector(VertexBufferType.VEC_2, geometryTypes, topologyVector, vertexOffsets, vertexBuffer);
 }
@@ -32680,7 +32680,7 @@ var FlatGeometryVector = class extends GeometryVector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/geometry/gpuVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/geometry/gpuVector.js
 var GpuVector = class {
 	constructor(_triangleOffsets, _indexBuffer, _vertexBuffer, _topologyVector) {
 		this._triangleOffsets = _triangleOffsets;
@@ -32711,7 +32711,7 @@ var GpuVector = class {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/geometry/constGpuVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/geometry/constGpuVector.js
 function createConstGpuVector(numGeometries, geometryType, triangleOffsets, indexBuffer, vertexBuffer, topologyVector) {
 	return new ConstGpuVector(numGeometries, geometryType, triangleOffsets, indexBuffer, vertexBuffer, topologyVector);
 }
@@ -32732,7 +32732,7 @@ var ConstGpuVector = class extends GpuVector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/geometry/flatGpuVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/geometry/flatGpuVector.js
 function createFlatGpuVector(geometryTypes, triangleOffsets, indexBuffer, vertexBuffer, topologyVector) {
 	return new FlatGpuVector(geometryTypes, triangleOffsets, indexBuffer, vertexBuffer, topologyVector);
 }
@@ -32752,7 +32752,7 @@ var FlatGpuVector = class extends GpuVector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/decoding/geometryDecoder.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/decoding/geometryDecoder.js
 function decodeGeometryColumn(tile, numStreams, offset, numFeatures, scalingData) {
 	const geometryTypeMetadata = decodeStreamMetadata(tile, offset);
 	const geometryTypesVectorType = getVectorType(geometryTypeMetadata, numFeatures, tile, offset);
@@ -32949,7 +32949,7 @@ function decodeLevel2LengthStream(geometryTypes, rootOffsetBuffer, level1OffsetB
 	return level2BufferOffsets;
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/flat/booleanFlatVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/flat/booleanFlatVector.js
 var BooleanFlatVector = class extends Vector {
 	constructor(name, dataVector, sizeOrNullabilityBuffer) {
 		super(name, dataVector.getBuffer(), sizeOrNullabilityBuffer);
@@ -32960,14 +32960,14 @@ var BooleanFlatVector = class extends Vector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/flat/floatFlatVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/flat/floatFlatVector.js
 var FloatFlatVector = class extends FixedSizeVector {
 	getValueFromBuffer(index) {
 		return this.dataBuffer[index];
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/constant/int64ConstVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/constant/int64ConstVector.js
 var Int64ConstVector = class extends Vector {
 	constructor(name, value, sizeOrNullabilityBuffer, isSigned) {
 		super(name, isSigned ? BigInt64Array.of(value) : BigUint64Array.of(value), sizeOrNullabilityBuffer);
@@ -32977,7 +32977,7 @@ var Int64ConstVector = class extends Vector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/variableSizeVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/variableSizeVector.js
 var VariableSizeVector = class extends Vector {
 	constructor(name, offsetBuffer, dataBuffer, sizeOrNullabilityBuffer) {
 		super(name, dataBuffer, sizeOrNullabilityBuffer);
@@ -32985,7 +32985,7 @@ var VariableSizeVector = class extends Vector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/flat/stringFlatVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/flat/stringFlatVector.js
 var StringFlatVector = class extends VariableSizeVector {
 	constructor(name, offsetBuffer, dataBuffer, nullabilityBuffer) {
 		super(name, offsetBuffer, dataBuffer, nullabilityBuffer ?? offsetBuffer.length - 1);
@@ -32997,7 +32997,7 @@ var StringFlatVector = class extends VariableSizeVector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/dictionary/stringDictionaryVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/dictionary/stringDictionaryVector.js
 var StringDictionaryVector = class extends VariableSizeVector {
 	constructor(name, indexBuffer, offsetBuffer, dictionaryBuffer, nullabilityBuffer) {
 		super(name, offsetBuffer, dictionaryBuffer, nullabilityBuffer ?? indexBuffer.length);
@@ -33012,7 +33012,7 @@ var StringDictionaryVector = class extends VariableSizeVector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/decoding/fsstDecoder.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/decoding/fsstDecoder.js
 /**
 * Calculates the exact output size before decoding. This allows one final
 * `Uint8Array` allocation and avoids growing a JavaScript number array and
@@ -33058,7 +33058,7 @@ function decodeFsst(symbols, symbolLengths, compressedData) {
 	return decodedData;
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/fsst-dictionary/stringFsstDictionaryVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/fsst-dictionary/stringFsstDictionaryVector.js
 var StringFsstDictionaryVector = class extends VariableSizeVector {
 	constructor(name, indexBuffer, offsetBuffer, dictionaryBuffer, symbolOffsetBuffer, symbolTableBuffer, nullabilityBuffer, sharedDictionaryCache) {
 		super(name, offsetBuffer, dictionaryBuffer, nullabilityBuffer ?? indexBuffer.length);
@@ -33096,7 +33096,7 @@ var StringFsstDictionaryVector = class extends VariableSizeVector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/decoding/stringDecoder.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/decoding/stringDecoder.js
 function decodeString$1(name, data, offset, numStreams, bitVector) {
 	let dictionaryLengthStream;
 	let offsetStream;
@@ -33213,7 +33213,7 @@ function decodeSharedDictionary(data, offset, column, propertyColumnNames) {
 	return stringDictionaryVectors;
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/vector/flat/objectFlatVector.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/vector/flat/objectFlatVector.js
 /**
 * Holds already-decoded values of arbitrary shape, one per feature.
 *
@@ -33232,7 +33232,7 @@ var ObjectFlatVector = class extends Vector {
 	}
 };
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/metadata/tile/mapMask.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/metadata/tile/mapMask.js
 /**
 * Bitmask written ahead of a nested property (MAP) column, marking which optional streams follow
 * the mandatory length stream. Only one of INT32/INT64 and one of UINT32/UINT64 is ever set: the
@@ -33250,7 +33250,7 @@ var MapMask;
 	MapMask[MapMask["PRESENCE"] = 128] = "PRESENCE";
 })(MapMask || (MapMask = {}));
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/metadata/tile/mapControlValue.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/metadata/tile/mapControlValue.js
 /**
 * Tokens in the data stream of a nested property (MAP) column. Values below `COUNT` describe the
 * structure; anything else is an index into the combined dictionary, offset by `COUNT`. Booleans are
@@ -33268,7 +33268,7 @@ var MapControlValue;
 	MapControlValue[MapControlValue["COUNT"] = 4] = "COUNT";
 })(MapControlValue || (MapControlValue = {}));
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/decoding/mapPropertyDecoder.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/decoding/mapPropertyDecoder.js
 /**
 * Decodes a nested property (MAP) column into one vector per child column.
 *
@@ -33519,7 +33519,7 @@ function pushAll(dictionary, values) {
 	for (const value of values) dictionary.push(value);
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/decoding/propertyDecoder.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/decoding/propertyDecoder.js
 function decodePropertyColumn(data, offset, columnMetadata, numStreams, numFeatures, propertyColumnNames) {
 	if (columnMetadata.type === "scalarType") {
 		if (propertyColumnNames && !propertyColumnNames.has(columnMetadata.name)) {
@@ -33617,7 +33617,7 @@ function isNullabilityBuffer(sizeOrNullabilityBuffer) {
 	return sizeOrNullabilityBuffer instanceof BitVector;
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/metadata/tileset/typeMap.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/metadata/tileset/typeMap.js
 /**
 * The single varint32 that introduces every column in the tile metadata, identifying what kind of
 * column follows. Ids occupy a small range of flagged codes, geometry has one code of its own, and
@@ -33818,7 +33818,7 @@ function mapScalarType(typeCode) {
 	};
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/metadata/tileset/embeddedTilesetMetadataDecoder.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/metadata/tileset/embeddedTilesetMetadataDecoder.js
 const textDecoder = new TextDecoder();
 const SUPPORTED_COLUMN_TYPES = "0-3(ID), 4(GEOMETRY), 10-29(scalars), 30(STRUCT), 31(MAP)";
 const SUPPORTED_FIELD_TYPES = "10-29(scalars), 30(STRUCT), 31(MAP)";
@@ -33918,7 +33918,7 @@ function decodeEmbeddedTileSetMetadata(bytes, offset) {
 	return [meta, extent];
 }
 //#endregion
-//#region node_modules/@maplibre/mlt/dist/mltDecoder.js
+//#region ../maplibre-wt-main-probe/node_modules/@maplibre/mlt/dist/mltDecoder.js
 /**
 * Decodes a tile with embedded metadata (Tag 0x01 format).
 * This is the primary decoder function for MLT tiles.

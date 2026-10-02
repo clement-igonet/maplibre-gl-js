@@ -2,13 +2,13 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>fork #4: fill outline drawn over terrain, main vs PR</title>
-<link rel="stylesheet" href="../dist/main-cae8d60f7/maplibre-gl.css">
+<link rel="stylesheet" href="../dist/main-88ed76f63/maplibre-gl.css">
 <link rel="stylesheet" href="../lib/compare.css">
 </head>
 <body>
 <div id="head">
     <h1><a href="https://github.com/clement-igonet/maplibre-gl-js/pull/4">internal PR #4</a>: draw <code>fill-outline-color</code> when terrain is on (<a href="https://github.com/maplibre/maplibre-gl-js/issues/4200">#4200</a>)</h1>
-    <p>Left: <code>main</code> at <code>cae8d60f7</code>. Right: branch <code>fix/fill-outline-terrain-4200</code> at <code>9c8cb4934</code>. Cameras are synced, drag either map. Under each map: how many pixels carry the magenta outline colour.</p>
+    <p>Left: <code>main</code> at <code>88ed76f63</code>. Right: branch <code>fix/fill-outline-terrain-4200</code> at <code>950c315f6</code>. Cameras are synced, drag either map. Under each map: how many pixels carry the magenta outline colour.</p>
 </div>
 <div id="bar"><div id="scenes"></div></div>
 <div id="note"></div>
@@ -17,7 +17,7 @@
     <div class="pane"><div class="tag">internal #4</div><div id="map-b" class="map"></div><div id="readout-b" class="readout"></div></div>
 </div>
 <script type="module">
-import * as mainLib from '../dist/main-cae8d60f7/maplibre-gl-dev.mjs';
+import * as mainLib from '../dist/main-88ed76f63/maplibre-gl-dev.mjs';
 import * as prLib from './dist-pr/maplibre-gl-dev.mjs';
 import {setupCompare} from '../lib/compare.js';
 
