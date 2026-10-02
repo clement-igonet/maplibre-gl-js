@@ -8,7 +8,7 @@
 <body>
 <div id="head">
     <h1><a href="https://github.com/clement-igonet/maplibre-gl-js/pull/4">internal PR #4</a>: draw <code>fill-outline-color</code> when terrain is on (<a href="https://github.com/maplibre/maplibre-gl-js/issues/4200">#4200</a>)</h1>
-    <p>Left: <code>main</code> at <code>88ed76f63</code>. Right: branch <code>fix/fill-outline-terrain-4200</code> at <code>950c315f6</code>. Cameras are synced, drag either map. Under each map: how many pixels carry the magenta outline colour.</p>
+    <p>Left: <code>main</code> at <code>88ed76f63</code>. Right: branch <code>fix/fill-outline-terrain-4200</code> at <code>950c315f6</code>. Cameras are synced, drag either map. Under each map: how many pixels carry the magenta outline colour, and a 5x magnification of one parcel edge.</p>
 </div>
 <div id="bar"><div id="scenes"></div></div>
 <div id="note"></div>
@@ -59,23 +59,39 @@ function outlinePixels(map) {
     return n;
 }
 const readout = (map) => `outline-tinted pixels on screen: ${outlinePixels(map)}`;
+
+// Magnifies the map around a point on the parcel edge, so the one-pixel outline is visible on any screen.
+const EDGE_POINT = [7.755, 46.006];
+function inspect(map, el) {
+    const src = map.getCanvas(), dpr = src.width / map.getContainer().clientWidth;
+    const p = map.project(EDGE_POINT);
+    const w = 120 * dpr, h = 44 * dpr, scale = 5 / dpr;
+    let c = el.querySelector('canvas');
+    if (!c) { c = document.createElement('canvas'); el.appendChild(c); }
+    c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(src, Math.round(p.x * dpr - w / 2), Math.round(p.y * dpr - h / 2), w, h, 0, 0, c.width, c.height);
+    ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(0, 0, 230, 26);
+    ctx.fillStyle = '#fff'; ctx.font = '600 15px ui-monospace, monospace'; ctx.fillText('parcel edge, magnified 5x', 8, 18);
+}
 const mapOptions = {canvasContextAttributes: {antialias: true, preserveDrawingBuffer: true}};
 
 setupCompare({mainLib, prLib, initial: 'top', scenes: {
     top: {
         label: 'Terrain on, seen from above',
         note: 'Three parcels near Zermatt with fill-outline-color set, terrain on. main draws the fill but not the outline; #4 draws both. Draped over terrain the outline is one texel of the terrain texture wide, so it is thinner and fainter than without terrain.',
-        style: () => style(true), camera: {center: [7.76, 46.012], zoom: 13.4, pitch: 0}, mapOptions, readout
+        style: () => style(true), camera: {center: [7.76, 46.012], zoom: 13.4, pitch: 0}, mapOptions, readout, inspect
     },
     pitched: {
         label: 'Terrain on, pitched',
         note: 'Same parcels at pitch 60: the outline follows the slopes, and fades with distance as the terrain texture is minified.',
-        style: () => style(true), camera: {center: [7.76, 46.0], zoom: 13.6, pitch: 60, bearing: -20}, mapOptions, readout
+        style: () => style(true), camera: {center: [7.76, 46.0], zoom: 13.6, pitch: 60, bearing: -20}, mapOptions, readout, inspect
     },
     flat: {
         label: 'Terrain off (control)',
         note: 'Same style without terrain: both builds draw the outline, the change only touches the terrain pass.',
-        style: () => style(false), camera: {center: [7.76, 46.012], zoom: 13.4, pitch: 0}, mapOptions, readout
+        style: () => style(false), camera: {center: [7.76, 46.012], zoom: 13.4, pitch: 0}, mapOptions, readout, inspect
     }
 }});
 </script>
