@@ -734,11 +734,12 @@ export class MercatorTransform implements ITransform {
         const fovAboveCenter = zfov * (0.5 + offset.y / this.height);
         const topHalfSurfaceDistance = Math.sin(fovAboveCenter) * lowestPlane / Math.sin(clamp(Math.PI - groundAngle - fovAboveCenter, 0.01, Math.PI - 0.01));
 
-        // Find the distance from the center point to the horizon
+        // Find the distance from the center point to the horizon. The horizon sits `horizon` pixels above the
+        // padded center, which the camera looks through, so the padding offset plays no part here.
         const horizon = getMercatorHorizon(this);
         const horizonAngle = Math.atan(horizon / this._helper.cameraToCenterDistance);
         const minFovCenterToHorizonRadians = degreesToRadians(90 - maxMercatorHorizonAngle);
-        const fovCenterToHorizon = horizonAngle > minFovCenterToHorizonRadians ? 2 * horizonAngle * (0.5 + offset.y / (horizon * 2)) : minFovCenterToHorizonRadians;
+        const fovCenterToHorizon = Math.max(horizonAngle, minFovCenterToHorizonRadians);
         const topHalfSurfaceDistanceHorizon = Math.sin(fovCenterToHorizon) * lowestPlane / Math.sin(clamp(Math.PI - groundAngle - fovCenterToHorizon, 0.01, Math.PI - 0.01));
 
         // Calculate z distance of the farthest fragment that should be rendered.
