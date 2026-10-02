@@ -24,21 +24,23 @@
     <h1>MapLibre GL JS work, main vs branch</h1>
     <p>Live side-by-side pages: left is <code>main</code> at <code>cae8d60f7</code> (2026-09-27), right is the branch of each open pull request. Cameras are synced.</p>
 
-    <h2>Open upstream pull requests</h2>
+    <h2>Upstream pull requests</h2>
     <a class="card" href="compare-8069/"><b>#8069 Allow negative fill-extrusion-base and fill-extrusion-height</b>
         <span>branch fix/fill-extrusion-negative-base-8051 at eb61ab3e8 · underground floors, basements from vector tiles, a building on a slope</span></a>
-    <a class="card" href="compare-8534/"><b>#8534 Smooth shading across rounded fill-extrusion corners</b>
+    <a class="card" href="compare-8534/"><b>#8534 Smooth shading across rounded fill-extrusion corners (merged 2026-10-01)</b>
         <span>branch feat/fill-extrusion-smooth-corners-8475 at 11ec2f6e7 · large rounded blocks, real buildings</span></a>
+    <a class="card" href="compare-fork-4/"><b>#8632 Draw fill outlines when terrain is enabled</b>
+        <span>branch fix/fill-outline-terrain-4200 at 950c315f6 · for #4200 · terrain from above, pitched, control without terrain</span></a>
 
     <h2>Open internal pull requests (this fork)</h2>
-    <a class="card" href="compare-fork-3/"><b>#3 Sanitize each attribution rather than the joined string</b>
-        <span>branch fix/attribution-credit-8532 at 2e501bd9b · for maplibre-gl-js#8569, follow-up to #8532</span></a>
-    <a class="card" href="compare-fork-4/"><b>#4 Draw fill outlines when terrain is enabled</b>
-        <span>branch fix/fill-outline-terrain-4200 at 950c315f6 · for maplibre-gl-js#4200 · terrain from above, pitched, control without terrain</span></a>
+    <a class="card" href="compare-fork-3/"><b>#3 Sanitize each attribution rather than the joined string (closed, fixed upstream by #8571)</b>
+        <span>branch fix/attribution-credit-8532 at 2e501bd9b · for maplibre-gl-js#8569</span></a>
+    <a class="card" href="compare-fork-5/"><b>#5 Keep the sky horizon and the far plane on the padded map center</b>
+        <span>branch fix/sky-horizon-padding-5465 at fa7d40417 · for maplibre-gl-js#5465 · padding at the top, at the bottom, none</span></a>
 
     <h2>Issue demos</h2>
-    <a class="card" href="gradient-gate/"><b>fill-extrusion vertical gradient skips walls facing exactly east or west</b>
-        <span>main vs a one-line shader change (normal.y != 0.0 to normal.z == 0.0) · two boxes, downtown Phoenix</span></a>
+    <a class="card" href="gradient-gate/"><b>fill-extrusion vertical gradient skips walls facing exactly east or west (fixed upstream by #8604)</b>
+        <span>main at cae8d60f7 vs the normal.z == 0.0 gate that #8604 merged · two boxes, downtown Phoenix</span></a>
 
     <h2>Older pages</h2>
     <ul class="other">

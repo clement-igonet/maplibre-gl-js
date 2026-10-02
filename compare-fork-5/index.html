@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fork #5: sky horizon follows the map padding, main vs PR</title>
+<link rel="stylesheet" href="../dist/main-88ed76f63/maplibre-gl.css">
+<link rel="stylesheet" href="../lib/compare.css">
+<style>
+.pad { position: absolute; left: 0; right: 0; z-index: 2; background: repeating-linear-gradient(135deg, rgba(0,0,0,.28) 0 8px, rgba(0,0,0,.08) 8px 16px); pointer-events: none; }
+.pad span { position: absolute; left: 10px; top: 8px; background: rgba(0,0,0,.75); color: #fff; font: 600 13px ui-monospace, monospace; padding: 3px 7px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="head">
+    <h1><a href="https://github.com/clement-igonet/maplibre-gl-js/pull/5">internal PR #5</a>: sky horizon and far plane follow the map padding (<a href="https://github.com/maplibre/maplibre-gl-js/issues/5465">#5465</a>)</h1>
+    <p>Left: <code>main</code> at <code>88ed76f63</code>. Right: branch <code>fix/sky-horizon-padding-5465</code> at <code>fa7d40417</code>. The hatched band is the map padding. Cameras are synced, drag either map.</p>
+</div>
+<div id="bar"><div id="scenes"></div></div>
+<div id="note"></div>
+<div id="panes">
+    <div class="pane"><div class="tag">main</div><div id="map-a" class="map"></div><div id="readout-a" class="readout"></div></div>
+    <div class="pane"><div class="tag">internal #5</div><div id="map-b" class="map"></div><div id="readout-b" class="readout"></div></div>
+</div>
+<script type="module">
+import * as mainLib from '../dist/main-88ed76f63/maplibre-gl-dev.mjs';
+import * as prLib from './dist-pr/maplibre-gl-dev.mjs';
+import {setupCompare} from '../lib/compare.js';
+
+const CAMERA = {center: [7.747, 46.02], zoom: 12.5, pitch: 85, bearing: 20};
+const SKY = {'sky-color': '#199EF3', 'horizon-color': '#daeff0', 'sky-horizon-blend': 0.8, 'fog-ground-blend': 0.9};
+
+function showPadding(map, padding) {
+    const el = map.getContainer();
+    el.querySelectorAll('.pad').forEach(e => e.remove());
+    for (const side of ['top', 'bottom']) {
+        if (!padding[side]) continue;
+        const d = document.createElement('div');
+        d.className = 'pad'; d.style[side] = '0'; d.style.height = padding[side] + 'px';
+        d.innerHTML = `<span>padding.${side} = ${padding[side]} px</span>`;
+        el.appendChild(d);
+    }
+}
+const scene = (label, note, padding) => ({
+    label, note,
+    style: 'https://tiles.openfreemap.org/styles/liberty',
+    camera: CAMERA,
+    mapOptions: {maxPitch: 85},
+    onStyle(map) { map.setSky(SKY); map.setPadding(padding); showPadding(map, padding); }
+});
+
+setupCompare({mainLib, prLib, initial: 'top', scenes: {
+    top: scene('Padding at the top', 'A 220 px band at the top is reserved, for example for a panel over the map. The camera looks through the padded center, so the horizon drops. On main the sky still ends at the canvas center and leaves a gap above the ground.', {top: 220, left: 0, bottom: 0, right: 0}),
+    bottom: scene('Padding at the bottom', 'The same band at the bottom. The horizon rises. On main the ground is cut off at the canvas center, because the far plane shrinks with bottom padding, and the sky, also stuck at the canvas center, paints over the cut. With the change the ground reaches the horizon and the sky starts there.', {top: 0, left: 0, bottom: 220, right: 0}),
+    none: scene('No padding (control)', 'Without padding the padded center is the canvas center, and both builds draw the same sky.', {top: 0, left: 0, bottom: 0, right: 0})
+}});
+</script>
+</body></html>
