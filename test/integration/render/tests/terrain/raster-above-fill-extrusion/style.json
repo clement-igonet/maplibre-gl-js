@@ -1,0 +1,65 @@
+{
+  "version": 8,
+  "metadata": {
+    "test": {
+      "height": 512,
+      "width": 512,
+      "description": "A raster layer placed above a translucent fill-extrusion layer in the style, over terrain. The image is draped on the ground; it must show through the building like it does without terrain, instead of being hidden by the building's depth."
+    }
+  },
+  "center": [11.50817, 47.33187],
+  "zoom": 15,
+  "pitch": 60,
+  "bearing": 0,
+  "sources": {
+    "terrain": {
+      "type": "raster-dem",
+      "tiles": ["local://tiles/terrain-shading/{z}-{x}-{y}.terrain.png"],
+      "maxzoom": 12,
+      "tileSize": 256
+    },
+    "building": {
+      "type": "geojson",
+      "data": {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[11.50517, 47.33287], [11.51117, 47.33287], [11.51117, 47.33687], [11.50517, 47.33687], [11.50517, 47.33287]]]
+        }
+      }
+    },
+    "overlay": {
+      "type": "image",
+      "url": "local://image/0.png",
+      "coordinates": [[11.500, 47.342], [11.516, 47.342], [11.516, 47.330], [11.500, 47.330]]
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {"background-color": "white"}
+    },
+    {
+      "id": "building",
+      "type": "fill-extrusion",
+      "source": "building",
+      "paint": {
+        "fill-extrusion-color": "#4d88d0",
+        "fill-extrusion-height": 400,
+        "fill-extrusion-opacity": 0.5
+      }
+    },
+    {
+      "id": "overlay",
+      "type": "raster",
+      "source": "overlay",
+      "paint": {"raster-opacity": 0.9}
+    }
+  ],
+  "terrain": {
+    "source": "terrain",
+    "exaggeration": 1
+  }
+}
