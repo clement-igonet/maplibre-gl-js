@@ -103,10 +103,10 @@ void main() {
 
     if (normal.z == 0.0) {
         // This avoids another branching statement, but multiplies by a constant of 0.84 if no vertical gradient,
-        // and otherwise calculates the gradient based on base + height
+        // and otherwise calculates the gradient from the height of each vertex
         directional *= (
             (1.0 - u_vertical_gradient) +
-            (u_vertical_gradient * clamp((t + gradient_base) * pow(gradient_height / 150.0, 0.5), mix(0.7, 0.98, 1.0 - u_lightintensity), 1.0)));
+            (u_vertical_gradient * clamp(pow(mix(gradient_base, gradient_height, t) / 150.0, 0.5), mix(0.7, 0.98, 1.0 - u_lightintensity), 1.0)));
     }
 
     v_lighting.rgb += clamp(directional * u_lightcolor, mix(vec3(0.0), vec3(0.3), 1.0 - u_lightcolor), vec3(1.0));
