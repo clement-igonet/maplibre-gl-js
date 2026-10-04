@@ -6,6 +6,7 @@
 
 ### 🐞 Bug fixes
 - Fix `globeDistanceOfLocationsPixels` returning `NaN` when two copies of the same point have a dot product slightly above 1 ([#8624](https://github.com/maplibre/maplibre-gl-js/pull/8624))(by [@Dimononon](https://github.com/Dimononon))
+- Fix `fill-extrusion-vertical-gradient` having no effect on extrusions with a raised `fill-extrusion-base` ([#8497](https://github.com/maplibre/maplibre-gl-js/issues/8497)) (by [@clement-igonet](https://github.com/clement-igonet))
 - _...Add new stuff here..._
 
 ## 6.12.0

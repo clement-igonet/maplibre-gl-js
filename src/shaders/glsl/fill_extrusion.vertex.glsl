@@ -28,10 +28,9 @@ void main() {
 
     vec3 normal = vec3(a_normal_ed.xyz);
 
-    // The vertical gradient describes the structure itself, so it keeps the extrusion's own
-    // base and height before the terrain elevation is added to them below.
-    float gradient_base = max(0.0, base);
-    float gradient_height = max(0.0, height);
+    // The vertical gradient describes the structure itself, so it runs over the wall from
+    // base to height, before the terrain elevation is added to them below.
+    float gradient_height = max(0.0, height - base);
 
     #ifdef TERRAIN3D
 	    // Raise the "ceiling" of elements by the elevation of the centroid, in meters.
@@ -89,10 +88,10 @@ void main() {
     // Add gradient along z axis of side surfaces
     if (normal.z == 0.0) {
         // This avoids another branching statement, but multiplies by a constant of 0.84 if no vertical gradient,
-        // and otherwise calculates the gradient based on base + height
+        // and otherwise calculates the gradient over the wall height
         directional *= (
             (1.0 - u_vertical_gradient) +
-            (u_vertical_gradient * clamp((t + gradient_base) * pow(gradient_height / 150.0, 0.5), mix(0.7, 0.98, 1.0 - u_lightintensity), 1.0)));
+            (u_vertical_gradient * clamp(t * pow(gradient_height / 150.0, 0.5), mix(0.7, 0.98, 1.0 - u_lightintensity), 1.0)));
     }
 
     // Assign final color based on surface + ambient light color, diffuse light directional, and light color
