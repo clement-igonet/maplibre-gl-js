@@ -45,8 +45,8 @@ const skyUniformValues = (sky: Readonly<SkyPropsPossiblyEvaluated>, transform: I
     return {
         'u_sky_color': sky['sky-color'],
         'u_horizon_color': sky['horizon-color'],
-        'u_horizon': [(transform.width / 2 - mercatorHorizon * sinRoll)  * pixelRatio,
-            (transform.height / 2 + mercatorHorizon * cosRoll) * pixelRatio],
+        'u_horizon': [(transform.centerPoint.x - mercatorHorizon * sinRoll) * pixelRatio,
+            (transform.height - transform.centerPoint.y + mercatorHorizon * cosRoll) * pixelRatio],
         'u_horizon_normal': [-sinRoll, cosRoll],
         'u_sky_horizon_blend': (sky['sky-horizon-blend'] * transform.height / 2) * pixelRatio,
         'u_sky_blend': skyBlend,

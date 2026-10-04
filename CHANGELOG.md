@@ -6,6 +6,7 @@
 - _...Add new stuff here..._
 
 ### 🐞 Bug fixes
+- Fix the sky and the horizon drifting apart when the map padding is uneven at the top and bottom ([#5465](https://github.com/maplibre/maplibre-gl-js/issues/5465)) (by [@clement-igonet](https://github.com/clement-igonet))
 - Fix `GeoJSONSource#updateData` leaving stale clusters on untouched tiles after clustering was turned on with `setClusterOptions` ([#8613](https://github.com/maplibre/maplibre-gl-js/pull/8613)) (by [@clementperon](https://github.com/clementperon))
 - Fix `GeoJSONSource#setClusterOptions` clustering twice when called while new data is waiting to be sent ([#8613](https://github.com/maplibre/maplibre-gl-js/pull/8613)) (by [@clementperon](https://github.com/clementperon))
 - Fix `GeoJSONSource` data set with `setData` being overwritten by the result of an earlier URL load or `updateData` ([#8613](https://github.com/maplibre/maplibre-gl-js/pull/8613)) (by [@clementperon](https://github.com/clementperon))
