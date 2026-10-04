@@ -1,13 +1,16 @@
 import {TransformHelper} from '../transform_helper.ts';
 import {MercatorTransform} from './mercator_transform.ts';
 import {VerticalPerspectiveTransform} from './vertical_perspective_transform.ts';
-import {lerp} from '../../util/util.ts';
+import {createVec4f64, lerp} from '../../util/util.ts';
+import {earthRadius} from '../lng_lat.ts';
+import {MercatorCoordinate} from '../mercator_coordinate.ts';
+import {angularCoordinatesToSurfaceVector} from './globe_utils.ts';
+import Point from '@mapbox/point-geometry';
+import {vec3, vec4} from 'gl-matrix';
 
 import type {LngLat, LngLatLike,} from '../lng_lat.ts';
-import type {mat2, mat4, vec3, vec4} from 'gl-matrix';
+import type {mat2, mat4} from 'gl-matrix';
 import type {OverscaledTileID, UnwrappedTileID, CanonicalTileID} from '../../tile/tile_id.ts';
-import type Point from '@mapbox/point-geometry';
-import type {MercatorCoordinate} from '../mercator_coordinate.ts';
 import type {LngLatBounds} from '../lng_lat_bounds.ts';
 import type {Frustum} from '../../util/primitives/frustum.ts';
 import type {Terrain} from '../../render/terrain.ts';
@@ -415,7 +418,21 @@ export class GlobeTransform implements ITransform {
     }
 
     locationToScreenPoint(lnglat: LngLat, terrain?: Terrain): Point {
-        return this.currentTransform.locationToScreenPoint(lnglat, terrain);
+        if (this._globeness === 0 || this._globeness === 1) {
+            return this.currentTransform.locationToScreenPoint(lnglat, terrain);
+        }
+        // During the transition the shaders draw a blend of both projections, see interpolateProjection.
+        const elevation = terrain ? terrain.getElevationForLngLat(lnglat, this) : 0;
+        const mercator = MercatorCoordinate.fromLngLat(lnglat);
+        const flat = vec4.transformMat4(createVec4f64(), [mercator.x * this.worldSize, mercator.y * this.worldSize, elevation, 1], this._mercatorTransform.modelViewProjectionMatrix);
+        const surface = angularCoordinatesToSurfaceVector(lnglat);
+        vec3.scale(surface, surface, 1 + elevation / earthRadius);
+        const globe = vec4.transformMat4(createVec4f64(), [...surface, 1] as vec4, this._verticalPerspectiveTransform.modelViewProjectionMatrix);
+        const clip = vec4.lerp(createVec4f64(), flat, globe, this._globeness);
+        return new Point(
+            (clip[0] / clip[3] * 0.5 + 0.5) * this.width,
+            (-clip[1] / clip[3] * 0.5 + 0.5) * this.height
+        );
     }
 
     screenPointToMercatorCoordinate(p: Point, terrain?: Terrain): MercatorCoordinate {
