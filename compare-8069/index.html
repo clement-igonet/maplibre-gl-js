@@ -1,20 +1,20 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>#8069: negative fill-extrusion base and height, main vs PR</title>
+<title>#8651: negative fill-extrusion base and height, main vs PR</title>
 <link rel="stylesheet" href="../dist/main-cae8d60f7/maplibre-gl.css">
 <link rel="stylesheet" href="../lib/compare.css">
 </head>
 <body>
 <div id="head">
-    <h1><a href="https://github.com/maplibre/maplibre-gl-js/pull/8069">maplibre-gl-js#8069</a>: allow negative <code>fill-extrusion-base</code> and <code>fill-extrusion-height</code></h1>
-    <p>Left: <code>main</code> at <code>cae8d60f7</code>. Right: PR branch <code>fix/fill-extrusion-negative-base-8051</code> at <code>eb61ab3e8</code>. Cameras are synced, drag either map.</p>
+    <h1><a href="https://github.com/maplibre/maplibre-gl-js/pull/8651">maplibre-gl-js#8651</a>: allow negative <code>fill-extrusion-base</code> and <code>fill-extrusion-height</code></h1>
+    <p>Left: <code>main</code> at <code>cae8d60f7</code>. Right: PR branch <code>fix/negative-fill-extrusion-8051</code> at <code>e1597370e</code> (one commit, replaces #8069). Cameras are synced, drag either map.</p>
 </div>
 <div id="bar"><div id="scenes"></div></div>
 <div id="note"></div>
 <div id="panes">
     <div class="pane"><div class="tag">main</div><div id="map-a" class="map"></div><div id="readout-a" class="readout"></div></div>
-    <div class="pane"><div class="tag">#8069</div><div id="map-b" class="map"></div><div id="readout-b" class="readout"></div></div>
+    <div class="pane"><div class="tag">#8651</div><div id="map-b" class="map"></div><div id="readout-b" class="readout"></div></div>
 </div>
 <script type="module">
 import * as mainLib from '../dist/main-cae8d60f7/maplibre-gl-dev.mjs';
@@ -79,7 +79,7 @@ setupCompare({mainLib, prLib, initial: 'raster', scenes: {
     },
     terrain: {
         label: 'On a slope (terrain)',
-        note: 'Terrain on, a building on a 45% slope near Zermatt, base -30 m, height 20 m. main: the walls stop at the ground height of the centroid and float over the downhill side. #8069: they reach into the slope.',
+        note: 'Terrain on, a building on a 45% slope near Zermatt, base -30 m, height 20 m. main: the walls stop at the ground height of the centroid and float over the downhill side. #8651: they reach into the slope.',
         style: {
             version: 8,
             sources: {
