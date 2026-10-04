@@ -1,8 +1,8 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.6.0/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.12.0/LICENSE.txt
 */
-import { B as PbfReader, Br as warnOnce, D as SymbolBucket, Dt as AlphaImage, Ht as CollisionBoxArray, I as potpack, In as removeProtocol, K as FillExtrusionBucket, Mn as makeRequest, On as getArrayBuffer, Ot as RGBAImage, P as ImageAtlas, Pn as addProtocol, S as createStyleLayer, Sr as mapObject, U as LineBucket, Vn as JSON_PREFIX, W as GeoJSONVT, Wi as Point, Wr as EXTENT, ar as ensureError, bn as groupByLayout, br as isWorker, c as FeatureIndex, d as DictionaryCoder, dt as VectorTile, g as OverscaledTileID, hn as createExpression, hr as isImageBitmap, ht as FillBucket, i as clipGeometry, kn as getJSON, l as MLTVectorTile, m as fromVectorTileJs, n as performSymbolLayout, nn as EvaluationParameters, o as BoundedLRUCache, on as register, p as GeoJSONWrapper, pr as getImageData, rn as rtlWorkerPlugin, sr as extend, x as Actor, xt as DEMData, yn as featureFilter, zn as isAbortError } from "./maplibre-gl-shared-dev.mjs";
+import { D as clipGeometry, Dt as AlphaImage, En as getJSON, F as potpack, H as rtlWorkerPlugin, Ht as CollisionBoxArray, In as isAbortError, K as GeoJSONVT, Lr as warnOnce, N as ImageAtlas, Nn as removeProtocol, Ot as RGBAImage, Rn as JSON_PREFIX, Tn as getArrayBuffer, Vr as EXTENT, Wi as Point, _ as createStyleLayer, _r as isWorker, c as GeoJSONWrapper, d as OverscaledTileID, dn as featureFilter, fn as createExpression, fr as isImageBitmap, ft as VectorTile, g as Actor, i as MLTVectorTile, ir as extend, jn as addProtocol, kn as makeRequest, l as fromVectorTileJs, nr as ensureError, o as DictionaryCoder, r as FeatureIndex, rn as register, t as BoundedLRUCache, tn as EvaluationParameters, un as groupByLayout, ur as getImageData, xt as DEMData, yr as mapObject, z as PbfReader } from "./maplibre-gl-shared-dev.mjs";
 //#region src/style/style_layer_index.ts
 var StyleLayerIndex = class {
 	constructor(layerConfigs, globalState) {
@@ -50,22 +50,25 @@ var GlyphAtlas = class {
 		const positions = {};
 		const bins = [];
 		for (const stack in stacks) {
-			const glyphs = stacks[stack];
 			const stackPositions = positions[stack] = {};
-			for (const id in glyphs) {
-				const src = glyphs[+id];
-				if (!src || src.bitmap.width === 0 || src.bitmap.height === 0) continue;
-				const bin = {
-					x: 0,
-					y: 0,
-					w: src.bitmap.width + 2,
-					h: src.bitmap.height + 2
-				};
-				bins.push(bin);
-				stackPositions[id] = {
-					rect: bin,
-					metrics: src.metrics
-				};
+			for (const variant in stacks[stack]) {
+				const glyphs = stacks[stack][variant];
+				stackPositions[variant] = {};
+				for (const id in glyphs) {
+					const src = glyphs[id];
+					if (!src || src.bitmap.width === 0 || src.bitmap.height === 0) continue;
+					const bin = {
+						x: 0,
+						y: 0,
+						w: src.bitmap.width + 2,
+						h: src.bitmap.height + 2
+					};
+					bins.push(bin);
+					stackPositions[variant][id] = {
+						rect: bin,
+						metrics: src.metrics
+					};
+				}
 			}
 		}
 		const { w, h } = potpack(bins);
@@ -73,12 +76,12 @@ var GlyphAtlas = class {
 			width: w || 1,
 			height: h || 1
 		});
-		for (const stack in stacks) {
-			const glyphs = stacks[stack];
+		for (const stack in stacks) for (const variant in stacks[stack]) {
+			const glyphs = stacks[stack][variant];
 			for (const id in glyphs) {
-				const src = glyphs[+id];
+				const src = glyphs[id];
 				if (!src || src.bitmap.width === 0 || src.bitmap.height === 0) continue;
-				const bin = positions[stack][id].rect;
+				const bin = positions[stack][variant][id].rect;
 				AlphaImage.copy(src.bitmap, image, {
 					x: 0,
 					y: 0
@@ -161,7 +164,7 @@ var WorkerTile = class {
 				featureIndex.bucketLayerIDs.push(family.map((l) => l.id));
 			}
 		}
-		const stacks = mapObject(options.glyphDependencies, (glyphs) => Object.keys(glyphs).map(Number));
+		const stacks = mapObject(options.glyphDependencies, (variants) => mapObject(variants, (glyphs) => Object.keys(glyphs)));
 		for (const request of this.inFlightDependencies) request?.abort();
 		this.inFlightDependencies = [];
 		let getGlyphsPromise = Promise.resolve({});
@@ -228,22 +231,20 @@ var WorkerTile = class {
 		const imageAtlas = new ImageAtlas(iconMap, patternMap);
 		for (const key in buckets) {
 			const bucket = buckets[key];
-			if (bucket instanceof SymbolBucket) {
-				recalculateLayers(bucket.layers, this.zoom, availableImages);
-				performSymbolLayout({
-					bucket,
-					glyphMap,
-					glyphPositions: glyphAtlas.positions,
-					imageMap: iconMap,
-					imagePositions: imageAtlas.iconPositions,
-					showCollisionBoxes: this.showCollisionBoxes,
-					canonical: this.tileID.canonical,
-					subdivisionGranularity: options.subdivisionGranularity
-				});
-			} else if (bucket.hasDependencies && (bucket instanceof FillBucket || bucket instanceof FillExtrusionBucket || bucket instanceof LineBucket)) {
-				recalculateLayers(bucket.layers, this.zoom, availableImages);
-				bucket.addFeatures(options, this.tileID.canonical, imageAtlas.patternPositions, dashPositions);
-			}
+			if (!bucket.hasDependencies) continue;
+			recalculateLayers(bucket.layers, this.zoom, availableImages);
+			bucket.addFeatures({
+				options,
+				canonical: this.tileID.canonical,
+				glyphMap,
+				glyphPositions: glyphAtlas.positions,
+				iconMap,
+				iconPositions: imageAtlas.iconPositions,
+				patternMap,
+				patternPositions: imageAtlas.patternPositions,
+				dashPositions,
+				showCollisionBoxes: this.showCollisionBoxes
+			});
 		}
 		return {
 			buckets: Object.values(buckets).filter((b) => !b.isEmpty()),
@@ -451,6 +452,7 @@ var VectorTileWorkerSource = class {
 			const cacheControl = this._getExpiryData(tileResponse);
 			const resourceTiming = this._finishRequestTiming(timing);
 			workerTile.vectorTile = vectorTile;
+			workerTile.etag = tileResponse.etag;
 			this.tileState.markLoaded(uid, workerTile);
 			const parsingState = {
 				rawData,
@@ -481,7 +483,7 @@ var VectorTileWorkerSource = class {
 				encoding
 			}, result, cacheControl, resourceTiming);
 			this.tileState.removeParsing(workerTile.uid);
-		}
+		} else if (workerTile.etag) result = extend(result, { etag: workerTile.etag });
 		return result;
 	}
 	_getExpiryData({ expires, cacheControl, etag }) {
@@ -559,12 +561,12 @@ var RasterDEMTileWorkerSource = class {
 	}
 	async loadTile(params) {
 		const { uid, encoding, rawImageData, redFactor, greenFactor, blueFactor, baseShift } = params;
-		const width = rawImageData.width + 2;
-		const height = rawImageData.height + 2;
+		const width = rawImageData.width + 4;
+		const height = rawImageData.height + 4;
 		const imagePixels = isImageBitmap(rawImageData) ? new RGBAImage({
 			width,
 			height
-		}, await getImageData(rawImageData, -1, -1, width, height)) : rawImageData;
+		}, await getImageData(rawImageData, -2, -2, width, height)) : rawImageData;
 		const dem = new DEMData(uid, imagePixels, encoding, redFactor, greenFactor, blueFactor, baseShift);
 		this.loaded ||= {};
 		this.loaded[uid] = dem;
@@ -737,7 +739,6 @@ var GeoJSONWorkerSource = class {
 				features: []
 			}, params);
 			this._geoJSONIndex.updateData(params.dataDiff, this._getFilterPredicate(params.filter, params.source));
-			return;
 		}
 		if (params.updateCluster) this._geoJSONIndex.updateClusterOptions(params.geojsonVtOptions.cluster, getSuperclusterOptions(params));
 		if (this._geoJSONIndex == null) throw new Error(`Input data given to '${params.source}' is not a valid GeoJSON object.`);
@@ -883,6 +884,13 @@ var Worker = class {
 		};
 		this.self.addProtocol = addProtocol;
 		this.self.removeProtocol = removeProtocol;
+		/**
+		* Invoked by a right-to-left text plugin once it has fetched and parsed.
+		*
+		* @deprecated MapLibre shapes Arabic and reorders bidirectional text itself. A plugin
+		* registered here still replaces the built-in implementation, but this will be removed in a
+		* future release.
+		*/
 		this.self.registerRTLTextPlugin = (rtlTextPlugin) => {
 			rtlWorkerPlugin.setMethods(rtlTextPlugin);
 		};
