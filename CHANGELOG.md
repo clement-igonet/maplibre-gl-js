@@ -3,6 +3,7 @@
 - _...Add new stuff here..._
 
 ### 🐞 Bug fixes
+- Fix layers placed above a 3D layer in the style, such as a raster or canvas source above translucent fill-extrusions, being hidden by that layer when terrain is enabled ([#6987](https://github.com/maplibre/maplibre-gl-js/issues/6987)) (by [@clement-igonet](https://github.com/clement-igonet))
 - _...Add new stuff here..._
 
 ## 6.12.0

@@ -37,7 +37,12 @@ function drawDepth(painter: Painter, terrain: Terrain): void {
     context.viewport.set([0, 0, painter.width, painter.height]);
 }
 
-function drawTerrain(painter: Painter, terrain: Terrain, tiles: Tile[], frameRenderContext: FrameRenderContext): void {
+/**
+ * Draws the terrain mesh with the render-to-texture result of each tile. With `behind3DLayer` the stack being
+ * drawn follows a 3D layer in the style: the depth buffer is first reset to the terrain surface, so that the
+ * 3D layer no longer hides what the style places above it, as it would not without terrain.
+ */
+function drawTerrain(painter: Painter, terrain: Terrain, tiles: Tile[], frameRenderContext: FrameRenderContext, behind3DLayer: boolean = false): void {
     const {isRenderingGlobe} = frameRenderContext.data;
     const context = painter.context;
     const gl = context.gl;
@@ -49,7 +54,11 @@ function drawTerrain(painter: Painter, terrain: Terrain, tiles: Tile[], frameRen
     context.bindFramebuffer.set(null);
     context.viewport.set([0, 0, painter.width, painter.height]);
 
-    for (const tile of tiles) {
+    const passes: Array<[Readonly<DepthMode>, Readonly<ColorMode>]> = behind3DLayer ?
+        [[new DepthMode(gl.ALWAYS, DepthMode.ReadWrite, depthMode.range), ColorMode.disabled], [depthMode, colorMode]] :
+        [[depthMode, colorMode]];
+
+    for (const [passDepthMode, passColorMode] of passes) for (const tile of tiles) {
         const mesh = terrain.getTerrainMesh(tile.tileID);
         const texture = painter.renderToTexture.getTexture(tile);
         const terrainData = terrain.getTerrainData(tile.tileID);
@@ -59,7 +68,7 @@ function drawTerrain(painter: Painter, terrain: Terrain, tiles: Tile[], frameRen
         const fogMatrix = tr.calculateFogMatrix(tile.tileID.toUnwrapped());
         const uniformValues = terrainUniformValues(eleDelta, fogMatrix, frameRenderContext.data.sky, tr.pitch, isRenderingGlobe);
         const projectionData = frameRenderContext.getProjectionDataForTile(tile.tileID, {applyTerrainMatrix: false});
-        program.draw(context, gl.TRIANGLES, depthMode, StencilMode.disabled, colorMode, CullFaceMode.backCCW, uniformValues, terrainData, projectionData, 'terrain', mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
+        program.draw(context, gl.TRIANGLES, passDepthMode, StencilMode.disabled, passColorMode, CullFaceMode.backCCW, uniformValues, terrainData, projectionData, 'terrain', mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
     }
 }
 

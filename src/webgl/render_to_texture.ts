@@ -67,6 +67,11 @@ export class RenderToTexture {
      */
     _rttTiles: Tile[];
     /**
+     * Whether a 3D layer has been drawn since the frame started. Stacks drawn after it skip the depth buffer,
+     * so that the 3D layer does not hide what the style puts above it.
+     */
+    _behind3DLayer: boolean;
+    /**
      * a list of all layer-ids which should be rendered
      */
     _renderableLayerIds: string[];
@@ -104,6 +109,7 @@ export class RenderToTexture {
         this._stacks = [];
         this._prevType = null;
         this._rttTiles = [];
+        this._behind3DLayer = false;
         this._renderableTiles = this.terrain.tileManager.getRenderableTiles();
         this._renderableLayerIds = style._order.filter(id => !style._layers[id].isHidden(zoom));
         const visibleLayerIds = this._renderableLayerIds.join();
@@ -229,12 +235,14 @@ export class RenderToTexture {
             }
             frameRenderContext.isRenderingToTexture = false;
             setFrameUniformWorldSize(painter.context.frameUniformBuffer, painter.context.gl.drawingBufferWidth, painter.context.gl.drawingBufferHeight);
-            drawTerrain(this.painter, this.terrain, this._rttTiles, frameRenderContext);
+            drawTerrain(this.painter, this.terrain, this._rttTiles, frameRenderContext, this._behind3DLayer);
             this._rttTiles = [];
 
+            if (!LAYERS_TO_TEXTURES[type] && layer.is3D()) this._behind3DLayer = true;
             return LAYERS_TO_TEXTURES[type];
         }
 
+        if (layer.is3D()) this._behind3DLayer = true;
         return false;
     }
 

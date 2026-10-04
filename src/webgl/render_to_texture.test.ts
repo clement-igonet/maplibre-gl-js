@@ -28,36 +28,42 @@ describe('render to texture', () => {
     const backgroundLayer = {
         id: 'maine-background',
         type: 'background',
+        is3D: () => false,
         source: 'maine',
         isHidden: () => false
     } as any as BackgroundStyleLayer;
     const fillLayer = {
         id: 'maine-fill',
         type: 'fill',
+        is3D: () => false,
         source: 'maine',
         isHidden: () => false
     } as any as FillStyleLayer;
     const rasterLayer = {
         id: 'maine-raster',
         type: 'raster',
+        is3D: () => false,
         source: 'maine',
         isHidden: () => false
     } as any as RasterStyleLayer;
     const hillshadeLayer = {
         id: 'maine-hillshade',
         type: 'line',
+        is3D: () => false,
         source: 'maine',
         isHidden: () => false
     } as any as HillshadeStyleLayer;
     const lineLayer = {
         id: 'maine-line',
         type: 'line',
+        is3D: () => false,
         source: 'maine',
         isHidden: () => false
     } as any as LineStyleLayer;
     const symbolLayer = {
         id: 'maine-symbol',
         type: 'symbol',
+        is3D: () => false,
         source: 'maine',
         layout: {
             'text-field': 'maine',
