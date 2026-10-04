@@ -235,6 +235,24 @@ describe('GlobeTransform', () => {
                 expect(projected.x).toBeCloseTo(screenCenter.x, precisionDigits);
                 expect(projected.y).toBeGreaterThan(screenCenter.y);
             });
+
+            test('a location on terrain moves smoothly into mercator at the end of the transition', () => {
+                const transform = createGlobeTransform();
+                transform.setCenter(new LngLat(11, 47));
+                transform.setZoom(11.5);
+                transform.setPitch(60);
+                transform.setElevation(1000);
+                const terrain = createTerrain();
+                const location = new LngLat(11.03, 47.01);
+
+                transform.setTransitionState(0);
+                const mercator = transform.locationToScreenPoint(location, terrain);
+                transform.setTransitionState(0.001);
+                const almostMercator = transform.locationToScreenPoint(location, terrain);
+
+                expect(almostMercator.x).toBeCloseTo(mercator.x, 0);
+                expect(almostMercator.y).toBeCloseTo(mercator.y, 0);
+            });
         });
 
         describe('unproject', () => {
