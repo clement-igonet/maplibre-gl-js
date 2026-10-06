@@ -516,7 +516,7 @@ export class VerticalPerspectiveTransform implements ITransform {
         mat4.rotateZ(globeMatrix, globeMatrix, this.rollInRadians);
         mat4.rotateX(globeMatrix, globeMatrix, -this.pitchInRadians);
         mat4.rotateZ(globeMatrix, globeMatrix, this.bearingInRadians);
-        mat4.translate(globeMatrix, globeMatrix, [0.0, 0, -globeRadiusPixels]);
+        mat4.translate(globeMatrix, globeMatrix, [0.0, 0, -globeRadiusPixels * (1 + this.elevation / earthRadius)]);
         // Rotate the sphere to center it on viewed coordinates
 
         const scaleVec = createVec3f64();
@@ -539,7 +539,7 @@ export class VerticalPerspectiveTransform implements ITransform {
         vec3.rotateZ(this._cameraPosition, this._cameraPosition, zero, -this.rollInRadians);
         vec3.rotateX(this._cameraPosition, this._cameraPosition, zero, this.pitchInRadians);
         vec3.rotateZ(this._cameraPosition, this._cameraPosition, zero, -this.bearingInRadians);
-        vec3.add(this._cameraPosition, this._cameraPosition, [0, 0, 1]);
+        vec3.add(this._cameraPosition, this._cameraPosition, [0, 0, 1 + this.elevation / earthRadius]);
         vec3.rotateX(this._cameraPosition, this._cameraPosition, zero, -this.center.lat * Math.PI / 180.0);
         vec3.rotateY(this._cameraPosition, this._cameraPosition, zero, this.center.lng * Math.PI / 180.0);
 
@@ -590,8 +590,7 @@ export class VerticalPerspectiveTransform implements ITransform {
     }
 
     /**
-     * The altitude of the rendered camera above sea level. The sphere keeps the center point at sea level whatever its
-     * elevation (`_calcMatrices` does not apply it), so unlike on mercator the center elevation does not lift the camera.
+     * The altitude of the rendered camera above sea level. As on mercator, the center elevation lifts the camera.
      * {@link calculateCameraOptionsFromTo} is the inverse.
      */
     getCameraAltitude(): number {
@@ -717,8 +716,8 @@ export class VerticalPerspectiveTransform implements ITransform {
 
     /**
      * Inverts the camera placement of `_calcMatrices` in unit-globe coordinates: the camera sits at radius
-     * `1 + altitudeFrom / earthRadius` and looks at the center on the sea-level sphere, the target altitude only becoming
-     * the center elevation (the inverse of {@link getCameraAltitude}). Pitch and bearing are read in the center's local
+     * `1 + altitudeFrom / earthRadius` and looks at the center raised to the target altitude, which becomes the center
+     * elevation (the inverse of {@link getCameraAltitude}). Pitch and bearing are read in the center's local
      * frame, +z up, +y north, +x east. A camera straight above the center keeps the transform's bearing.
      */
     calculateCameraOptionsFromTo(from: LngLatLike, altitudeFrom: number, to: LngLatLike, altitudeTo: number): CameraOptionsFromTo {
@@ -727,9 +726,9 @@ export class VerticalPerspectiveTransform implements ITransform {
         vec3.scale(camera, camera, 1 + altitudeFrom / earthRadius);
         const target = angularCoordinatesToSurfaceVector(center);
         const targetAtAltitude = vec3.scale(createVec3f64(), target, 1 + altitudeTo / earthRadius);
-        const toCamera = vec3.subtract(createVec3f64(), camera, target);
+        const toCamera = vec3.subtract(createVec3f64(), camera, targetAtAltitude);
         const distance = vec3.length(toCamera);
-        if (distance < SAME_POINT_DISTANCE || vec3.distance(camera, targetAtAltitude) < SAME_POINT_DISTANCE) {
+        if (distance < SAME_POINT_DISTANCE) {
             throw new Error('Can\'t calculate camera options with same From and To');
         }
 
